@@ -37,7 +37,7 @@ void kernel_initialise(
   double** a_non_zeros)
 {
   print_and_log(settings,
-                "Performing this solve with the OpenMP 3.0 %s solver\n",
+                "Performing this solve with the OpenMP 3.0 (explicit) %s solver\n",
                 settings->solver_name);
 
   allocate_buffer(density0, x, y);
