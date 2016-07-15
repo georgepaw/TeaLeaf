@@ -145,13 +145,13 @@ static void inject_bitflip(uint32_t* a_col_index, double* a_non_zeros, uint32_t 
     if (bit < 64)
     {
       printf("*** flipping bit %d of value at index %d ***\n", bit, index);
-      *((uint64_t*)a_non_zeros+index) ^= 0x1 << (bit % 32);
+      *((uint64_t*)a_non_zeros+index) ^= 0x1U << (bit % 32);
     }
     else
     {
       bit = bit - 64;
       printf("*** flipping bit %d of column at index %d ***\n", bit, index);
-      a_col_index[index] ^= 0x1 << (bit % 32);
+      a_col_index[index] ^= 0x1U << (bit % 32);
     }
   }
 }

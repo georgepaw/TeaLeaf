@@ -157,6 +157,7 @@ void cg_init(
       rro_temp += r[index]*r[index];
     }
   }
+  // inject_bitflip(a_col_index, a_non_zeros, 1, 1);
 
   *rro += rro_temp;
 }
@@ -225,7 +226,7 @@ void cg_calc_w(
         {
           // Unflip bit
           uint32_t bit = ecc_get_flipped_bit_col8(syndrome);
-          ((uint*)(&element))[bit/32] ^= 0x1 << (bit % 32);
+          ((uint*)(&element))[bit/32] ^= 0x1U << (bit % 32);
           a_col_index[idx] = element.column;
           a_non_zeros[idx] = element.value;
           printf("[ECC] corrected bit %u at index %u\n", bit, idx);
@@ -248,13 +249,13 @@ void cg_calc_w(
           {
             // Unflip bit
             uint32_t bit = ecc_get_flipped_bit_col8(syndrome);
-            ((uint*)(&element))[bit/32] ^= 0x1 << (bit % 32);
+            ((uint*)(&element))[bit/32] ^= 0x1U << (bit % 32);
             printf("[ECC] corrected bit %u at index %u\n", bit, idx);
           }
           else
           {
             // Correct overall parity bit
-            element.column ^= 0x1 << 24;
+            element.column ^= 0x1U << 24;
             printf("[ECC] corrected overall parity bit at index %u\n", idx);
           }
 
@@ -278,13 +279,13 @@ void cg_calc_w(
           {
             // Unflip bit
             uint32_t bit = ecc_get_flipped_bit_col8(syndrome);
-            ((uint*)(&element))[bit/32] ^= 0x1 << (bit % 32);
+            ((uint*)(&element))[bit/32] ^= 0x1U << (bit % 32);
             printf("[ECC] corrected bit %u at index %d\n", bit, idx);
           }
           else
           {
             // Correct overall parity bit
-            element.column ^= 0x1 << 24;
+            element.column ^= 0x1U << 24;
             printf("[ECC] corrected overall parity bit at index %d\n", idx);
           }
 
