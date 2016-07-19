@@ -157,7 +157,6 @@ void cg_init(
       rro_temp += r[index]*r[index];
     }
   }
-  // inject_bitflip(a_col_index, a_non_zeros, 1, 1);
 
   *rro += rro_temp;
 }
@@ -226,7 +225,7 @@ void cg_calc_w(
         {
           // Unflip bit
           uint32_t bit = ecc_get_flipped_bit_col8(syndrome);
-          ((uint*)(&element))[bit/32] ^= 0x1U << (bit % 32);
+          ((uint32_t*)(&element))[bit/32] ^= 0x1U << (bit % 32);
           a_col_index[idx] = element.column;
           a_non_zeros[idx] = element.value;
           printf("[ECC] corrected bit %u at index %u\n", bit, idx);
@@ -249,7 +248,7 @@ void cg_calc_w(
           {
             // Unflip bit
             uint32_t bit = ecc_get_flipped_bit_col8(syndrome);
-            ((uint*)(&element))[bit/32] ^= 0x1U << (bit % 32);
+            ((uint32_t*)(&element))[bit/32] ^= 0x1U << (bit % 32);
             printf("[ECC] corrected bit %u at index %u\n", bit, idx);
           }
           else
@@ -279,7 +278,7 @@ void cg_calc_w(
           {
             // Unflip bit
             uint32_t bit = ecc_get_flipped_bit_col8(syndrome);
-            ((uint*)(&element))[bit/32] ^= 0x1U << (bit % 32);
+            ((uint32_t*)(&element))[bit/32] ^= 0x1U << (bit % 32);
             printf("[ECC] corrected bit %u at index %d\n", bit, idx);
           }
           else

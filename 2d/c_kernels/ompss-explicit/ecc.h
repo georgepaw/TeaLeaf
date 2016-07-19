@@ -59,25 +59,25 @@ static inline uint32_t ecc_compute_col8(csr_element colval)
   uint32_t p;
 
   p = (data[0] & ECC7_P1_0) ^ (data[1] & ECC7_P1_1) ^ (data[2] & ECC7_P1_2);
-  result |= __builtin_parity(p) << 31;
+  result |= __builtin_parity(p) << 31U;
 
   p = (data[0] & ECC7_P2_0) ^ (data[1] & ECC7_P2_1) ^ (data[2] & ECC7_P2_2);
-  result |= __builtin_parity(p) << 30;
+  result |= __builtin_parity(p) << 30U;
 
   p = (data[0] & ECC7_P3_0) ^ (data[1] & ECC7_P3_1) ^ (data[2] & ECC7_P3_2);
-  result |= __builtin_parity(p) << 29;
+  result |= __builtin_parity(p) << 29U;
 
   p = (data[0] & ECC7_P4_0) ^ (data[1] & ECC7_P4_1) ^ (data[2] & ECC7_P4_2);
-  result |= __builtin_parity(p) << 28;
+  result |= __builtin_parity(p) << 28U;
 
   p = (data[0] & ECC7_P5_0) ^ (data[1] & ECC7_P5_1) ^ (data[2] & ECC7_P5_2);
-  result |= __builtin_parity(p) << 27;
+  result |= __builtin_parity(p) << 27U;
 
   p = (data[0] & ECC7_P6_0) ^ (data[1] & ECC7_P6_1) ^ (data[2] & ECC7_P6_2);
-  result |= __builtin_parity(p) << 26;
+  result |= __builtin_parity(p) << 26U;
 
   p = (data[0] & ECC7_P7_0) ^ (data[1] & ECC7_P7_1) ^ (data[2] & ECC7_P7_2);
-  result |= __builtin_parity(p) << 25;
+  result |= __builtin_parity(p) << 25U;
 
   return result;
 }
@@ -102,8 +102,8 @@ static inline uint32_t ecc_get_flipped_bit_col8(uint32_t syndrome)
   uint32_t hamm_bit = 0;
   for (int p = 1; p <= 7; p++)
   {
-    if ((syndrome >> (32-p)) & 0x1)
-      hamm_bit += 0x1<<(p-1);
+    if ((syndrome >> (32-p)) & 0x1U)
+      hamm_bit += 0x1U<<(p-1);
   }
 
   // Map to actual data bit position
@@ -134,23 +134,18 @@ static void inject_bitflip(uint32_t* a_col_index, double* a_non_zeros, uint32_t 
 
   int start = 0;
   int end   = 96;
-  // if (kind == VALUE)
-  //   end = 64;
-  // else if (kind == INDEX)
-  //   start = 64;
 
   for (int i = 0; i < num_flips; i++)
   {
     int bit = (rand() % (end-start)) + start;
+    printf("*** flipping bit %d at index %d ***\n", bit, index);
     if (bit < 64)
     {
-      printf("*** flipping bit %d of value at index %d ***\n", bit, index);
-      *((uint64_t*)a_non_zeros+index) ^= 0x1U << (bit % 32);
+      *((uint64_t*)a_non_zeros+index) ^= 0x1ULL << (bit);
     }
     else
     {
       bit = bit - 64;
-      printf("*** flipping bit %d of column at index %d ***\n", bit, index);
       a_col_index[index] ^= 0x1U << (bit % 32);
     }
   }
