@@ -2,11 +2,22 @@
 #include <stdlib.h>
 #include "../../shared.h"
 #include "ecc.h"
+#include "mpoison.h"
 
 /*
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
 
+#ifdef INJECT_FAULT
+volatile uint32_t flag = 1;
+#endif
+
+unsigned char fail_task(void* ptr) {
+   unsigned char temp = 0;
+   mpoison_block_page((uintptr_t) ptr);
+   temp = *(unsigned char*)(ptr);
+   return temp;
+}
 
 // Initialises the CG solver
 void cg_init(
@@ -175,6 +186,15 @@ void cg_calc_w(
 {
   double pw_temp = 0.0;
 
+#ifdef INJECT_FAULT
+  if(flag)
+  {
+   flag = 0;
+   inject_bitflip(a_col_index, a_non_zeros, 1, 1);
+ }
+ printf("Value at index %d = a_col: %u a_val %.10lf\n", 1, a_col_index[1], a_non_zeros[1]);
+#endif
+
 #pragma omp for reduction(+:pw_temp)
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
   {
@@ -209,7 +229,7 @@ void cg_calc_w(
         if(ecc_compute_overall_parity(element))
         {
           printf("[ECC] error detected at index %u\n", idx);
-          exit(EXIT_FAILURE);
+          fail_task((void*)a_col_index);
         }
         // Mask out ECC from high order column bits
         element.column &= 0x00FFFFFF;
@@ -298,6 +318,7 @@ void cg_calc_w(
             // Overall parity fine but error in syndrom
             // Must be double-bit error - cannot correct this
             printf("[ECC] double-bit error detected at index %d\n", idx);
+            fail_task((void*)a_col_index);
           }
         }
         // Mask out ECC from high order column bits

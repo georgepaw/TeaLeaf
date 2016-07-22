@@ -48,7 +48,7 @@ make_build_dir:
 .PHONY: clean
 
 clean:
-	rm -rf obj/ *.o *.a tealeaf
+	rm -rf obj/ *.o *.a tealeaf mcc_*
 
 ## Populates make.deps with dependencies
 #obj/%.o: %.cu Makefile make.deps

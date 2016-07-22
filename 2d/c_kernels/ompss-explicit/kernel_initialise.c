@@ -1,6 +1,9 @@
 #include "../../settings.h"
 #include "../../shared.h"
 #include <stdlib.h>
+#include <unistd.h>
+
+#define PAGE_ROUND_UP(x,y) ((x + y - 1) & (~(y - 1)))
 
 // Allocates, and zeroes an individual buffer
 void allocate_buffer(double** a, int x, int y)
@@ -93,8 +96,11 @@ void kernel_initialise(
   }
 
   int num_non_zeros = (*a_row_index)[x*y];
-  *a_col_index = (int*)malloc(sizeof(int)*num_non_zeros);
-  *a_non_zeros = (double*)malloc(sizeof(double)*num_non_zeros);
+  //to use mpoison the memory has to be aligned to pages
+  //also round up to the nearest page
+  uint32_t page_size = getpagesize();
+  posix_memalign((void**)a_col_index, page_size, PAGE_ROUND_UP(sizeof(int)*num_non_zeros, page_size));
+  posix_memalign((void**)a_non_zeros, page_size, PAGE_ROUND_UP(sizeof(double)*num_non_zeros, page_size));
 }
 
 void kernel_finalise(

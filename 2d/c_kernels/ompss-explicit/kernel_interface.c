@@ -110,6 +110,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
             settings->halo_depth, pw, chunk->p, chunk->w,
             chunk->ext->a_row_index, chunk->ext->a_col_index,
             chunk->ext->a_non_zeros);
+#pragma omp taskwait
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
