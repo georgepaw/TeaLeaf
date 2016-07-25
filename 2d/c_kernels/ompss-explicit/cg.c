@@ -1,7 +1,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "../../shared.h"
+#ifdef CRC
+#include "crc.h"
+#else
 #include "ecc.h"
+#endif
+#include "fault_injection.h"
 #include "mpoison.h"
 
 /*
@@ -88,29 +93,53 @@ void cg_init(
     for(int kk = halo_depth; kk < x-1; ++kk)
     {
       const int index = jj*x + kk;
-      int coef_index = a_row_index[index];
-
+      const int coef_index = a_row_index[index];
+      int offset = coef_index;
       if (jj <    halo_depth || kk <    halo_depth ||
           jj >= y-halo_depth || kk >= x-halo_depth)
       {
         continue;
       }
+#ifdef CRC
+      a_non_zeros[offset]   = -ky[index];
+      a_col_index[offset++] = index-x;
+
+      a_non_zeros[offset]   = -kx[index];
+      a_col_index[offset++] = index-1;
+
+      a_non_zeros[offset]   = (1.0 +
+                                   kx[index+1] + kx[index] +
+                                   ky[index+x] + ky[index]);
+      a_col_index[offset++] = index;
+
+      a_non_zeros[offset]   = -kx[index+1];
+      a_col_index[offset++] = index+1;
+
+      a_non_zeros[offset]   = -ky[index+x];
+      a_col_index[offset++] = index+x;
+
+      //generate the CRC bits and put them in the right places
+      uint16_t crc = generate_crc16_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
+
+      a_col_index[coef_index] += (crc & 0xFF00) << 16;
+      a_col_index[coef_index + 1] += (crc & 0x00FF) << 24;
+#else
       csr_element element;
 
       element.value  = -ky[index];
       element.column = index-x;
 
       generate_ecc_bits(&element);
-      a_non_zeros[coef_index]   = element.value;
-      a_col_index[coef_index++] = element.column;
+      a_non_zeros[offset]   = element.value;
+      a_col_index[offset++] = element.column;
 
       element.value  = -kx[index];
       element.column = index-1;
 
       generate_ecc_bits(&element);
 
-      a_non_zeros[coef_index]   = element.value;
-      a_col_index[coef_index++] = element.column;
+      a_non_zeros[offset]   = element.value;
+      a_col_index[offset++] = element.column;
 
       element.value  = (1.0 +
                         kx[index+1] + kx[index] +
@@ -119,24 +148,25 @@ void cg_init(
 
       generate_ecc_bits(&element);
 
-      a_non_zeros[coef_index]   = element.value;
-      a_col_index[coef_index++] = element.column;
+      a_non_zeros[offset]   = element.value;
+      a_col_index[offset++] = element.column;
 
       element.value  = -kx[index+1];
       element.column = index+1;
 
       generate_ecc_bits(&element);
 
-      a_non_zeros[coef_index]   = element.value;
-      a_col_index[coef_index++] = element.column;
+      a_non_zeros[offset]   = element.value;
+      a_col_index[offset++] = element.column;
 
       element.value  = -ky[index+x];
       element.column = index+x;
 
       generate_ecc_bits(&element);
 
-      a_non_zeros[coef_index]   = element.value;
-      a_col_index[coef_index++] = element.column;
+      a_non_zeros[offset]   = element.value;
+      a_col_index[offset++] = element.column;
+#endif
     }
   }
 
@@ -156,7 +186,7 @@ void cg_init(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
-#if defined(SED) || defined(SEC7) || defined(SEC8) || defined(SECDED)
+#if defined(CRC) || defined(SED) || defined(SEC7) || defined(SEC8) || defined(SECDED)
         col &= 0x00FFFFFF;
 #endif
         tmp += a_non_zeros[idx] * u[col];
@@ -203,8 +233,20 @@ void cg_calc_w(
       const int row = kk + jj*x;
 
       double tmp = 0.0;
-
       uint32_t row_begin = a_row_index[row];
+#ifdef CRC
+      if(!check_correct_crc16_bits(&a_col_index[row_begin], &a_non_zeros[row_begin]))
+      {
+        printf("[CRC] error detected at row %d\n", row);
+        fail_task(a_col_index);
+      }
+      tmp  = a_non_zeros[row_begin    ] * p[a_col_index[row_begin    ] & 0x00FFFFFF];
+      tmp += a_non_zeros[row_begin + 1] * p[a_col_index[row_begin + 1] & 0x00FFFFFF];
+      tmp += a_non_zeros[row_begin + 2] * p[a_col_index[row_begin + 2] & 0x00FFFFFF];
+      tmp += a_non_zeros[row_begin + 3] * p[a_col_index[row_begin + 3] & 0x00FFFFFF];
+      tmp += a_non_zeros[row_begin + 4] * p[a_col_index[row_begin + 4] & 0x00FFFFFF];
+
+#else
       uint32_t row_end   = a_row_index[row+1];
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
@@ -220,7 +262,6 @@ void cg_calc_w(
           printf("column order constraint violated at index %u\n", idx);
           exit(EXIT_FAILURE);
         }
-
 #elif defined(SED)
         csr_element element;
         element.value  = a_non_zeros[idx];
@@ -234,7 +275,6 @@ void cg_calc_w(
         // Mask out ECC from high order column bits
         element.column &= 0x00FFFFFF;
         col = element.column;
-
 #elif defined(SEC7)
         csr_element element;
         element.value  = a_non_zeros[idx];
@@ -254,7 +294,6 @@ void cg_calc_w(
         // Mask out ECC from high order column bits
         element.column &= 0x00FFFFFF;
         col = element.column;
-
 #elif defined(SEC8)
         csr_element element;
         element.value  = a_non_zeros[idx];
@@ -284,7 +323,6 @@ void cg_calc_w(
         // Mask out ECC from high order column bits
         element.column &= 0x00FFFFFF;
         col = element.column;
-
 #elif defined(SECDED)
         csr_element element;
         element.value  = a_non_zeros[idx];
@@ -327,7 +365,7 @@ void cg_calc_w(
 #endif
         tmp += a_non_zeros[idx] * p[col];
       }
-
+#endif
       w[row] = tmp;
       pw_temp += tmp*p[row];
     }
