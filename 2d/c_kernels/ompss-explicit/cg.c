@@ -119,10 +119,11 @@ void cg_init(
       a_col_index[offset++] = index+x;
 
       //generate the CRC bits and put them in the right places
-      uint16_t crc = generate_crc16_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
+      // uint16_t crc = generate_crc16_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
+      uint8_t crc = generate_crc8_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
 
-      a_col_index[coef_index] += (crc & 0xFF00) << 16;
-      a_col_index[coef_index + 1] += (crc & 0x00FF) << 24;
+      a_col_index[coef_index] += ((uint32_t)crc) << 24;
+      // a_col_index[coef_index + 1] += (crc & 0x00FF) << 24;
 #else
       csr_element element;
 
@@ -235,7 +236,7 @@ void cg_calc_w(
       double tmp = 0.0;
       uint32_t row_begin = a_row_index[row];
 #ifdef CRC
-      if(!check_correct_crc16_bits(&a_col_index[row_begin], &a_non_zeros[row_begin]))
+      if(!check_correct_crc8_bits(&a_col_index[row_begin], &a_non_zeros[row_begin]))
       {
         printf("[CRC] error detected at row %d\n", row);
         fail_task(a_col_index);
