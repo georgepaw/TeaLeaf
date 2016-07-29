@@ -7,8 +7,9 @@
 #include "ecc.h"
 #endif
 #include "fault_injection.h"
+#ifdef MPOISON
 #include "mpoison.h"
-
+#endif
 /*
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
@@ -17,11 +18,14 @@
 volatile uint32_t flag = 1;
 #endif
 
-unsigned char fail_task(void* ptr) {
+void fail_task(void* ptr) {
+#ifdef MPOISON
    unsigned char temp = 0;
    mpoison_block_page((uintptr_t) ptr);
    temp = *(unsigned char*)(ptr);
-   return temp;
+#else
+   exit(1);
+#endif
 }
 
 // Initialises the CG solver
@@ -120,8 +124,6 @@ void cg_init(
 
       //generate the CRC bits and put them in the right places
       uint32_t crc = generate_crc32_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
-      // printf("Crc is %u\n", crc);
-      // exit(0);
       a_col_index[coef_index    ] += crc & 0xFF000000;
       a_col_index[coef_index + 1] += (crc & 0x00FF0000) << 8;
       a_col_index[coef_index + 2] += (crc & 0x0000FF00) << 16;
@@ -223,11 +225,9 @@ void cg_calc_w(
   uint32_t bitflip_index = 0;
   if(flag)
   {
-    // printf("Value at index was %d = a_col: %u a_val %.50lf\n", bitflip_index, a_col_index[bitflip_index], a_non_zeros[bitflip_index]);
     flag = 0;
-    inject_bitflip(a_col_index, a_non_zeros, bitflip_index, 4);
+    inject_bitflip(a_col_index, a_non_zeros, bitflip_index, 5);
   }
-  // printf("Value at index %d = a_col: %u a_val %.50lf\n", bitflip_index, a_col_index[bitflip_index], a_non_zeros[bitflip_index]);
 #endif
 
 #pragma omp for reduction(+:pw_temp)
@@ -240,10 +240,11 @@ void cg_calc_w(
       double tmp = 0.0;
       uint32_t row_begin = a_row_index[row];
 #ifdef CRC
+      //CRC TeaLeaf Specific
       if(!check_correct_crc32_bits(&a_col_index[row_begin], &a_non_zeros[row_begin]))
       {
         printf("[CRC] error detected at row %d %d %d\n", row_begin, jj, kk);
-        fail_task(a_col_index);
+        fail_task((void*)a_col_index);
       }
       tmp  = a_non_zeros[row_begin    ] * p[a_col_index[row_begin    ] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 1] * p[a_col_index[row_begin + 1] & 0x00FFFFFF];
@@ -260,12 +261,12 @@ void cg_calc_w(
         if(col >= N)
         {
           printf("column size constraint violated at index %u\n", idx);
-          exit(EXIT_FAILURE);
+          fail_task((void*)a_col_index);
         }
         else if(idx < end-1 && mat_cols[idx+1] <= col)
         {
           printf("column order constraint violated at index %u\n", idx);
-          exit(EXIT_FAILURE);
+          fail_task((void*)a_col_index);
         }
 #elif defined(SED)
         csr_element element;

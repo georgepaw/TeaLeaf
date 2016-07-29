@@ -5,15 +5,15 @@
  * 		LOCAL HALOS KERNEL
  */	
 
-void update_left(const int x, const int y, 
+void update_left(const int x, const int y,
         const int halo_depth, const int depth, double* buffer);
-void update_right(const int x, const int y, 
+void update_right(const int x, const int y,
         const int halo_depth, const int depth, double* buffer);
-void update_top(const int x, const int y, 
-        const int halo_depth, const int depth, double* buffer); 
-void update_bottom(const int x, const int y, 
+void update_top(const int x, const int y,
         const int halo_depth, const int depth, double* buffer);
-void update_face(const int x, const int y, const int halo_depth, 
+void update_bottom(const int x, const int y,
+        const int halo_depth, const int depth, double* buffer);
+void update_face(const int x, const int y, const int halo_depth,
         const int* chunk_neighbours, const int depth, double* buffer);
 
 typedef void (*update_kernel)(int,double*);
@@ -45,13 +45,14 @@ void local_halos(
     LAUNCH_UPDATE(FIELD_ENERGY1, energy);
     LAUNCH_UPDATE(FIELD_U, u);
     LAUNCH_UPDATE(FIELD_SD, sd);
+#pragma omp taskwait
 #undef LAUNCH_UPDATE
 }
 
 // Updates faces in turn.
 void update_face(
         const int x,
-        const int y, 
+        const int y,
         const int halo_depth,
         const int* chunk_neighbours,
         const int depth,
@@ -70,25 +71,26 @@ void update_face(
 }
 
 // Update left halo.
+#pragma omp task
 void update_left(
         const int x,
         const int y,
         const int halo_depth,
-        const int depth, 
+        const int depth,
         double* buffer)
 {
-#pragma omp for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = 0; kk < depth; ++kk)
         {
             int base = jj*x;
-            buffer[base+(halo_depth-kk-1)] = buffer[base+(halo_depth+kk)];			
+            buffer[base+(halo_depth-kk-1)] = buffer[base+(halo_depth+kk)];
         }
     }
 }
 
 // Update right halo.
+#pragma omp task
 void update_right(
         const int x,
         const int y,
@@ -96,7 +98,6 @@ void update_right(
         const int depth,
         double* buffer)
 {
-#pragma omp for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = 0; kk < depth; ++kk)
@@ -109,6 +110,7 @@ void update_right(
 }
 
 // Update top halo.
+#pragma omp task
 void update_top(
         const int x,
         const int y,
@@ -118,7 +120,6 @@ void update_top(
 {
     for(int jj = 0; jj < depth; ++jj)
     {
-#pragma omp for
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int base = kk;
@@ -129,6 +130,7 @@ void update_top(
 }
 
 // Updates bottom halo.
+#pragma omp task
 void update_bottom(
         const int x,
         const int y,
@@ -138,7 +140,6 @@ void update_bottom(
 {
     for(int jj = 0; jj < depth; ++jj)
     {
-#pragma omp for
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int base = kk;

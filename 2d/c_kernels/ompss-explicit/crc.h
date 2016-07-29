@@ -362,7 +362,6 @@ static uint32_t generate_crc32_bits(uint32_t * a_cols, double * a_non_zeros)
     masks[i] = a_cols[i] & 0xFF000000;
     a_cols[i] &= 0x00FFFFFF;
   }
-  uint32_t old_crc = crc;
   crc = crc32_chunk(crc, (uint8_t*)a_cols, 20);
   crc = crc32_chunk(crc, (uint8_t*)a_non_zeros, 40);
   //restore masks
