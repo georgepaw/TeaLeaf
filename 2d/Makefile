@@ -2,7 +2,8 @@
 KERNELS  	= kokkos
 CPROFILER   = yes
 DEBUG       = no
-OPTIONS     = -DNO_MPI
+OPTIONS     = -DSED -DINJECT_FAULT
+# -DNO_MPI
 CC  		= icc
 CPP			= icpc
 COMPILER    = INTEL

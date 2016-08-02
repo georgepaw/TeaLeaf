@@ -226,7 +226,7 @@ void cg_calc_w(
   if(flag)
   {
     flag = 0;
-    inject_bitflip(a_col_index, a_non_zeros, bitflip_index, 5);
+    inject_bitflip(a_col_index, a_non_zeros, bitflip_index, 37);
   }
 #endif
 
