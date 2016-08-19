@@ -67,9 +67,11 @@ void cg_init(
   uint32_t* a_row_index, uint32_t* a_col_index,
   double* a_non_zeros);
 
-#pragma omp task in([x*y]a_col_index) in([x*y]a_non_zeros) out(*w) recover copy_deps
+#ifdef FT_MPOISON
+#pragma omp task in([nnz]a_col_index) in([nnz]a_non_zeros) inout([1]pw) out(*w) recover copy_deps
+#endif
 void cg_calc_w(
-  const int x, const int y, const int halo_depth, double* pw,
+  const int nnz, const int x, const int y, const int halo_depth, double* pw,
   double* p, double* w,
   uint32_t* a_row_index, uint32_t* a_col_index,
   double* a_non_zeros);

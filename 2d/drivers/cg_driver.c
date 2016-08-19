@@ -2,6 +2,15 @@
 #include "drivers.h"
 #include "../kernel_interface.h"
 #include "../chunk.h"
+#ifdef FT_FTI
+#include <fti.h>
+#endif
+
+
+#ifdef FT_FTI
+volatile uint32_t checkpoint_id = 0;
+volatile uint32_t checkpoint_level = 1;
+#endif
 
 // Performs a full solve with the CG solver kernels
 void cg_driver(
@@ -13,6 +22,23 @@ void cg_driver(
  
     // Perform CG initialisation
     cg_init_driver(chunks, settings, rx, ry, &rro);
+
+//FTI CHECKPOINTING
+#ifdef FT_FTI
+  if(checkpoint_id == 0)
+  {
+    FTI_Protect(2 * settings->num_chunks_per_rank, &checkpoint_id, 1, FTI_UINT);
+    FTI_Protect(2 * settings->num_chunks_per_rank + 1, &checkpoint_level, 1, FTI_UINT);
+  }
+  if (FTI_DONE == FTI_Checkpoint(checkpoint_id, checkpoint_level))
+  {
+    checkpoint_id++;
+  }
+  else
+  {
+    printf("Did checkpoint fail?\n");
+  }
+#endif
 
     // Iterate till convergence
     for(tt = 0; tt < settings->max_iters; ++tt)

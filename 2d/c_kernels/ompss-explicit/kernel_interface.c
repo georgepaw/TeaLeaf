@@ -106,7 +106,8 @@ void run_cg_init(
 void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 {
   START_PROFILING(settings->kernel_profile);
-  cg_calc_w(chunk->x, chunk->y,
+  cg_calc_w(chunk->ext->a_row_index[chunk->x * chunk->y], //nnz
+            chunk->x, chunk->y,
             settings->halo_depth, pw, chunk->p, chunk->w,
             chunk->ext->a_row_index, chunk->ext->a_col_index,
             chunk->ext->a_non_zeros);

@@ -23,6 +23,16 @@
 #define SOFTWARE_CRC_SPLIT
 #endif
 
+#define CHECK_CRC32C(a_col_addr, a_non_zeros_addr, row_begin, jj, kk, fail_function)\
+if(1){ \
+  /*CRC32C TeaLeaf Specific*/\
+  if(!check_correct_crc32_bits(a_col_addr, a_non_zeros_addr))\
+  {\
+    printf("[CRC32C] error detected at row %d %d %d\n", row_begin, jj, kk);\
+    fail_function;\
+  }\
+} else
+
 //CRC32
 static uint32_t crc32c_table[8][256] =
 {
@@ -305,7 +315,7 @@ static uint32_t crc32c_table[8][256] =
   {                                                                                        \
     for (; num_bytes >= sizeof(type); num_bytes -= sizeof(type), data += sizeof(type))     \
     {                                                                                      \
-        crc = crc_macro((crc), *(type *)data);                                             \
+      crc = crc_macro((crc), *(type *)data);                                             \
     }                                                                                      \
   } while(0)
 
@@ -380,6 +390,16 @@ static uint8_t check_correct_crc32_bits(uint32_t * a_cols, double * a_non_zeros)
                     + ((a_cols[2] & 0xFF000000)>>16)
                     + (a_cols[3] >> 24);
   return prev_crc == generate_crc32_bits(a_cols, a_non_zeros);
+}
+
+static void assign_crc_bits(uint32_t * a_col_index, double * a_non_zeros, uint32_t coef_index)
+{
+  //generate the CRC32C bits and put them in the right places
+  uint32_t crc = generate_crc32_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
+  a_col_index[coef_index    ] += crc & 0xFF000000;
+  a_col_index[coef_index + 1] += (crc & 0x00FF0000) << 8;
+  a_col_index[coef_index + 2] += (crc & 0x0000FF00) << 16;
+  a_col_index[coef_index + 3] += (crc & 0x000000FF) << 24;
 }
 
 

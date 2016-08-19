@@ -3,17 +3,26 @@
 
 #ifndef NO_MPI
 
+#ifdef FT_FTI
+#define _MPI_COMM_WORLD FTI_COMM_WORLD
+#else
+#define _MPI_COMM_WORLD MPI_COMM_WORLD
+#endif
+
 // Initialise MPI
 void initialise_comms(int argc, char** argv)
 {
     MPI_Init(&argc, &argv);
+#ifdef FT_FTI
+    FTI_Init(argv[1], MPI_COMM_WORLD);
+#endif
 }
 
 // Initialise the rank information
 void initialise_ranks(Settings* settings)
 {
-    MPI_Comm_rank(MPI_COMM_WORLD, &settings->rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &settings->num_ranks);
+    MPI_Comm_rank(_MPI_COMM_WORLD, &settings->rank);
+    MPI_Comm_size(_MPI_COMM_WORLD, &settings->num_ranks);
 
     if(settings->rank == MASTER)
     {
@@ -24,6 +33,9 @@ void initialise_ranks(Settings* settings)
 // Teardown MPI
 void finalise_comms()
 {
+#ifdef FT_FTI
+    FTI_Finalize();
+#endif
     MPI_Finalize();
 }
 
@@ -35,9 +47,9 @@ void send_recv_message(Settings* settings, double* send_buffer,
     START_PROFILING(settings->kernel_profile);
 
     MPI_Isend(send_buffer, buffer_len, MPI_DOUBLE, 
-            neighbour, send_tag, MPI_COMM_WORLD, send_request);
+            neighbour, send_tag, _MPI_COMM_WORLD, send_request);
     MPI_Irecv(recv_buffer, buffer_len, MPI_DOUBLE,
-            neighbour, recv_tag, MPI_COMM_WORLD, recv_request);
+            neighbour, recv_tag, _MPI_COMM_WORLD, recv_request);
 
     STOP_PROFILING(settings->kernel_profile, __func__);
 }
@@ -56,7 +68,7 @@ void sum_over_ranks(Settings* settings, double* a)
 {
     START_PROFILING(settings->kernel_profile);
     double temp = *a;
-    MPI_Allreduce(&temp, a, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&temp, a, 1, MPI_DOUBLE, MPI_SUM, _MPI_COMM_WORLD);
     STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -65,20 +77,20 @@ void min_over_ranks(Settings* settings, double* a)
 {
     START_PROFILING(settings->kernel_profile);
     double temp = *a;
-    MPI_Allreduce(&temp, a, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&temp, a, 1, MPI_DOUBLE, MPI_MIN, _MPI_COMM_WORLD);
     STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
 // Synchronise all ranks
 void barrier()
 {
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(_MPI_COMM_WORLD);
 }
 
 // End the application
 void abort_comms()
 {
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Abort(_MPI_COMM_WORLD, 1);
 }
 
 #else

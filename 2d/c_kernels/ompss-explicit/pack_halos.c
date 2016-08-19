@@ -10,7 +10,7 @@ void pack_left(
         double* field,
         double* buffer)
 {
-#pragma omp for
+// #pragma omp for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < halo_depth+depth; ++kk)
@@ -30,7 +30,7 @@ void pack_right(
         double* field,
         double* buffer)
 {
-#pragma omp for
+// #pragma omp for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = x-halo_depth-depth; kk < x-halo_depth; ++kk)
@@ -52,7 +52,7 @@ void pack_top(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp for
+// #pragma omp for
     for(int jj = y-halo_depth-depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
@@ -74,7 +74,7 @@ void pack_bottom(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp for
+// #pragma omp for
     for(int jj = halo_depth; jj < halo_depth+depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
@@ -94,7 +94,7 @@ void unpack_left(
         double* field,
         double* buffer)
 {
-#pragma omp for
+// #pragma omp for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth-depth; kk < halo_depth; ++kk)
@@ -114,7 +114,7 @@ void unpack_right(
         double* field,
         double* buffer)
 {
-#pragma omp for
+// #pragma omp for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = x-halo_depth; kk < x-halo_depth+depth; ++kk)
@@ -136,7 +136,7 @@ void unpack_top(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp for
+// #pragma omp for
     for(int jj = y-halo_depth; jj < y-halo_depth+depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
@@ -158,7 +158,7 @@ void unpack_bottom(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp for
+// #pragma omp for
     for(int jj = halo_depth-depth; jj < halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)

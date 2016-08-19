@@ -40,6 +40,70 @@ typedef struct
 #define ECC7_P7_1 0xFE000000
 #define ECC7_P7_2 0x02FFFFFF
 
+#define ASSIGN_ECC_BITS(ecc_element, a_col_index, a_non_zeros, val, col, offset)\
+if(1){\
+  ecc_element.value  = val;\
+  ecc_element.column = col;\
+  generate_ecc_bits(&ecc_element);\
+  a_non_zeros[offset]   = ecc_element.value;\
+  a_col_index[offset++] = ecc_element.column;\
+} else
+
+#define CHECK_SED(col, val, idx, fail_function)\
+if(1){ \
+  csr_element element;\
+  element.value  = val;\
+  element.column = col; \
+  /* Check overall parity bit */\
+  if(ecc_compute_overall_parity(element))\
+  {\
+    printf("[ECC] error detected at index %u\n", idx);\
+    fail_function;\
+  }\
+  /* Mask out ECC from high order column bits */\
+  col = element.column & 0x00FFFFFF;\
+} else
+
+#define CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_function)\
+if(1){\
+  csr_element element;\
+  element.value  = val;\
+  element.column = col;\
+  /*  Check parity bits */\
+  uint32_t overall_parity = ecc_compute_overall_parity(element);\
+  uint32_t syndrome = ecc_compute_col8(element);\
+  if(overall_parity)\
+  {\
+    if(syndrome)\
+    {\
+      /* Unflip bit */\
+      uint32_t bit = ecc_get_flipped_bit_col8(syndrome);\
+      ((uint32_t*)(&element))[bit/32] ^= 0x1U << (bit % 32);\
+      printf("[ECC] corrected bit %u at index %d\n", bit, idx);\
+    }\
+    else\
+    {\
+      /* Correct overall parity bit */\
+      element.column ^= 0x1U << 24;\
+      printf("[ECC] corrected overall parity bit at index %d\n", idx);\
+    }\
+    a_col_index[idx] = col = element.column;\
+    a_non_zeros[idx] = val = element.value;\
+  }\
+  else\
+  {\
+    if(syndrome)\
+    {\
+      /* Overall parity fine but error in syndrom */\
+      /* Must be double-bit error - cannot correct this*/\
+      printf("[ECC] double-bit error detected at index %d\n", idx);\
+      fail_function;\
+    }\
+  }\
+  /* Mask out ECC from high order column bits */\
+  col = element.column & 0x00FFFFFF;\
+} else
+
 // This function will generate/check the 7 parity bits for the given matrix
 // element, with the parity bits stored in the high order bits of the column
 // index.
@@ -118,11 +182,6 @@ static inline void generate_ecc_bits(csr_element * element)
 {
 #if defined(SED)
   element->column |= ecc_compute_overall_parity(*element) << 31;
-#elif defined(SEC7)
-  element->column |= ecc_compute_col8(*element);
-#elif defined(SEC8)
-  element->column |= ecc_compute_col8(*element);
-  element->column |= ecc_compute_overall_parity(*element) << 24;
 #elif defined(SECDED)
   element->column |= ecc_compute_col8(*element);
   element->column |= ecc_compute_overall_parity(*element) << 24;

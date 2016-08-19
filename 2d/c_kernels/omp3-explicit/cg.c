@@ -1,29 +1,33 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "../../shared.h"
-#ifdef CRC
-#include "../ompss-explicit/crc.h"
+#ifdef CRC32C
+#include "../../crc.h"
 #else
-#include "../ompss-explicit/ecc.h"
+#include "../../ecc.h"
 #endif
-#include "../ompss-explicit/fault_injection.h"
-#ifdef MPOISON
-#include "mpoison.h"
+#include "../../fault_injection.h"
+#ifdef FT_FTI
+#include <fti.h>
 #endif
 
 /*
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
 
-#ifdef INJECT_FAULT
-volatile uint32_t flag = 1;
-#endif
+void fail_task() {
+#if defined(FT_FTI)
+  if (FTI_SCES != FTI_Recover())
+  {
+    printf("Failed to recover. Exiting...\n");
+    exit(1);
+  }
+  else 
+  {
+    printf("Recovery succesful!\n");
+  }
+#elif defined(FT_BLCR)
 
-void fail_task(void* ptr) {
-#ifdef MPOISON
-   unsigned char temp = 0;
-   mpoison_block_page((uintptr_t) ptr);
-   temp = *(unsigned char*)(ptr);
 #else
    exit(1);
 #endif
@@ -55,7 +59,6 @@ void cg_init(
   {
     die(__LINE__, __FILE__, "Coefficient %d is not valid.\n", coefficient);
   }
-
 #pragma omp parallel for
   for(int jj = 0; jj < y; ++jj)
   {
@@ -106,7 +109,7 @@ void cg_init(
       {
         continue;
       }
-#ifdef CRC
+#ifdef CRC32C
       a_non_zeros[offset]   = -ky[index];
       a_col_index[offset++] = index-x;
 
@@ -123,56 +126,16 @@ void cg_init(
 
       a_non_zeros[offset]   = -ky[index+x];
       a_col_index[offset++] = index+x;
-
-      //generate the CRC bits and put them in the right places
-      uint32_t crc = generate_crc32_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
-      a_col_index[coef_index    ] += crc & 0xFF000000;
-      a_col_index[coef_index + 1] += (crc & 0x00FF0000) << 8;
-      a_col_index[coef_index + 2] += (crc & 0x0000FF00) << 16;
-      a_col_index[coef_index + 3] += (crc & 0x000000FF) << 24;
+      assign_crc_bits(a_col_index, a_non_zeros, coef_index);
 #else
       csr_element element;
-
-      element.value  = -ky[index];
-      element.column = index-x;
-
-      generate_ecc_bits(&element);
-      a_non_zeros[offset]   = element.value;
-      a_col_index[offset++] = element.column;
-
-      element.value  = -kx[index];
-      element.column = index-1;
-
-      generate_ecc_bits(&element);
-
-      a_non_zeros[offset]   = element.value;
-      a_col_index[offset++] = element.column;
-
-      element.value  = (1.0 +
-                        kx[index+1] + kx[index] +
-                        ky[index+x] + ky[index]);
-      element.column = index;
-
-      generate_ecc_bits(&element);
-
-      a_non_zeros[offset]   = element.value;
-      a_col_index[offset++] = element.column;
-
-      element.value  = -kx[index+1];
-      element.column = index+1;
-
-      generate_ecc_bits(&element);
-
-      a_non_zeros[offset]   = element.value;
-      a_col_index[offset++] = element.column;
-
-      element.value  = -ky[index+x];
-      element.column = index+x;
-
-      generate_ecc_bits(&element);
-
-      a_non_zeros[offset]   = element.value;
-      a_col_index[offset++] = element.column;
+      ASSIGN_ECC_BITS(element, a_col_index, a_non_zeros, -ky[index], index-x, offset);
+      ASSIGN_ECC_BITS(element, a_col_index, a_non_zeros, -kx[index], index-1, offset);
+      ASSIGN_ECC_BITS(element, a_col_index, a_non_zeros, 1.0 + kx[index+1] + kx[index] +
+                               ky[index+x] + ky[index],
+                                           index, offset);
+      ASSIGN_ECC_BITS(element, a_col_index, a_non_zeros, -kx[index+1], index+1, offset);
+      ASSIGN_ECC_BITS(element, a_col_index, a_non_zeros, -ky[index+x], index+x, offset);
 #endif
     }
   }
@@ -193,7 +156,7 @@ void cg_init(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
-#if defined(CRC) || defined(SED) || defined(SEC7) || defined(SEC8) || defined(SECDED)
+#if defined(CRC32C) || defined(SED) || defined(SEC7) || defined(SEC8) || defined(SECDED)
         col &= 0x00FFFFFF;
 #endif
         tmp += a_non_zeros[idx] * u[col];
@@ -224,14 +187,7 @@ void cg_calc_w(
   double pw_temp = 0.0;
 
 #ifdef INJECT_FAULT
-  uint32_t bitflip_index = 0;
-  if(flag == 1440)
-  {
-    // flag = 0;
-    inject_bitflip(a_col_index, a_non_zeros, bitflip_index, 37);
-  } else {
-    flag++;
-  }
+  inject_bitflips(a_col_index, a_non_zeros);
 #endif
 
 #pragma omp parallel for reduction(+:pw_temp)
@@ -244,13 +200,10 @@ void cg_calc_w(
       double tmp = 0.0;
 
       uint32_t row_begin = a_row_index[row];
-#ifdef CRC
-      //CRC TeaLeaf Specific
-      if(!check_correct_crc32_bits(&a_col_index[row_begin], &a_non_zeros[row_begin]))
-      {
-        printf("[CRC] error detected at row %d %d %d\n", row_begin, jj, kk);
-        fail_task((void*)a_col_index);
-      }
+#ifdef CRC32C
+      CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
+                   row_begin, jj, kk, fail_task());
+      //Unrolled
       tmp  = a_non_zeros[row_begin    ] * (p[a_col_index[row_begin    ] & 0x00FFFFFF]);
       tmp += a_non_zeros[row_begin + 1] * (p[a_col_index[row_begin + 1] & 0x00FFFFFF]);
       tmp += a_non_zeros[row_begin + 2] * (p[a_col_index[row_begin + 2] & 0x00FFFFFF]);
@@ -262,60 +215,13 @@ void cg_calc_w(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
+        double val = a_non_zeros[idx];
 #if defined(SED)
-        csr_element element;
-        element.value  = a_non_zeros[idx];
-        element.column = col;
-        // Check overall parity bit
-        if(ecc_compute_overall_parity(element))
-        {
-          printf("[ECC] error detected at index %u\n", idx);
-          fail_task((void*)a_col_index);
-        }
-        // Mask out ECC from high order column bits
-        element.column &= 0x00FFFFFF;
-        col = element.column;
+        CHECK_SED(col, val, idx, fail_task());
 #elif defined(SECDED)
-        csr_element element;
-        element.value  = a_non_zeros[idx];
-        element.column = col;
-        // Check parity bits
-        uint32_t overall_parity = ecc_compute_overall_parity(element);
-        uint32_t syndrome = ecc_compute_col8(element);
-        if(overall_parity)
-        {
-          if(syndrome)
-          {
-            // Unflip bit
-            uint32_t bit = ecc_get_flipped_bit_col8(syndrome);
-            ((uint32_t*)(&element))[bit/32] ^= 0x1U << (bit % 32);
-            printf("[ECC] corrected bit %u at index %d\n", bit, idx);
-          }
-          else
-          {
-            // Correct overall parity bit
-            element.column ^= 0x1U << 24;
-            printf("[ECC] corrected overall parity bit at index %d\n", idx);
-          }
-
-          a_col_index[idx] = element.column;
-          a_non_zeros[idx] = element.value;
-        }
-        else
-        {
-          if(syndrome)
-          {
-            // Overall parity fine but error in syndrom
-            // Must be double-bit error - cannot correct this
-            printf("[ECC] double-bit error detected at index %d\n", idx);
-            fail_task((void*)a_col_index);
-          }
-        }
-        // Mask out ECC from high order column bits
-        element.column &= 0x00FFFFFF;
-        col = element.column;
+        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task());
 #endif
-        tmp += a_non_zeros[idx] * p[col];
+        tmp += val * p[col];
       }
 #endif
 

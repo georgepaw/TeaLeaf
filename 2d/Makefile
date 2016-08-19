@@ -2,7 +2,9 @@
 KERNELS  	= kokkos
 CPROFILER   = yes
 DEBUG       = no
-OPTIONS     = -DSED -DINJECT_FAULT
+OPTIONS     = -DCRC32C -DINJECT_FAULT -I/nfs/home/george/builds/fti-$(OMPI_CC)/include/ -DFT_FTI
+
+# -DINJECT_FAULT
 # -DNO_MPI
 CC  		= icc
 CPP			= icpc

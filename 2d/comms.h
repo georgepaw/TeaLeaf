@@ -6,6 +6,9 @@
 #include <mpi.h>
 #include "settings.h"
 #include "chunk.h"
+#ifdef FT_FTI
+#include <fti.h>
+#endif
 
 void barrier();
 void abort_comms(); void finalise_comms();
