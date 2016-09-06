@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef MB_LOGGING
+#include "../../mb_logging.h"
+#endif
+
 #define PAGE_ROUND_UP(x,y) ((x + y - 1) & (~(y - 1)))
 
 // Allocates, and zeroes an individual buffer
@@ -96,11 +100,15 @@ void kernel_initialise(
   }
 
   int num_non_zeros = (*a_row_index)[x*y];
-  //to use mpoison the memory has to be aligned to pages
+  //to use nanos recovery the memory has to be aligned to pages
   //also round up to the nearest page
   uint32_t page_size = getpagesize();
-  posix_memalign((void**)a_col_index, page_size, PAGE_ROUND_UP(sizeof(int)*num_non_zeros, page_size));
+  posix_memalign((void**)a_col_index, page_size, PAGE_ROUND_UP(sizeof(uint32_t)*num_non_zeros, page_size));
   posix_memalign((void**)a_non_zeros, page_size, PAGE_ROUND_UP(sizeof(double)*num_non_zeros, page_size));
+#ifdef MB_LOGGING
+  size_t protected_memory_size = (sizeof(uint32_t)+sizeof(double))*num_non_zeros;
+  mb_start_log(protected_memory_size);
+#endif
 }
 
 void kernel_finalise(
@@ -141,4 +149,7 @@ void kernel_finalise(
   free(cg_betas);
   free(cheby_alphas);
   free(cheby_betas);
+#ifdef MB_LOGGING
+  mb_end_log();
+#endif
 }

@@ -7,18 +7,33 @@
 #include "../../ecc.h"
 #endif
 #include "../../fault_injection.h"
-#ifdef FT_MPOISON
-#include "mpoison.h"
+#ifdef NANOS_RECOVERY
+volatile uint32_t failed;
+volatile uint32_t f_jj, f_kk, f_row_begin;
+volatile uint32_t f_cols[5];
+volatile double f_vals[5];
+  #ifdef MB_LOGGING
+  #include "../../mb_logging.h"
+  #endif
 #endif
 /*
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
 
-void fail_task(void* ptr) {
-#ifdef FT_MPOISON
-   unsigned char temp = 0;
-   mpoison_block_page((uintptr_t) ptr);
-   temp = *(unsigned char*)(ptr);
+void fail_task(uint32_t jj, uint32_t kk, uint32_t row_begin, uint32_t * a_col_addr, double * a_non_zeros_addr, uint32_t num_elements)
+{
+#ifdef NANOS_RECOVERY
+  if(!failed)
+  {
+    failed = 1;
+    f_jj = jj;
+    f_kk = kk;
+    f_row_begin = row_begin;
+    memcpy(f_cols, a_col_addr, sizeof(uint32_t) * num_elements);
+    memcpy(f_vals, a_non_zeros_addr, sizeof(double) * num_elements);
+    //cause a seg fault to triger task fail
+    *((int*)(NULL)) = 1;
+  }
 #else
    exit(1);
 #endif
@@ -117,7 +132,7 @@ void cg_init(
 
       a_non_zeros[offset]   = -ky[index+x];
       a_col_index[offset++] = index+x;
-      assign_crc_bits(a_col_index, a_non_zeros, coef_index);
+      assign_crc_bits(a_col_index, a_non_zeros, coef_index, 5);
 #else
       csr_element element;
       ASSIGN_ECC_BITS(element, a_col_index, a_non_zeros, -ky[index], index-x, offset);
@@ -163,6 +178,8 @@ void cg_init(
   *rro += rro_temp;
 }
 
+volatile uint32_t itr = 0;
+
 // Calculates w
 void cg_calc_w(
   const int nnz,
@@ -190,10 +207,134 @@ void cg_calc_w(
       const int row = kk + jj*x;
 
       double tmp = 0.0;
+
+#if defined(SED_ASM)
+      int32_t err_index = -1;
+      asm (
+        // Compute pointers to start of column/value data for this row
+        "ldr     r4, [%[rowptr]]\n\t"
+        "add     r1, %[cols], r4, lsl #2\n\t"
+        "add     r4, %[values], r4, lsl #3\n\t"
+
+        // Compute pointer to end of column data for this row
+        "ldr     r5, [%[rowptr], #4]\n\t"
+        "add     r5, %[cols], r5, lsl #2\n\t"
+
+        "0:\n\t"
+        // Check if we've reached the end of this row
+        "cmp     r1, r5\n\t"
+        "beq     2f\n"
+
+        // *** Parity check starts ***
+        // Reduce data to 32-bits in r0
+        "ldr     r0, [r4]\n\t"
+        "ldr     r2, [r4, #4]\n\t"
+        "eor     r0, r0, r2\n\t"
+
+        // Load column into r2
+        "ldr     r2, [r1]\n\t"
+
+        // Continue reducing data to 32-bits
+        "eor     r0, r0, r2\n\t"
+        "eor     r0, r0, r0, lsr #16\n\t"
+        "eor     r0, r0, r0, lsr #8\n\t"
+
+        // Lookup final parity from table
+        "and     r0, r0, #0xFF\n\t"
+        "ldrB    r0, [%[PARITY_TABLE], r0]\n\t"
+
+        // Exit loop if parity fails
+        "cbz    r0, 1f\n\t"
+        "sub    %[err_index], r1, %[cols]\n\t"
+        "b      2f\n"
+        "1:\n\t"
+        // *** Parity check ends ***
+
+        // Mask out parity bits
+        "and      r2, r2, #0x00FFFFFF\n\t"
+
+        // Accumulate dot product into result
+        "add      r2, %[vector], r2, lsl #3\n\t"
+        "vldr.64  d6, [r4]\n\t"
+        "vldr.64  d7, [r2]\n\t"
+        "vmla.f64 %P[tmp], d6, d7\n\t"
+
+        // Increment data pointer, compare to end and branch to loop start
+        "add     r4, #8\n\t"
+        "add     r1, #4\n\t"
+        "b       0b\n"
+        "2:\n"
+        : [tmp] "+w" (tmp), [err_index] "+r" (err_index)
+        : [rowptr] "r" (a_row_index+row),
+          [cols] "r" (a_col_index),
+          [values] "r" (a_non_zeros),
+          [vector] "r" (p),
+          [PARITY_TABLE] "r" (PARITY_TABLE)
+        : "cc", "r0", "r1", "r2", "r4", "r5", "d6", "d7"
+        );
+      if (err_index >= 0)
+      {
+        printf("[ECC] error detected at index %d\n", err_index/4);
+        fail_task(jj, kk, err_index/4, &a_col_index[err_index/4], &a_non_zeros[err_index/4], 1);
+      }
+
+#elif defined(CRC32C)
       uint32_t row_begin = a_row_index[row];
-#ifdef CRC32C
+  #ifdef NANOS_RECOVERY
+      if(failed && jj == f_jj && f_kk == kk && row_begin == f_row_begin)
+      {
+        printf("Previous task failed, now restored the element:\n");
+        printf("[CRC32C] error was detected at row_begins %d, jj = %d kk = %d, iteration %d\n", row_begin, jj, kk, itr);
+        printf("===========WAS==============\n");
+        printf("Element 0: CRC: %u col:%u val(hex): %s\n", f_cols[0] & 0xFF000000, f_cols[0] & 0x00FFFFFF, get_double_hex_str(f_vals[0]));
+        printf("Element 1: CRC: %u col:%u val(hex): %s\n", f_cols[1] & 0xFF000000, f_cols[1] & 0x00FFFFFF, get_double_hex_str(f_vals[1]));
+        printf("Element 2: CRC: %u col:%u val(hex): %s\n", f_cols[2] & 0xFF000000, f_cols[2] & 0x00FFFFFF, get_double_hex_str(f_vals[2]));
+        printf("Element 3: CRC: %u col:%u val(hex): %s\n", f_cols[3] & 0xFF000000, f_cols[3] & 0x00FFFFFF, get_double_hex_str(f_vals[3]));
+        printf("Element 4: CRC: %u col:%u val(hex): %s\n", f_cols[4] & 0xFF000000, f_cols[4] & 0x00FFFFFF, get_double_hex_str(f_vals[4]));
+        printf("==============IS==============\n");
+        printf("Element 0: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 0] & 0xFF000000, a_col_index[row_begin + 0] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 0]));
+        printf("Element 1: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 1] & 0xFF000000, a_col_index[row_begin + 1] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 1]));
+        printf("Element 2: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 2] & 0xFF000000, a_col_index[row_begin + 2] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 2]));
+        printf("Element 3: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 3] & 0xFF000000, a_col_index[row_begin + 3] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 3]));
+        printf("Element 4: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 4] & 0xFF000000, a_col_index[row_begin + 4] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 4]));
+        for(int i = 0; i < 5; i++)
+        {
+          uint32_t diff_col = f_cols[i] ^ a_col_index[row_begin + i];
+
+          //there is a bug in ompss with 64bit data types inside of tasks - "handle" it as 32 bit
+          uint32_t b_old_val[2], b_new_val[2];
+          memcpy(b_old_val, &f_vals[i], sizeof(double));
+          memcpy(b_new_val, &a_non_zeros[row_begin + i], sizeof(double));
+
+          uint32_t diff_val[2] = {b_old_val[0]^b_new_val[0], b_old_val[1]^b_new_val[1]};
+          uint8_t flipped_col = 0, flipped_val = 0;
+          for(int halve = 0; halve < 2; halve++)
+          {
+            for(int j = 0; j < 32; j++)
+            {
+              if(diff_val[halve] & (1UL<<j))
+              {
+                printf("Bit flip in the %u element of the row at bit index %u\n", i, halve*32+j);
+                flipped_val++;
+              }
+            }
+          }
+          if(flipped_val) mb_error_log((uintptr_t)&(a_non_zeros[row_begin + i]), (void*)&f_vals[i], (void*)&a_non_zeros[row_begin + i], sizeof(double));
+          for(int j = 0; j < 32; j++)
+          {
+            if(diff_col & (1U<<j))
+            {
+              printf("Bit flip in the %u element of the row at bit index %u\n", i, j+64);
+              flipped_col++;
+            }
+          }
+          if(flipped_col) mb_error_log((uintptr_t)&(a_col_index[row_begin + i]), (void*)&f_cols[i], (void*)&a_col_index[row_begin + i], sizeof(uint32_t));
+        }
+        failed = 0;
+      }
+  #endif
       CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
-                   row_begin, jj, kk, fail_task((void*)a_col_index));
+                   row_begin, jj, kk, itr, fail_task(jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5));
       //Unrolled
       tmp  = a_non_zeros[row_begin    ] * p[a_col_index[row_begin    ] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 1] * p[a_col_index[row_begin + 1] & 0x00FFFFFF];
@@ -201,16 +342,17 @@ void cg_calc_w(
       tmp += a_non_zeros[row_begin + 3] * p[a_col_index[row_begin + 3] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 4] * p[a_col_index[row_begin + 4] & 0x00FFFFFF];
 #else
+      uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
         double val = a_non_zeros[idx];
-#if defined(SED)
-        CHECK_SED(col, val, idx, fail_task((void*)a_col_index));
-#elif defined(SECDED)
-        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task((void*)a_col_index));
-#endif
+  #if defined(SED)
+        CHECK_SED(col, val, idx, fail_task(jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1););
+  #elif defined(SECDED)
+        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task(jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1););
+  #endif
         tmp += val * p[col];
       }
 #endif
@@ -220,6 +362,7 @@ void cg_calc_w(
   }
 
   *pw += pw_temp;
+  itr++;
 }
 
 // Calculates u and r

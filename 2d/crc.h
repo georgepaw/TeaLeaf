@@ -23,12 +23,17 @@
 #define SOFTWARE_CRC_SPLIT
 #endif
 
-#define CHECK_CRC32C(a_col_addr, a_non_zeros_addr, row_begin, jj, kk, fail_function)\
+#define CHECK_CRC32C(a_col_addr, a_non_zeros_addr, row_begin, jj, kk, itr, fail_function)\
 if(1){ \
   /*CRC32C TeaLeaf Specific*/\
-  if(!check_correct_crc32_bits(a_col_addr, a_non_zeros_addr))\
+  if(!check_correct_crc32_bits(a_col_addr, a_non_zeros_addr, 5))\
   {\
-    printf("[CRC32C] error detected at row %d %d %d\n", row_begin, jj, kk);\
+    printf("[CRC32C] error detected at row_begins %d, jj = %d kk = %d, iteration %d\n", row_begin, jj, kk, itr);\
+    printf("Element 0: CRC: %u col:%u val(hex): %s\n", (a_col_addr)[0] & 0xFF000000, (a_col_addr)[0] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[0]));\
+    printf("Element 1: CRC: %u col:%u val(hex): %s\n", (a_col_addr)[1] & 0xFF000000, (a_col_addr)[1] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[1]));\
+    printf("Element 2: CRC: %u col:%u val(hex): %s\n", (a_col_addr)[2] & 0xFF000000, (a_col_addr)[2] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[2]));\
+    printf("Element 3: CRC: %u col:%u val(hex): %s\n", (a_col_addr)[3] & 0xFF000000, (a_col_addr)[3] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[3]));\
+    printf("Element 4: CRC: %u col:%u val(hex): %s\n", (a_col_addr)[4] & 0xFF000000, (a_col_addr)[4] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[4]));\
     fail_function;\
   }\
 } else
@@ -361,41 +366,50 @@ static uint32_t crc32_chunk(uint32_t crc, const uint8_t * data, size_t num_bytes
   return crc;
 }
 
-static uint32_t generate_crc32_bits(uint32_t * a_cols, double * a_non_zeros)
+static uint32_t generate_crc32_bits(uint32_t * a_cols, double * a_non_zeros, uint32_t num_elements)
 {
   uint32_t crc = 0xFFFFFFFF;
   uint32_t bytes;
-  uint32_t masks[5];
+  uint32_t masks[4];
   //remove masks
-  for(int i = 0; i < 5; i++)
+  for(int i = 0; i < 4; i++)
   {
     masks[i] = a_cols[i] & 0xFF000000;
     a_cols[i] &= 0x00FFFFFF;
   }
-  crc = crc32_chunk(crc, (uint8_t*)a_cols, 20);
-  crc = crc32_chunk(crc, (uint8_t*)a_non_zeros, 40);
+  crc = crc32_chunk(crc, (uint8_t*)a_cols, sizeof(uint32_t) * num_elements);
+  crc = crc32_chunk(crc, (uint8_t*)a_non_zeros, sizeof(double) * num_elements);
   //restore masks
-  for(int i = 0; i < 5; i++)
+  for(int i = 0; i < 4; i++)
   {
     a_cols[i] += masks[i];
   }
   return crc;
 }
 
-static uint8_t check_correct_crc32_bits(uint32_t * a_cols, double * a_non_zeros)
+static uint8_t check_correct_crc32_bits(uint32_t * a_cols, double * a_non_zeros, uint32_t num_elements)
 {
   //get the CRC and recalculate to check it's correct
   uint32_t prev_crc = (a_cols[0] & 0xFF000000)
                     + ((a_cols[1] & 0xFF000000)>>8)
                     + ((a_cols[2] & 0xFF000000)>>16)
                     + (a_cols[3] >> 24);
-  return prev_crc == generate_crc32_bits(a_cols, a_non_zeros);
+  return prev_crc == generate_crc32_bits(a_cols, a_non_zeros, num_elements);
 }
 
-static void assign_crc_bits(uint32_t * a_col_index, double * a_non_zeros, uint32_t coef_index)
+static void assign_crc_bits(uint32_t * a_col_index, double * a_non_zeros, uint32_t coef_index, uint32_t num_elements)
 {
   //generate the CRC32C bits and put them in the right places
-  uint32_t crc = generate_crc32_bits(&a_col_index[coef_index], &a_non_zeros[coef_index]);
+  if(   a_col_index[coef_index    ] & 0xFF000000
+     || a_col_index[coef_index + 1] & 0xFF000000
+     || a_col_index[coef_index + 2] & 0xFF000000
+     || a_col_index[coef_index + 3] & 0xFF000000
+     || a_col_index[coef_index + 4] & 0xFF000000)
+  {
+    printf("Index too big to be stored correctly with CRC!\n");
+    exit(1);
+  }
+  uint32_t crc = generate_crc32_bits(&a_col_index[coef_index], &a_non_zeros[coef_index], num_elements);
   a_col_index[coef_index    ] += crc & 0xFF000000;
   a_col_index[coef_index + 1] += (crc & 0x00FF0000) << 8;
   a_col_index[coef_index + 2] += (crc & 0x0000FF00) << 16;

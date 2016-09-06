@@ -40,6 +40,45 @@ typedef struct
 #define ECC7_P7_1 0xFE000000
 #define ECC7_P7_2 0x02FFFFFF
 
+static uint8_t PARITY_TABLE[256] =
+{
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+};
+
 #define ASSIGN_ECC_BITS(ecc_element, a_col_index, a_non_zeros, val, col, offset)\
 if(1){\
   ecc_element.value  = val;\
@@ -180,7 +219,7 @@ static inline uint32_t ecc_get_flipped_bit_col8(uint32_t syndrome)
 
 static inline void generate_ecc_bits(csr_element * element)
 {
-#if defined(SED)
+#if defined(SED) || defined(SED_ASM)
   element->column |= ecc_compute_overall_parity(*element) << 31;
 #elif defined(SECDED)
   element->column |= ecc_compute_col8(*element);
