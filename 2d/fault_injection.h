@@ -29,7 +29,7 @@ static void inject_bitflip(uint32_t* a_col_index, double* a_non_zeros, uint32_t 
   for (int i = 0; i < num_flips; i++)
   {
     int bit = (rand() % (end-start)) + start;
-    printf("Element at index %u was: Top 8 bits[CRC/ECC]: 0x%02x col:%06x val(hex): %s\n", index, a_col_index[index] & 0xFF000000 >> 24, a_col_index[index] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[index]));
+    printf("Element at index %u was: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val(hex): %s\n", index, a_col_index[index] & 0xFF000000 >> 24, a_col_index[index] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[index]));
     printf("*** flipping bit %d at index %d ***\n", bit, index);
     if (bit < 64)
     {
@@ -42,7 +42,7 @@ static void inject_bitflip(uint32_t* a_col_index, double* a_non_zeros, uint32_t 
       bit = bit - 64;
       a_col_index[index] ^= 0x1U << bit;
     }
-    printf("Element at index %u is: Top 8 bits[CRC/ECC]: 0x%02x col:%06x val(hex): %s\n", index, a_col_index[index] & 0xFF000000 >> 24, a_col_index[index] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[index]));
+    printf("Element at index %u is: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val(hex): %s\n", index, a_col_index[index] & 0xFF000000 >> 24, a_col_index[index] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[index]));
 
   }
 }

@@ -157,7 +157,7 @@ void cg_init(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
-#if defined(CRC32C) || defined(SED) || defined(SEC7) || defined(SEC8) || defined(SECDED)
+#if defined(CRC32C) || defined(SED) || defined(SED_ASM)  || defined(SEC7) || defined(SEC8) || defined(SECDED)
         col &= 0x00FFFFFF;
 #endif
         tmp += a_non_zeros[idx] * u[col];

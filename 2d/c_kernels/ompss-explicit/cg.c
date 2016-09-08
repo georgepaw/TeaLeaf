@@ -162,7 +162,7 @@ void cg_init(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
-#if defined(CRC32C) || defined(SED) || defined(SEC7) || defined(SEC8) || defined(SECDED)
+#if defined(CRC32C) || defined(SED) || defined(SED_ASM) || defined(SEC7) || defined(SEC8) || defined(SECDED)
         col &= 0x00FFFFFF;
 #endif
         tmp += a_non_zeros[idx] * u[col];
@@ -286,17 +286,17 @@ void cg_calc_w(
         printf("Previous task failed, now restored the element:\n");
         printf("[CRC32C] error was detected at row_begins %d, jj = %d kk = %d, iteration %d\n", row_begin, jj, kk, itr);
         printf("===========WAS==============\n");
-        printf("Element 0: CRC: %u col:%u val(hex): %s\n", f_cols[0] & 0xFF000000, f_cols[0] & 0x00FFFFFF, get_double_hex_str(f_vals[0]));
-        printf("Element 1: CRC: %u col:%u val(hex): %s\n", f_cols[1] & 0xFF000000, f_cols[1] & 0x00FFFFFF, get_double_hex_str(f_vals[1]));
-        printf("Element 2: CRC: %u col:%u val(hex): %s\n", f_cols[2] & 0xFF000000, f_cols[2] & 0x00FFFFFF, get_double_hex_str(f_vals[2]));
-        printf("Element 3: CRC: %u col:%u val(hex): %s\n", f_cols[3] & 0xFF000000, f_cols[3] & 0x00FFFFFF, get_double_hex_str(f_vals[3]));
-        printf("Element 4: CRC: %u col:%u val(hex): %s\n", f_cols[4] & 0xFF000000, f_cols[4] & 0x00FFFFFF, get_double_hex_str(f_vals[4]));
+        printf("Element 0: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[0] & 0xFF000000 >> 24, f_cols[0] & 0x00FFFFFF, get_double_hex_str(f_vals[0]));
+        printf("Element 1: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[1] & 0xFF000000 >> 24, f_cols[1] & 0x00FFFFFF, get_double_hex_str(f_vals[1]));
+        printf("Element 2: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[2] & 0xFF000000 >> 24, f_cols[2] & 0x00FFFFFF, get_double_hex_str(f_vals[2]));
+        printf("Element 3: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[3] & 0xFF000000 >> 24, f_cols[3] & 0x00FFFFFF, get_double_hex_str(f_vals[3]));
+        printf("Element 4: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[4] & 0xFF000000 >> 24, f_cols[4] & 0x00FFFFFF, get_double_hex_str(f_vals[4]));
         printf("==============IS==============\n");
-        printf("Element 0: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 0] & 0xFF000000, a_col_index[row_begin + 0] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 0]));
-        printf("Element 1: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 1] & 0xFF000000, a_col_index[row_begin + 1] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 1]));
-        printf("Element 2: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 2] & 0xFF000000, a_col_index[row_begin + 2] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 2]));
-        printf("Element 3: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 3] & 0xFF000000, a_col_index[row_begin + 3] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 3]));
-        printf("Element 4: CRC: %u col:%u val(hex): %s\n", a_col_index[row_begin + 4] & 0xFF000000, a_col_index[row_begin + 4] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 4]));
+        printf("Element 0: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 0] & 0xFF000000 >> 24, a_col_index[row_begin + 0] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 0]));
+        printf("Element 1: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 1] & 0xFF000000 >> 24, a_col_index[row_begin + 1] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 1]));
+        printf("Element 2: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 2] & 0xFF000000 >> 24, a_col_index[row_begin + 2] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 2]));
+        printf("Element 3: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 3] & 0xFF000000 >> 24, a_col_index[row_begin + 3] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 3]));
+        printf("Element 4: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 4] & 0xFF000000 >> 24, a_col_index[row_begin + 4] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 4]));
         for(int i = 0; i < 5; i++)
         {
           uint32_t diff_col = f_cols[i] ^ a_col_index[row_begin + i];
