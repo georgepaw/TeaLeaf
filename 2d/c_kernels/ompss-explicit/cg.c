@@ -9,7 +9,7 @@
 #include "../../fault_injection.h"
 #ifdef NANOS_RECOVERY
 volatile uint32_t failed;
-volatile uint32_t f_jj, f_kk, f_row_begin;
+volatile uint32_t f_jj, f_kk, f_idx;
 volatile uint32_t f_cols[5];
 volatile double f_vals[5];
   #ifdef MB_LOGGING
@@ -20,7 +20,7 @@ volatile double f_vals[5];
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
 
-void fail_task(uint32_t jj, uint32_t kk, uint32_t row_begin, uint32_t * a_col_addr, double * a_non_zeros_addr, uint32_t num_elements)
+void fail_task(uint32_t jj, uint32_t kk, uint32_t idx, uint32_t * a_col_addr, double * a_non_zeros_addr, uint32_t num_elements)
 {
 #ifdef NANOS_RECOVERY
   if(!failed)
@@ -28,7 +28,7 @@ void fail_task(uint32_t jj, uint32_t kk, uint32_t row_begin, uint32_t * a_col_ad
     failed = 1;
     f_jj = jj;
     f_kk = kk;
-    f_row_begin = row_begin;
+    f_idx = idx;
     memcpy(f_cols, a_col_addr, sizeof(uint32_t) * num_elements);
     memcpy(f_vals, a_non_zeros_addr, sizeof(double) * num_elements);
     //cause a seg fault to triger task fail
@@ -281,55 +281,25 @@ void cg_calc_w(
 #elif defined(CRC32C)
       uint32_t row_begin = a_row_index[row];
   #ifdef NANOS_RECOVERY
-      if(failed && jj == f_jj && f_kk == kk && row_begin == f_row_begin)
+      if(failed && jj == f_jj && f_kk == kk && row_begin == f_idx)
       {
-        printf("Previous task failed, now restored the element:\n");
-        printf("[CRC32C] error was detected at row_begins %d, jj = %d kk = %d, iteration %d\n", row_begin, jj, kk, itr);
-        printf("===========WAS==============\n");
-        printf("Element 0: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[0] & 0xFF000000 >> 24, f_cols[0] & 0x00FFFFFF, get_double_hex_str(f_vals[0]));
-        printf("Element 1: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[1] & 0xFF000000 >> 24, f_cols[1] & 0x00FFFFFF, get_double_hex_str(f_vals[1]));
-        printf("Element 2: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[2] & 0xFF000000 >> 24, f_cols[2] & 0x00FFFFFF, get_double_hex_str(f_vals[2]));
-        printf("Element 3: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[3] & 0xFF000000 >> 24, f_cols[3] & 0x00FFFFFF, get_double_hex_str(f_vals[3]));
-        printf("Element 4: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[4] & 0xFF000000 >> 24, f_cols[4] & 0x00FFFFFF, get_double_hex_str(f_vals[4]));
-        printf("==============IS==============\n");
-        printf("Element 0: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 0] & 0xFF000000 >> 24, a_col_index[row_begin + 0] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 0]));
-        printf("Element 1: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 1] & 0xFF000000 >> 24, a_col_index[row_begin + 1] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 1]));
-        printf("Element 2: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 2] & 0xFF000000 >> 24, a_col_index[row_begin + 2] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 2]));
-        printf("Element 3: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 3] & 0xFF000000 >> 24, a_col_index[row_begin + 3] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 3]));
-        printf("Element 4: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 4] & 0xFF000000 >> 24, a_col_index[row_begin + 4] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 4]));
-        for(int i = 0; i < 5; i++)
-        {
-          uint32_t diff_col = f_cols[i] ^ a_col_index[row_begin + i];
-
-          //there is a bug in ompss with 64bit data types inside of tasks - "handle" it as 32 bit
-          uint32_t b_old_val[2], b_new_val[2];
-          memcpy(b_old_val, &f_vals[i], sizeof(double));
-          memcpy(b_new_val, &a_non_zeros[row_begin + i], sizeof(double));
-
-          uint32_t diff_val[2] = {b_old_val[0]^b_new_val[0], b_old_val[1]^b_new_val[1]};
-          uint8_t flipped_col = 0, flipped_val = 0;
-          for(int halve = 0; halve < 2; halve++)
-          {
-            for(int j = 0; j < 32; j++)
-            {
-              if(diff_val[halve] & (1UL<<j))
-              {
-                printf("Bit flip in the %u element of the row at bit index %u\n", i, halve*32+j);
-                flipped_val++;
-              }
-            }
-          }
-          if(flipped_val) mb_error_log((uintptr_t)&(a_non_zeros[row_begin + i]), (void*)&f_vals[i], (void*)&a_non_zeros[row_begin + i], sizeof(double));
-          for(int j = 0; j < 32; j++)
-          {
-            if(diff_col & (1U<<j))
-            {
-              printf("Bit flip in the %u element of the row at bit index %u\n", i, j+64);
-              flipped_col++;
-            }
-          }
-          if(flipped_col) mb_error_log((uintptr_t)&(a_col_index[row_begin + i]), (void*)&f_cols[i], (void*)&a_col_index[row_begin + i], sizeof(uint32_t));
-        }
+        // printf("Previous task failed, now restored the element:\n");
+        // printf("[CRC32C] error was detected at row_begins %d, jj = %d kk = %d, iteration %d\n", row_begin, jj, kk, itr);
+        // printf("===========WAS==============\n");
+        // printf("Element 0: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[0] & 0xFF000000 >> 24, f_cols[0] & 0x00FFFFFF, get_double_hex_str(f_vals[0]));
+        // printf("Element 1: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[1] & 0xFF000000 >> 24, f_cols[1] & 0x00FFFFFF, get_double_hex_str(f_vals[1]));
+        // printf("Element 2: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[2] & 0xFF000000 >> 24, f_cols[2] & 0x00FFFFFF, get_double_hex_str(f_vals[2]));
+        // printf("Element 3: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[3] & 0xFF000000 >> 24, f_cols[3] & 0x00FFFFFF, get_double_hex_str(f_vals[3]));
+        // printf("Element 4: CRC: 0x%02x col:0x%06x val(hex): %s\n", f_cols[4] & 0xFF000000 >> 24, f_cols[4] & 0x00FFFFFF, get_double_hex_str(f_vals[4]));
+        // printf("==============IS==============\n");
+        // printf("Element 0: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 0] & 0xFF000000 >> 24, a_col_index[row_begin + 0] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 0]));
+        // printf("Element 1: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 1] & 0xFF000000 >> 24, a_col_index[row_begin + 1] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 1]));
+        // printf("Element 2: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 2] & 0xFF000000 >> 24, a_col_index[row_begin + 2] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 2]));
+        // printf("Element 3: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 3] & 0xFF000000 >> 24, a_col_index[row_begin + 3] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 3]));
+        // printf("Element 4: CRC: 0x%02x col:0x%06x val(hex): %s\n", a_col_index[row_begin + 4] & 0xFF000000 >> 24, a_col_index[row_begin + 4] & 0x00FFFFFF, get_double_hex_str(a_non_zeros[row_begin + 4]));
+      #ifdef MB_LOGGING
+        compare_values(f_cols, &a_col_index[row_begin], f_vals, &a_non_zeros[row_begin], 5);
+      #endif
         failed = 0;
       }
   #endif
@@ -348,6 +318,16 @@ void cg_calc_w(
       {
         uint32_t col = a_col_index[idx];
         double val = a_non_zeros[idx];
+  #if defined(NANOS_RECOVERY)
+        //Logging
+        if(failed && jj == f_jj && f_kk == kk && idx == f_idx)
+        {
+        #ifdef MB_LOGGING
+          compare_values(f_cols, &a_col_index[idx], f_vals, &a_non_zeros[idx], 1);
+        #endif
+          failed = 0;
+        }
+  #endif
   #if defined(SED)
         CHECK_SED(col, val, idx, fail_task(jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1););
   #elif defined(SECDED)

@@ -28,12 +28,6 @@ if(1){ \
   /*CRC32C TeaLeaf Specific*/\
   if(!check_correct_crc32_bits(a_col_addr, a_non_zeros_addr, 5))\
   {\
-    printf("[CRC32C] error detected at row_begins %d, jj = %d kk = %d, iteration %d\n", row_begin, jj, kk, itr);\
-    printf("Element 0: CRC: 0x%02x col:0x%06x val(hex): %s\n", (a_col_addr)[0] & 0xFF000000 >> 24, (a_col_addr)[0] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[0]));\
-    printf("Element 1: CRC: 0x%02x col:0x%06x val(hex): %s\n", (a_col_addr)[1] & 0xFF000000 >> 24, (a_col_addr)[1] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[1]));\
-    printf("Element 2: CRC: 0x%02x col:0x%06x val(hex): %s\n", (a_col_addr)[2] & 0xFF000000 >> 24, (a_col_addr)[2] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[2]));\
-    printf("Element 3: CRC: 0x%02x col:0x%06x val(hex): %s\n", (a_col_addr)[3] & 0xFF000000 >> 24, (a_col_addr)[3] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[3]));\
-    printf("Element 4: CRC: 0x%02x col:0x%06x val(hex): %s\n", (a_col_addr)[4] & 0xFF000000 >> 24, (a_col_addr)[4] & 0x00FFFFFF, get_double_hex_str((a_non_zeros_addr)[4]));\
     fail_function;\
   }\
 } else

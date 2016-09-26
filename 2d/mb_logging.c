@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 #include <unistd.h>
 
 //Code from BSC for retrieving physical address and temperature on MB prototype
@@ -188,4 +189,41 @@ void mb_end_log()
           hostname, //hostname as returned by gethostname
           read_temperature() //temperature as per instructions from BSC
         );
+}
+
+void compare_values(uint32_t * old_cols, uint32_t * recovered_cols, double * old_vals, double * recovered_vals, const uint32_t num_elements)
+{
+  for(uint32_t i = 0; i < num_elements; i++)
+  {
+    uint32_t diff_col = old_cols[i] ^ recovered_cols[i];
+
+    //there is a bug in ompss with 64bit data types inside of tasks - "handle" it as 32 bit
+    uint32_t b_old_val[2], b_new_val[2];
+    memcpy(b_old_val, &old_vals[i], sizeof(double));
+    memcpy(b_new_val, &recovered_vals[i], sizeof(double));
+
+    uint32_t diff_val[2] = {b_old_val[0]^b_new_val[0], b_old_val[1]^b_new_val[1]};
+    uint32_t flipped_col = 0, flipped_val = 0;
+    for(int halve = 0; halve < 2; halve++)
+    {
+      for(int j = 0; j < 32; j++)
+      {
+        if(diff_val[halve] & (1UL<<j))
+        {
+          // printf("Bit flip in the %u element of the row at bit index %u\n", i, halve*32+j);
+          flipped_val++;
+        }
+      }
+    }
+    if(flipped_val) mb_error_log((uintptr_t)&(recovered_vals[i]), (void*)&old_vals[i], (void*)&recovered_vals[i], sizeof(double));
+    for(int j = 0; j < 32; j++)
+    {
+      if(diff_col & (1U<<j))
+      {
+        // printf("Bit flip in the %u element of the row at bit index %u\n", i, j+64);
+        flipped_col++;
+      }
+    }
+    if(flipped_col) mb_error_log((uintptr_t)&(recovered_cols[i]), (void*)&old_cols[i], (void*)&recovered_cols[i], sizeof(uint32_t));
+  }
 }
