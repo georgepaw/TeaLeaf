@@ -119,6 +119,8 @@ typedef struct Settings
     double dx;
     double dy;
 
+    double initial_residual;
+
 } Settings;
 
 // The accepted types of state geometry
