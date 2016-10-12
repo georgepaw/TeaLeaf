@@ -11,10 +11,10 @@ void calculate_initial_error(
 {
   for(int cc = 0; cc < settings->num_chunks_per_rank; ++cc)
   {
-    	double tile_error = 0;
+      double tile_error = 0;
       if(settings->kernel_language == C)
       {
-      		run_copy_u(&(chunks[cc]), settings);
+          run_copy_u(&(chunks[cc]), settings);
           run_calculate_residual(&(chunks[cc]), settings);
           run_calculate_2norm(
                   &(chunks[cc]), settings, chunks[cc].r, &tile_error);
@@ -28,9 +28,9 @@ void calculate_initial_error(
 }
 
 void calculate_initial_residual_driver(
-	Chunk* chunks, Settings* settings)
+  Chunk* chunks, Settings* settings)
 {
-	double error = 0;
-	calculate_initial_error(chunks, settings, &error);
+  double error = 0;
+  calculate_initial_error(chunks, settings, &error);
   settings->initial_residual = sqrt(fabs(error));
 }
