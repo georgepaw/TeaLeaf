@@ -17,14 +17,6 @@ void cg_driver(
         Chunk* chunks, Settings* settings, 
         double rx, double ry, double* error)
 {
-#ifdef NANOS_RECOVERY
-    //this only supports one chunk per mpi rank
-    const int size = chunks[0].x * chunks[0].y;
-    const double * density = chunks[0].density;
-    const double * energy = chunks[0].energy;
-#pragma omp task in(rx) in(ry) in([size]density) in([size]energy) inout([1]error) recover copy_deps
-{
-#endif
     int tt;
     double rro = 0.0;
 
@@ -59,10 +51,6 @@ void cg_driver(
     }
 
     print_and_log(settings, "CG: \t\t\t%d iterations\n", tt);
-#ifdef NANOS_RECOVERY
-}
-#pragma omp taskwait
-#endif
 }
 
 // Invokes the CG initialisation kernels

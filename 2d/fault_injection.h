@@ -15,7 +15,7 @@ volatile int mpi_rank;
   #define _MPI_COMM_WORLD MPI_COMM_WORLD
   #endif
 #endif
-#define FAULT_INJECTION_ITTERATION 675
+#define FAULT_INJECTION_ITTERATION 1800
 #define FAULT_INJECTION_RANK 1
 
 volatile uint32_t __fault_injection_itteration = 0;

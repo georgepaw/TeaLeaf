@@ -42,6 +42,14 @@ void solve(Chunk* chunks, Settings* settings, int tt, double* wallclock_prev)
 
     double error = 1e+10;
 
+#ifdef NANOS_RECOVERY
+    //this only supports one chunk per mpi rank
+    const int size = chunks[0].x * chunks[0].y;
+    const double * density = chunks[0].density;
+    const double * energy = chunks[0].energy;
+#pragma omp task in(rx) in(ry) in([size]density) in([size]energy) inout(error) recover copy_deps
+{
+#endif
     // Perform the solve with one of the integrated solvers
     switch(settings->solver)
     {
@@ -66,6 +74,10 @@ void solve(Chunk* chunks, Settings* settings, int tt, double* wallclock_prev)
     {
         field_summary_driver(chunks, settings, false);
     }
+#ifdef NANOS_RECOVERY
+}
+#pragma omp taskwait
+#endif
 
     profiler_end_timer(settings->wallclock_profile, "Wallclock");
 
