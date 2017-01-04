@@ -24,15 +24,6 @@ void print_double_hex(double val)
 	printf("0x%08lx%08lx", ret.halves[1], ret.halves[0]);
 }
 
-char * get_double_hex_str(double val)
-{
-	//TODO this should be freed
-	char * hex = (char*)malloc(sizeof(char)*19);
-	binary_double ret = convert_double(val);
-	int n = sprintf(hex, "0x%08lx%08lx\0", ret.halves[1], ret.halves[0]);
-	return hex;
-}
-
 
 
 #endif
