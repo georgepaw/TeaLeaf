@@ -41,6 +41,11 @@ void run_cg_calc_ur(
         Chunk* chunk, Settings* settings, double alpha, double* rrn);
 void run_cg_calc_p(
         Chunk* chunk, Settings* settings, double beta);
+#ifdef INTERVAL_CHECKS
+//matrix checker for ompss/openmp
+void run_matrix_check(
+        Chunk* chunk, Settings* settings);
+#endif
 
 // Chebyshev solver kernels
 void run_cheby_init(

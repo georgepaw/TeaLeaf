@@ -6,6 +6,35 @@
 // Calls all kernels that wrap up a solve regardless of solver
 void solve_finished_driver(Chunk* chunks, Settings* settings)
 {
+
+#ifdef INTERVAL_CHECKS
+    //when doing interval FT check it might have not been done on the last itteration
+    //check the matrix with FT to make sure it's correct
+    for(int cc = 0; cc < settings->num_chunks_per_rank; ++cc)
+    {
+        if(settings->kernel_language == C)
+        {
+            run_matrix_check(&(chunks[cc]), settings);
+        }
+        else if(settings->kernel_language == FORTRAN)
+        {
+        }
+    }
+#ifdef NANOS_RECOVERY
+    sum_over_ranks_uint32_t(settings, chunks[0].ext->found_error);
+    #endif
+    if(*(chunks[0].ext->found_error))
+    {
+#ifdef NANOS_RECOVERY
+        //cause a task fail if an error has been found
+        *((int*)(NULL)) = 1;
+#else
+        //terminate
+        exit(1);
+#endif
+    }
+#endif //INTERVAL_CHECKS
+
     double exact_error = 0.0;
 
     if(settings->check_result)

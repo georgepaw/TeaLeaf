@@ -108,9 +108,8 @@ void cg_main_step_driver(
         }
     }
 #ifdef NANOS_RECOVERY
-    uint32_t found_error;
-    MPI_Allreduce(chunks[0].ext->found_error, &found_error, 1, MPI_UNSIGNED, MPI_SUM, _MPI_COMM_WORLD);
-    if(found_error)
+    sum_over_ranks_uint32_t(settings, chunks[0].ext->found_error);
+    if(*(chunks[0].ext->found_error))
     {
         //cause a task fail if an error has been found
         *((int*)(NULL)) = 1;

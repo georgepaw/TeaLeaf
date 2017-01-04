@@ -21,6 +21,7 @@ void abort_comms(); void finalise_comms();
 void initialise_comms(int argc, char** argv);
 void initialise_ranks(Settings* settings);
 void sum_over_ranks(Settings* settings, double* a);
+void sum_over_ranks_uint32_t(Settings* settings, uint32_t* a);
 void min_over_ranks(Settings* settings, double* a);
 void wait_for_requests(
         Settings* settings, int num_requests, MPI_Request* requests);
@@ -36,6 +37,7 @@ void finalise_comms();
 void initialise_comms(int argc, char** argv);
 void initialise_ranks(Settings* settings);
 void sum_over_ranks(Settings* settings, double* a);
+void sum_over_ranks_uint32_t(Settings* settings, uint32_t* a);
 void min_over_ranks(Settings* settings, double* a);
 
 #endif 

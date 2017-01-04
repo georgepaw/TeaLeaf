@@ -178,8 +178,6 @@ void cg_init(
   *rro += rro_temp;
 }
 
-volatile uint32_t itr = 0;
-
 // Calculates w
 void cg_calc_w(
   const int nnz,
@@ -196,9 +194,9 @@ void cg_calc_w(
 {
   double pw_temp = 0.0;
 
-#ifdef INJECT_FAULT
-  inject_bitflips(a_col_index, a_non_zeros);
-#endif
+// #ifdef INJECT_FAULT
+//   inject_bitflips(a_col_index, a_non_zeros);
+// #endif
 
 #pragma omp for reduction(+:pw_temp)
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -292,7 +290,7 @@ void cg_calc_w(
       }
   #endif
       CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
-                   row_begin, jj, kk, itr, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5);return;);
+                   row_begin, jj, kk, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5);return;);
       //Unrolled
       tmp  = a_non_zeros[row_begin    ] * p[a_col_index[row_begin    ] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 1] * p[a_col_index[row_begin + 1] & 0x00FFFFFF];
@@ -330,7 +328,6 @@ void cg_calc_w(
   }
 
   *pw += pw_temp;
-  itr++;
 }
 
 // Calculates u and r
@@ -380,6 +377,117 @@ void cg_calc_p(
       const int index = kk + jj*x;
 
       p[index] = beta*p[index] + r[index];
+    }
+  }
+}
+
+
+void matrix_check(
+  const int x, const int y, const int halo_depth,
+  uint32_t* a_row_index, uint32_t* a_col_index,
+  double* a_non_zeros, uint32_t* found_error)
+{
+#ifdef INJECT_FAULT
+  inject_bitflips(a_col_index, a_non_zeros);
+#endif
+#pragma omp for
+  for(int jj = halo_depth; jj < y-halo_depth; ++jj)
+  {
+    for(int kk = halo_depth; kk < x-halo_depth; ++kk)
+    {
+      const int row = kk + jj*x;
+
+      double tmp = 0.0;
+
+#if defined(SED_ASM)
+      int32_t err_index = -1;
+      asm (
+        // Compute pointers to start of column/value data for this row
+        "ldr     r4, [%[rowptr]]\n\t"
+        "add     r1, %[cols], r4, lsl #2\n\t"
+        "add     r4, %[values], r4, lsl #3\n\t"
+
+        // Compute pointer to end of column data for this row
+        "ldr     r5, [%[rowptr], #4]\n\t"
+        "add     r5, %[cols], r5, lsl #2\n\t"
+
+        "0:\n\t"
+        // Check if we've reached the end of this row
+        "cmp     r1, r5\n\t"
+        "beq     2f\n"
+
+        // *** Parity check starts ***
+        // Reduce data to 32-bits in r0
+        "ldr     r0, [r4]\n\t"
+        "ldr     r2, [r4, #4]\n\t"
+        "eor     r0, r0, r2\n\t"
+
+        // Load column into r2
+        "ldr     r2, [r1]\n\t"
+
+        // Continue reducing data to 32-bits
+        "eor     r0, r0, r2\n\t"
+        "eor     r0, r0, r0, lsr #16\n\t"
+        "eor     r0, r0, r0, lsr #8\n\t"
+
+        // Lookup final parity from table
+        "and     r0, r0, #0xFF\n\t"
+        "ldrB    r0, [%[PARITY_TABLE], r0]\n\t"
+
+        // Exit loop if parity fails
+        "cbz    r0, 1f\n\t"
+        "sub    %[err_index], r1, %[cols]\n\t"
+        "b      2f\n"
+        "1:\n\t"
+        // *** Parity check ends ***
+
+        // Mask out parity bits
+        "and      r2, r2, #0x00FFFFFF\n\t"
+
+        // Accumulate dot product into result
+        "add      r2, %[vector], r2, lsl #3\n\t"
+        "vldr.64  d6, [r4]\n\t"
+        "vldr.64  d7, [r2]\n\t"
+        "vmla.f64 %P[tmp], d6, d7\n\t"
+
+        // Increment data pointer, compare to end and branch to loop start
+        "add     r4, #8\n\t"
+        "add     r1, #4\n\t"
+        "b       0b\n"
+        "2:\n"
+        : [tmp] "+w" (tmp), [err_index] "+r" (err_index)
+        : [rowptr] "r" (a_row_index+row),
+          [cols] "r" (a_col_index),
+          [values] "r" (a_non_zeros),
+          [vector] "r" (p),
+          [PARITY_TABLE] "r" (PARITY_TABLE)
+        : "cc", "r0", "r1", "r2", "r4", "r5", "d6", "d7"
+        );
+      if (err_index >= 0)
+      {
+        printf("[ECC] error detected at index %d\n", err_index/4);
+        fail_task(found_error, jj, kk, err_index/4, &a_col_index[err_index/4], &a_non_zeros[err_index/4], 1);
+        return;
+      }
+
+#elif defined(CRC32C)
+      uint32_t row_begin = a_row_index[row];
+      CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
+                   row_begin, jj, kk, *found_error = 1;return;);
+#else
+      uint32_t row_begin = a_row_index[row];
+      uint32_t row_end   = a_row_index[row+1];
+      for (uint32_t idx = row_begin; idx < row_end; idx++)
+      {
+        uint32_t col = a_col_index[idx];
+        double val = a_non_zeros[idx];
+  #if defined(SED)
+        CHECK_SED(col, val, idx, *found_error = 1;return;);
+  #elif defined(SECDED)
+        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, *found_error = 1;return;);
+  #endif
+      }
+#endif
     }
   }
 }

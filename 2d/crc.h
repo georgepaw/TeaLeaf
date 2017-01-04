@@ -23,7 +23,7 @@
 #define SOFTWARE_CRC_SPLIT
 #endif
 
-#define CHECK_CRC32C(a_col_addr, a_non_zeros_addr, row_begin, jj, kk, itr, fail_function)\
+#define CHECK_CRC32C(a_col_addr, a_non_zeros_addr, row_begin, jj, kk, fail_function)\
 if(1){ \
   /*CRC32C TeaLeaf Specific*/\
   if(!check_correct_crc32_bits(a_col_addr, a_non_zeros_addr, 5))\

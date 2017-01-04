@@ -127,6 +127,11 @@ void calculate_2norm(
   const int x, const int y, const int halo_depth,
   double* buffer, double* norm);
 
+void matrix_check(
+  const int x, const int y, const int halo_depth,
+  uint32_t* a_row_index, uint32_t* a_col_index,
+  double* a_non_zeros, uint32_t* found_error);
+
 void finalise(
   const int x, const int y, const int halo_depth,
   double* energy, double* density, double* u);

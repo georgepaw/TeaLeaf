@@ -240,3 +240,13 @@ void run_finalise(Chunk* chunk, Settings* settings)
     chunk->density, chunk->u);
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
+
+void run_matrix_check(
+        Chunk* chunk, Settings* settings)
+{
+  START_PROFILING(settings->kernel_profile);
+  matrix_check(chunk->x, chunk->y, settings->halo_depth,
+            chunk->ext->a_row_index, chunk->ext->a_col_index,
+            chunk->ext->a_non_zeros, chunk->ext->found_error);
+  STOP_PROFILING(settings->kernel_profile, __func__);
+}

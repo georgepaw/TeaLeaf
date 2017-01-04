@@ -66,6 +66,15 @@ void sum_over_ranks(Settings* settings, double* a)
     STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
+// Reduce over all ranks to get sum
+void sum_over_ranks_uint32_t(Settings* settings, uint32_t* a)
+{
+    START_PROFILING(settings->kernel_profile);
+    uint32_t temp = *a;
+    MPI_Allreduce(&temp, a, 1, MPI_UNSIGNED, MPI_SUM, _MPI_COMM_WORLD);
+    STOP_PROFILING(settings->kernel_profile, __func__);
+}
+
 // Reduce across all ranks to get minimum value
 void min_over_ranks(Settings* settings, double* a)
 {
@@ -97,6 +106,7 @@ void initialise_ranks(Settings* settings)
 }
 void finalise_comms() { }
 void sum_over_ranks(Settings* settings, double* a) { }
+void sum_over_ranks_uint32_t(Settings* settings, double* a) { }
 void min_over_ranks(Settings* settings, double* a) { }
 void barrier() { }
 void abort_comms() 
