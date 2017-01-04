@@ -15,10 +15,10 @@ volatile int mpi_rank;
   #define _MPI_COMM_WORLD MPI_COMM_WORLD
   #endif
 #endif
-#define FAULT_INJECTION_ITTERATION 10
+#define FAULT_INJECTION_ITTERATION 675
 #define FAULT_INJECTION_RANK 1
 
-volatile uint32_t itteration = 0;
+volatile uint32_t __fault_injection_itteration = 0;
 
 static void inject_bitflip(uint32_t* a_col_index, double* a_non_zeros, uint32_t index, int num_flips)
 {
@@ -51,7 +51,7 @@ static void inject_bitflips(uint32_t* a_col_index, double* a_non_zeros)
 {
 #ifndef NO_MPI
   //get the MPI Rank
-  if(itteration == 0)
+  if(__fault_injection_itteration == 0)
   {
     MPI_Comm_rank(_MPI_COMM_WORLD, &mpi_rank);
   }
@@ -63,14 +63,14 @@ static void inject_bitflips(uint32_t* a_col_index, double* a_non_zeros)
   uint32_t start_index = 1000;
   uint32_t elemts_to_flip = 1;
   int num_flips_per_elem = 1;
-  if(itteration == FAULT_INJECTION_ITTERATION)
+  if(__fault_injection_itteration == FAULT_INJECTION_ITTERATION)
   {
     for(uint32_t i = 0; i < elemts_to_flip; i++)
     {
       inject_bitflip(a_col_index, a_non_zeros, start_index + i, num_flips_per_elem);
     }
   }
-  itteration++;
+  __fault_injection_itteration++;
 }
 
 #endif //FAULT_INJECTION_H

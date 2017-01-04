@@ -17,9 +17,17 @@ void cg_driver(
         Chunk* chunks, Settings* settings, 
         double rx, double ry, double* error)
 {
+#ifdef NANOS_RECOVERY
+    //this only supports one chunk per mpi rank
+    const int size = chunks[0].x * chunks[0].y;
+    const double * density = chunks[0].density;
+    const double * energy = chunks[0].energy;
+#pragma omp task in(rx) in(ry) in([size]density) in([size]energy) inout([1]error) recover copy_deps
+{
+#endif
     int tt;
     double rro = 0.0;
- 
+
     // Perform CG initialisation
     cg_init_driver(chunks, settings, rx, ry, &rro);
 
@@ -51,6 +59,10 @@ void cg_driver(
     }
 
     print_and_log(settings, "CG: \t\t\t%d iterations\n", tt);
+#ifdef NANOS_RECOVERY
+}
+#pragma omp taskwait
+#endif
 }
 
 // Invokes the CG initialisation kernels
@@ -107,7 +119,15 @@ void cg_main_step_driver(
         {
         }
     }
-
+#ifdef NANOS_RECOVERY
+    uint32_t found_error;
+    MPI_Allreduce(chunks[0].ext->found_error, &found_error, 1, MPI_UNSIGNED, MPI_SUM, _MPI_COMM_WORLD);
+    if(found_error)
+    {
+        //cause a task fail if an error has been found
+        *((int*)(NULL)) = 1;
+    }
+#endif
     sum_over_ranks(settings, &pw);
 
     double alpha = *rro / pw;

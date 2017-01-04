@@ -5,14 +5,19 @@
  * 		LOCAL HALOS KERNEL
  */	
 
+#pragma omp task
 void update_left(const int x, const int y,
         const int halo_depth, const int depth, double* buffer);
+#pragma omp task
 void update_right(const int x, const int y,
         const int halo_depth, const int depth, double* buffer);
+#pragma omp task
 void update_top(const int x, const int y,
         const int halo_depth, const int depth, double* buffer);
+#pragma omp task
 void update_bottom(const int x, const int y,
         const int halo_depth, const int depth, double* buffer);
+
 void update_face(const int x, const int y, const int halo_depth,
         const int* chunk_neighbours, const int depth, double* buffer);
 
@@ -71,7 +76,6 @@ void update_face(
 }
 
 // Update left halo.
-#pragma omp task
 void update_left(
         const int x,
         const int y,
@@ -90,7 +94,6 @@ void update_left(
 }
 
 // Update right halo.
-#pragma omp task
 void update_right(
         const int x,
         const int y,
@@ -110,7 +113,6 @@ void update_right(
 }
 
 // Update top halo.
-#pragma omp task
 void update_top(
         const int x,
         const int y,
@@ -130,7 +132,6 @@ void update_top(
 }
 
 // Updates bottom halo.
-#pragma omp task
 void update_bottom(
         const int x,
         const int y,

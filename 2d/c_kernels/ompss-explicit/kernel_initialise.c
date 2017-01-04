@@ -10,9 +10,19 @@
 #define PAGE_ROUND_UP(x,y) ((x + y - 1) & (~(y - 1)))
 
 // Allocates, and zeroes an individual buffer
-void allocate_buffer(double** a, int x, int y)
+void allocate_buffer(double** a, int x, int y, int memalign)
 {
-  *a = (double*)malloc(sizeof(double)*x*y);
+  if(memalign)
+  {
+    //to use nanos recovery the memory has to be aligned to pages
+    //also round up to the nearest page
+    int page_size = getpagesize();
+    posix_memalign((void**)a, page_size, PAGE_ROUND_UP(sizeof(double)*x*y, page_size));
+  }
+  else
+  {
+    *a = (double*)malloc(sizeof(double)*x*y);
+  }
 
   if(*a == NULL)
   {
@@ -41,40 +51,40 @@ void kernel_initialise(
   double** vertex_dy, double** vertex_x, double** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
   double** cheby_betas, uint32_t** a_row_index, uint32_t** a_col_index,
-  double** a_non_zeros)
+  double** a_non_zeros, uint32_t** found_error)
 {
   print_and_log(settings,
                 "Performing this solve with the OmpSs (explicit) %s solver\n",
                 settings->solver_name);
 
-  allocate_buffer(density0, x, y);
-  allocate_buffer(density, x, y);
-  allocate_buffer(energy0, x, y);
-  allocate_buffer(energy, x, y);
-  allocate_buffer(u, x, y);
-  allocate_buffer(u0, x, y);
-  allocate_buffer(p, x, y);
-  allocate_buffer(r, x, y);
-  allocate_buffer(mi, x, y);
-  allocate_buffer(w, x, y);
-  allocate_buffer(kx, x, y);
-  allocate_buffer(ky, x, y);
-  allocate_buffer(sd, x, y);
-  allocate_buffer(volume, x, y);
-  allocate_buffer(x_area, x+1, y);
-  allocate_buffer(y_area, x, y+1);
-  allocate_buffer(cell_x, x, 1);
-  allocate_buffer(cell_y, 1, y);
-  allocate_buffer(cell_dx, x, 1);
-  allocate_buffer(cell_dy, 1, y);
-  allocate_buffer(vertex_dx, x+1, 1);
-  allocate_buffer(vertex_dy, 1, y+1);
-  allocate_buffer(vertex_x, x+1, 1);
-  allocate_buffer(vertex_y, 1, y+1);
-  allocate_buffer(cg_alphas, settings->max_iters, 1);
-  allocate_buffer(cg_betas, settings->max_iters, 1);
-  allocate_buffer(cheby_alphas, settings->max_iters, 1);
-  allocate_buffer(cheby_betas, settings->max_iters, 1);
+  allocate_buffer(density0, x, y, 0);
+  allocate_buffer(density, x, y, 1);
+  allocate_buffer(energy0, x, y, 0);
+  allocate_buffer(energy, x, y, 1);
+  allocate_buffer(u, x, y, 0);
+  allocate_buffer(u0, x, y, 0);
+  allocate_buffer(p, x, y, 0);
+  allocate_buffer(r, x, y, 0);
+  allocate_buffer(mi, x, y, 0);
+  allocate_buffer(w, x, y, 0);
+  allocate_buffer(kx, x, y, 0);
+  allocate_buffer(ky, x, y, 0);
+  allocate_buffer(sd, x, y, 0);
+  allocate_buffer(volume, x, y, 0);
+  allocate_buffer(x_area, x+1, y, 0);
+  allocate_buffer(y_area, x, y+1, 0);
+  allocate_buffer(cell_x, x, 1, 0);
+  allocate_buffer(cell_y, 1, y, 0);
+  allocate_buffer(cell_dx, x, 1, 0);
+  allocate_buffer(cell_dy, 1, y, 0);
+  allocate_buffer(vertex_dx, x+1, 1, 0);
+  allocate_buffer(vertex_dy, 1, y+1, 0);
+  allocate_buffer(vertex_x, x+1, 1, 0);
+  allocate_buffer(vertex_y, 1, y+1, 0);
+  allocate_buffer(cg_alphas, settings->max_iters, 1, 0);
+  allocate_buffer(cg_betas, settings->max_iters, 1, 0);
+  allocate_buffer(cheby_alphas, settings->max_iters, 1, 0);
+  allocate_buffer(cheby_betas, settings->max_iters, 1, 0);
 
   // Initialise CSR matrix
   *a_row_index = (uint32_t*)malloc(sizeof(uint32_t)*(x*y+1));
@@ -98,15 +108,12 @@ void kernel_initialise(
       (*a_row_index)[index+1] = (*a_row_index)[index] + row_count;
     }
   }
-
   int num_non_zeros = (*a_row_index)[x*y];
-  //to use nanos recovery the memory has to be aligned to pages
-  //also round up to the nearest page
-  uint32_t page_size = getpagesize();
-  posix_memalign((void**)a_col_index, page_size, PAGE_ROUND_UP(sizeof(uint32_t)*num_non_zeros, page_size));
-  posix_memalign((void**)a_non_zeros, page_size, PAGE_ROUND_UP(sizeof(double)*num_non_zeros, page_size));
+  *a_col_index = (int*)malloc(sizeof(int)*num_non_zeros);
+  *a_non_zeros = (double*)malloc(sizeof(double)*num_non_zeros);
+  *found_error = (uint32_t*)malloc(sizeof(uint32_t));
 #ifdef MB_LOGGING
-  size_t protected_memory_size = (sizeof(uint32_t)+sizeof(double))*num_non_zeros;
+  size_t protected_memory_size = (2*sizeof(double))*x*y;
   mb_start_log(protected_memory_size);
 #endif
 }
@@ -119,7 +126,8 @@ void kernel_finalise(
   double* cell_y, double* cell_dx, double* cell_dy, double* vertex_dx,
   double* vertex_dy, double* vertex_x, double* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
-  double* cheby_betas)
+  double* cheby_betas, uint32_t* a_row_index, uint32_t* a_col_index,
+  double* a_non_zeros, uint32_t* found_error)
 {
   free(density0);
   free(density);
@@ -149,6 +157,10 @@ void kernel_finalise(
   free(cg_betas);
   free(cheby_alphas);
   free(cheby_betas);
+  free(found_error);
+  free(a_row_index);
+  free(a_col_index);
+  free(a_non_zeros);
 #ifdef MB_LOGGING
   mb_end_log();
 #endif

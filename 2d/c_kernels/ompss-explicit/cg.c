@@ -20,7 +20,7 @@ volatile double f_vals[5];
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
 
-void fail_task(uint32_t jj, uint32_t kk, uint32_t idx, uint32_t * a_col_addr, double * a_non_zeros_addr, uint32_t num_elements)
+void fail_task(uint32_t* found_error, uint32_t jj, uint32_t kk, uint32_t idx, uint32_t * a_col_addr, double * a_non_zeros_addr, uint32_t num_elements)
 {
 #ifdef NANOS_RECOVERY
   if(!failed)
@@ -31,8 +31,8 @@ void fail_task(uint32_t jj, uint32_t kk, uint32_t idx, uint32_t * a_col_addr, do
     f_idx = idx;
     memcpy(f_cols, a_col_addr, sizeof(uint32_t) * num_elements);
     memcpy(f_vals, a_non_zeros_addr, sizeof(double) * num_elements);
-    //cause a seg fault to triger task fail
-    *((int*)(NULL)) = 1;
+
+    *found_error = 1;
   }
 #else
    exit(1);
@@ -58,13 +58,14 @@ void cg_init(
   double* ky,
   uint32_t* a_row_index,
   uint32_t* a_col_index,
-  double* a_non_zeros)
+  double* a_non_zeros,
+  uint32_t* found_error)
 {
   if(coefficient != CONDUCTIVITY && coefficient != RECIP_CONDUCTIVITY)
   {
     die(__LINE__, __FILE__, "Coefficient %d is not valid.\n", coefficient);
   }
-
+  *found_error = 0;
 #pragma omp for
   for(int jj = 0; jj < y; ++jj)
   {
@@ -174,7 +175,6 @@ void cg_init(
       rro_temp += r[index]*r[index];
     }
   }
-
   *rro += rro_temp;
 }
 
@@ -191,7 +191,8 @@ void cg_calc_w(
   double* w,
   uint32_t* a_row_index,
   uint32_t* a_col_index,
-  double* a_non_zeros)
+  double* a_non_zeros,
+  uint32_t* found_error)
 {
   double pw_temp = 0.0;
 
@@ -275,7 +276,8 @@ void cg_calc_w(
       if (err_index >= 0)
       {
         printf("[ECC] error detected at index %d\n", err_index/4);
-        fail_task(jj, kk, err_index/4, &a_col_index[err_index/4], &a_non_zeros[err_index/4], 1);
+        fail_task(found_error, jj, kk, err_index/4, &a_col_index[err_index/4], &a_non_zeros[err_index/4], 1);
+        return;
       }
 
 #elif defined(CRC32C)
@@ -304,7 +306,7 @@ void cg_calc_w(
       }
   #endif
       CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
-                   row_begin, jj, kk, itr, fail_task(jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5));
+                   row_begin, jj, kk, itr, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5);return;);
       //Unrolled
       tmp  = a_non_zeros[row_begin    ] * p[a_col_index[row_begin    ] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 1] * p[a_col_index[row_begin + 1] & 0x00FFFFFF];
@@ -329,9 +331,9 @@ void cg_calc_w(
         }
   #endif
   #if defined(SED)
-        CHECK_SED(col, val, idx, fail_task(jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1););
+        CHECK_SED(col, val, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #elif defined(SECDED)
-        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task(jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1););
+        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #endif
         tmp += val * p[col];
       }

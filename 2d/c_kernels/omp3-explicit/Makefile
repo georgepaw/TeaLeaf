@@ -2,7 +2,7 @@ vpath %.c $(KERNELS_PATH)
 
 include $(KERNELS_PATH)/make.deps
 
-TL_LDFLAGS += $(OMP) -L/nfs/home/george/builds/fti-$(OMPI_CC)/lib -lfti
+TL_LDFLAGS += $(OMP) -fopenmp
 
 KERNEL_SRCS := $(wildcard $(KERNELS_PATH)/*.c)
 KERNEL_OBJS := $(patsubst $(KERNELS_PATH)/%.c, obj/$(KERNELS)/%.o, $(KERNEL_SRCS))

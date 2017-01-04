@@ -3,12 +3,6 @@
 
 #ifndef NO_MPI
 
-#ifdef FT_FTI
-#define _MPI_COMM_WORLD FTI_COMM_WORLD
-#else
-#define _MPI_COMM_WORLD MPI_COMM_WORLD
-#endif
-
 // Initialise MPI
 void initialise_comms(int argc, char** argv)
 {
