@@ -377,7 +377,7 @@ void cg_calc_w(
   #if defined(SED)
         CHECK_SED(col, val, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #elif defined(SECDED)
-        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
+        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, 0, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #endif
   #ifdef INTERVAL_CHECKS
       }
@@ -544,18 +544,7 @@ void matrix_check(
   #if defined(SED)
         CHECK_SED(col, val, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #elif defined(SECDED)
-        uint32_t old_col = col;
-        double old_val = val;
-        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
-        //Atlough SECDED might correct a single bitflip, it's too late
-        //as there have been values calculated with the incorrect matrix
-        if(old_col != col || old_val != val)
-        {
-          a_col_index[idx] = old_col;
-          a_non_zeros[idx] = old_val;
-          fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);
-          return;
-        }
+        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, 1, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #endif
       }
 #endif

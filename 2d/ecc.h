@@ -103,7 +103,7 @@ if(1){ \
   col = element.column & 0x00FFFFFF;\
 } else
 
-#define CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_function)\
+#define CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_on_sec, fail_function)\
 if(1){\
   csr_element element;\
   element.value  = val;\
@@ -113,6 +113,7 @@ if(1){\
   uint32_t syndrome = ecc_compute_col8(element);\
   if(overall_parity)\
   {\
+    if(fail_on_sec) fail_function;\
     if(syndrome)\
     {\
       /* Unflip bit */\
