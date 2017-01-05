@@ -9,4 +9,5 @@ typedef struct ChunkExtension
   uint32_t* a_col_index;
   double*   a_non_zeros;
   uint32_t*  found_error;
+  uint32_t*  iteration;
 } ChunkExtension;

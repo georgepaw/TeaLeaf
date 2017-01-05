@@ -59,13 +59,15 @@ void cg_init(
   uint32_t* a_row_index,
   uint32_t* a_col_index,
   double* a_non_zeros,
-  uint32_t* found_error)
+  uint32_t* found_error,
+  uint32_t* iteration)
 {
   if(coefficient != CONDUCTIVITY && coefficient != RECIP_CONDUCTIVITY)
   {
     die(__LINE__, __FILE__, "Coefficient %d is not valid.\n", coefficient);
   }
   *found_error = 0;
+  *iteration = 0;
 #pragma omp for
   for(int jj = 0; jj < y; ++jj)
   {
@@ -190,13 +192,17 @@ void cg_calc_w(
   uint32_t* a_row_index,
   uint32_t* a_col_index,
   double* a_non_zeros,
-  uint32_t* found_error)
+  uint32_t* found_error,
+  uint32_t* iteration)
 {
   double pw_temp = 0.0;
 
-// #ifdef INJECT_FAULT
-//   inject_bitflips(a_col_index, a_non_zeros);
-// #endif
+#ifdef INTERVAL_CHECKS
+  const uint8_t do_FT_check = (*iteration % INTERVAL_CHECKS) == 0;
+#endif
+#ifdef INJECT_FAULT
+  inject_bitflips(a_col_index, a_non_zeros);
+#endif
 
 #pragma omp for reduction(+:pw_temp)
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -208,6 +214,10 @@ void cg_calc_w(
       double tmp = 0.0;
 
 #if defined(SED_ASM)
+  #ifdef INTERVAL_CHECKS
+      if(do_FT_check)
+      {
+  #endif
       int32_t err_index = -1;
       asm (
         // Compute pointers to start of column/value data for this row
@@ -277,6 +287,23 @@ void cg_calc_w(
         fail_task(found_error, jj, kk, err_index/4, &a_col_index[err_index/4], &a_non_zeros[err_index/4], 1);
         return;
       }
+  #ifdef INTERVAL_CHECKS
+      }
+      else
+      {
+        uint32_t row_begin = a_row_index[row];
+        uint32_t row_end   = a_row_index[row+1];
+        for (uint32_t idx = row_begin; idx < row_end; idx++)
+        {
+          uint32_t col = a_col_index[idx];
+          double val = a_non_zeros[idx];
+          //remove the mask
+          col &= 0x00FFFFFF;
+          COLUMN_CHECK(col, x, y, idx);
+          tmp += val * p[col];
+        }
+      }
+  #endif
 
 #elif defined(CRC32C)
       uint32_t row_begin = a_row_index[row];
@@ -289,14 +316,43 @@ void cg_calc_w(
         failed = 0;
       }
   #endif
+  #ifdef INTERVAL_CHECKS
+      if(do_FT_check)
+      {
+  #endif
       CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
                    row_begin, jj, kk, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5);return;);
       //Unrolled
-      tmp  = a_non_zeros[row_begin    ] * p[a_col_index[row_begin    ] & 0x00FFFFFF];
+      tmp += a_non_zeros[row_begin    ] * p[a_col_index[row_begin    ] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 1] * p[a_col_index[row_begin + 1] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 2] * p[a_col_index[row_begin + 2] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 3] * p[a_col_index[row_begin + 3] & 0x00FFFFFF];
       tmp += a_non_zeros[row_begin + 4] * p[a_col_index[row_begin + 4] & 0x00FFFFFF];
+  #ifdef INTERVAL_CHECKS
+      }
+      else
+      {
+        uint32_t col = a_col_index[row_begin    ] & 0x00FFFFFF;
+        COLUMN_CHECK(col, x, y, row_begin);
+        tmp += a_non_zeros[row_begin    ] * p[col];
+
+        col = a_col_index[row_begin + 1] & 0x00FFFFFF;
+        COLUMN_CHECK(col, x, y, row_begin + 1);
+        tmp += a_non_zeros[row_begin + 1] * p[col];
+
+        col = a_col_index[row_begin + 2] & 0x00FFFFFF;
+        COLUMN_CHECK(col, x, y, row_begin + 2);
+        tmp += a_non_zeros[row_begin + 2] * p[col];
+
+        col = a_col_index[row_begin + 3] & 0x00FFFFFF;
+        COLUMN_CHECK(col, x, y, row_begin + 3);
+        tmp += a_non_zeros[row_begin + 3] * p[col];
+
+        col = a_col_index[row_begin + 4] & 0x00FFFFFF;
+        COLUMN_CHECK(col, x, y, row_begin + 4);
+        tmp += a_non_zeros[row_begin + 4] * p[col];
+      }
+  #endif
 #else
       uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
@@ -314,10 +370,23 @@ void cg_calc_w(
           failed = 0;
         }
   #endif
+  #ifdef INTERVAL_CHECKS
+      if(do_FT_check)
+      {
+  #endif
   #if defined(SED)
         CHECK_SED(col, val, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #elif defined(SECDED)
         CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
+  #endif
+  #ifdef INTERVAL_CHECKS
+      }
+      else
+      {
+        //remove the mask
+        col &= 0x00FFFFFF;
+        COLUMN_CHECK(col, x, y, idx);
+      }
   #endif
         tmp += val * p[col];
       }
@@ -328,6 +397,7 @@ void cg_calc_w(
   }
 
   *pw += pw_temp;
+  *iteration += 1;
 }
 
 // Calculates u and r
@@ -441,15 +511,6 @@ void matrix_check(
         "1:\n\t"
         // *** Parity check ends ***
 
-        // Mask out parity bits
-        "and      r2, r2, #0x00FFFFFF\n\t"
-
-        // Accumulate dot product into result
-        "add      r2, %[vector], r2, lsl #3\n\t"
-        "vldr.64  d6, [r4]\n\t"
-        "vldr.64  d7, [r2]\n\t"
-        "vmla.f64 %P[tmp], d6, d7\n\t"
-
         // Increment data pointer, compare to end and branch to loop start
         "add     r4, #8\n\t"
         "add     r1, #4\n\t"
@@ -459,7 +520,6 @@ void matrix_check(
         : [rowptr] "r" (a_row_index+row),
           [cols] "r" (a_col_index),
           [values] "r" (a_non_zeros),
-          [vector] "r" (p),
           [PARITY_TABLE] "r" (PARITY_TABLE)
         : "cc", "r0", "r1", "r2", "r4", "r5", "d6", "d7"
         );
@@ -473,7 +533,7 @@ void matrix_check(
 #elif defined(CRC32C)
       uint32_t row_begin = a_row_index[row];
       CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
-                   row_begin, jj, kk, *found_error = 1;return;);
+                   row_begin, jj, kk, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5);return;);
 #else
       uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
@@ -482,9 +542,20 @@ void matrix_check(
         uint32_t col = a_col_index[idx];
         double val = a_non_zeros[idx];
   #if defined(SED)
-        CHECK_SED(col, val, idx, *found_error = 1;return;);
+        CHECK_SED(col, val, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
   #elif defined(SECDED)
-        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, *found_error = 1;return;);
+        uint32_t old_col = col;
+        double old_val = val;
+        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
+        //Atlough SECDED might correct a single bitflip, it's too late
+        //as there have been values calculated with the incorrect matrix
+        if(old_col != col || old_val != val)
+        {
+          a_col_index[idx] = old_col;
+          a_non_zeros[idx] = old_val;
+          fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);
+          return;
+        }
   #endif
       }
 #endif

@@ -60,4 +60,13 @@ void die(int lineNum, const char* file, const char* format, ...);
     }\
     printf("%s = %.12E\n", #buffer, temp);
 
+#define COLUMN_CHECK(col, x, y, idx) \
+if(1){ \
+	if (col >= x*y) \
+    { \
+      printf("column size constraint violated at index %d\n", idx); \
+      col = x*y - 1; \
+    } \
+} else
+
 #endif

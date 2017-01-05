@@ -31,7 +31,8 @@ void run_kernel_initialise(Chunk* chunk, Settings* settings)
                     &(chunk->vertex_y), &(chunk->cg_alphas), &(chunk->cg_betas),
                     &(chunk->cheby_alphas), &(chunk->cheby_betas),
                     &(chunk->ext->a_row_index), &(chunk->ext->a_col_index),
-                    &(chunk->ext->a_non_zeros), &(chunk->ext->found_error));
+                    &(chunk->ext->a_non_zeros), &(chunk->ext->found_error),
+                    &(chunk->ext->iteration));
 }
 
 void run_kernel_finalise(
@@ -46,7 +47,8 @@ void run_kernel_finalise(
     chunk->vertex_y, chunk->cg_alphas, chunk->cg_betas,
     chunk->cheby_alphas, chunk->cheby_betas,
     chunk->ext->a_row_index, chunk->ext->a_col_index,
-    chunk->ext->a_non_zeros, chunk->ext->found_error);
+    chunk->ext->a_non_zeros, chunk->ext->found_error,
+    chunk->ext->iteration);
 }
 
 // Solver-wide kernels
@@ -101,7 +103,8 @@ void run_cg_init(
           chunk->p, chunk->r, chunk->w,
           chunk->kx, chunk->ky,
           chunk->ext->a_row_index, chunk->ext->a_col_index,
-          chunk->ext->a_non_zeros, chunk->ext->found_error);
+          chunk->ext->a_non_zeros, chunk->ext->found_error,
+          chunk->ext->iteration);
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -112,7 +115,8 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
             chunk->x, chunk->y,
             settings->halo_depth, pw, chunk->p, chunk->w,
             chunk->ext->a_row_index, chunk->ext->a_col_index,
-            chunk->ext->a_non_zeros, chunk->ext->found_error);
+            chunk->ext->a_non_zeros, chunk->ext->found_error,
+            chunk->ext->iteration);
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 

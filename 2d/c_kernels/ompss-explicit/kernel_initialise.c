@@ -51,7 +51,7 @@ void kernel_initialise(
   double** vertex_dy, double** vertex_x, double** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
   double** cheby_betas, uint32_t** a_row_index, uint32_t** a_col_index,
-  double** a_non_zeros, uint32_t** found_error)
+  double** a_non_zeros, uint32_t** found_error, uint32_t** iteration)
 {
   print_and_log(settings,
                 "Performing this solve with the OmpSs (explicit) %s solver\n",
@@ -112,6 +112,7 @@ void kernel_initialise(
   *a_col_index = (int*)malloc(sizeof(int)*num_non_zeros);
   *a_non_zeros = (double*)malloc(sizeof(double)*num_non_zeros);
   *found_error = (uint32_t*)malloc(sizeof(uint32_t));
+  *iteration = (uint32_t*)malloc(sizeof(uint32_t));
 #ifdef MB_LOGGING
   size_t protected_memory_size = (2*sizeof(double))*x*y;
   mb_start_log(protected_memory_size);
@@ -127,7 +128,7 @@ void kernel_finalise(
   double* vertex_dy, double* vertex_x, double* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
   double* cheby_betas, uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros, uint32_t* found_error)
+  double* a_non_zeros, uint32_t* found_error, uint32_t* iteration)
 {
   free(density0);
   free(density);
@@ -161,6 +162,7 @@ void kernel_finalise(
   free(a_row_index);
   free(a_col_index);
   free(a_non_zeros);
+  free(iteration);
 #ifdef MB_LOGGING
   mb_end_log();
 #endif

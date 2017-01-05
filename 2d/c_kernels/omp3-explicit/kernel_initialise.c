@@ -34,7 +34,7 @@ void kernel_initialise(
   double** vertex_dy, double** vertex_x, double** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
   double** cheby_betas, uint32_t** a_row_index, uint32_t** a_col_index,
-  double** a_non_zeros)
+  double** a_non_zeros, uint32_t** iteration)
 {
   print_and_log(settings,
                 "Performing this solve with the OpenMP 3.0 (explicit) %s solver\n",
@@ -95,6 +95,7 @@ void kernel_initialise(
   int num_non_zeros = (*a_row_index)[x*y];
   *a_col_index = (int*)malloc(sizeof(int)*num_non_zeros);
   *a_non_zeros = (double*)malloc(sizeof(double)*num_non_zeros);
+  *iteration = (uint32_t*)malloc(sizeof(uint32_t));
 }
 
 void kernel_finalise(
@@ -105,7 +106,7 @@ void kernel_finalise(
   double* cell_y, double* cell_dx, double* cell_dy, double* vertex_dx,
   double* vertex_dy, double* vertex_x, double* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
-  double* cheby_betas)
+  double* cheby_betas, uint32_t* iteration)
 {
   free(density0);
   free(density);
@@ -135,4 +136,5 @@ void kernel_finalise(
   free(cg_betas);
   free(cheby_alphas);
   free(cheby_betas);
+  free(iteration);
 }

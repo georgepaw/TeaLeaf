@@ -26,7 +26,7 @@ void kernel_initialise(
   double** vertex_dy, double** vertex_x, double** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
   double** cheby_betas, uint32_t** a_row_index, uint32_t** a_col_index,
-  double** a_non_zeros, uint32_t** found_error);
+  double** a_non_zeros, uint32_t** found_error, uint32_t** iteration);
 
 void kernel_finalise(
   double* density0, double* density, double* energy0, double* energy,
@@ -37,7 +37,7 @@ void kernel_finalise(
   double* vertex_dy, double* vertex_x, double* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
   double* cheby_betas, uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros, uint32_t* found_error);
+  double* a_non_zeros, uint32_t* found_error, uint32_t* iteration);
 
 // Solver-wide kernels
 void local_halos(
@@ -66,13 +66,13 @@ void cg_init(
   double* density, double* energy, double* u, double* p,
   double* r, double* w, double* kx, double* ky,
   uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros, uint32_t* found_error);
+  double* a_non_zeros, uint32_t* found_error, uint32_t* iteration);
 
 void cg_calc_w(
   const int nnz, const int x, const int y, const int halo_depth, double* pw,
   double* p, double* w,
   uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros, uint32_t* found_error);
+  double* a_non_zeros, uint32_t* found_error, uint32_t* iteration);
 
 void cg_calc_ur(
   const int x, const int y, const int halo_depth,
