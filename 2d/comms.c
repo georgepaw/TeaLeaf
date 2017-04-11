@@ -106,7 +106,7 @@ void initialise_ranks(Settings* settings)
 }
 void finalise_comms() { }
 void sum_over_ranks(Settings* settings, double* a) { }
-void sum_over_ranks_uint32_t(Settings* settings, double* a) { }
+void sum_over_ranks_uint32_t(Settings* settings, uint32_t* a) { }
 void min_over_ranks(Settings* settings, double* a) { }
 void barrier() { }
 void abort_comms() 

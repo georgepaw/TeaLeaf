@@ -130,7 +130,7 @@ void cg_init(
 
       a_non_zeros[offset]   = -ky[index+x];
       a_col_index[offset++] = index+x;
-      assign_crc_bits(a_col_index, a_non_zeros, coef_index, 5);
+      assign_crc32c_bits(a_col_index, a_non_zeros, coef_index, 5);
 #else
       csr_element element;
       ASSIGN_ECC_BITS(element, a_col_index, a_non_zeros, -ky[index], index-x, offset);
@@ -305,7 +305,7 @@ void cg_calc_w(
       if(do_FT_check)
       {
   #endif
-      CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
+      CHECK_CRC32C(a_col_index, a_non_zeros,
                    row_begin, jj, kk, fail_task());
       //Unrolled
       tmp  = a_non_zeros[row_begin    ] * (p[a_col_index[row_begin    ] & 0x00FFFFFF]);
@@ -507,7 +507,7 @@ void matrix_check(
 
 #elif defined(CRC32C)
       uint32_t row_begin = a_row_index[row];
-      CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
+      CHECK_CRC32C(a_col_index, a_non_zeros,
                    row_begin, jj, kk, fail_task());
 #else
       uint32_t row_begin = a_row_index[row];

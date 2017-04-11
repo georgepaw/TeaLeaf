@@ -2,16 +2,25 @@
 KERNELS  	= kokkos
 CPROFILER   = yes
 DEBUG       = no
-OPTIONS     =
+OPTIONS     = -DNO_MPI
 CC  		= icc
 CPP			= icpc
 COMPILER    = INTEL
+
+ABFT_METHOD =
+
+ifneq ($(ABFT_METHOD),)
+  OPTIONS += -D$(ABFT_METHOD)
+endif
 
 # By default use C compiler and flags, may be overridden by implementation
 TL_LINK		= $(CC)
 TL_LDFLAGS	= -lrt -lm
 TL_COMPILER	= $(CC)
 TL_FLAGS	= $(CFLAGS)
+
+IS_INTEL = $(shell lscpu | grep GenuineIntel)
+
 
 include make.flags
 
@@ -28,6 +37,11 @@ vpath %.c drivers/
 OBJS  = $(patsubst %.c, obj/$(KERNELS)/%.o, $(wildcard *.c))
 OBJS += $(patsubst drivers/%.c, obj/$(KERNELS)/%.o, $(wildcard drivers/*.c))
 
+ifneq ($(IS_INTEL),)
+  # OPTIONS += -DINTEL_ASM
+  OBJS += crc_iscsi_v_pcl.o
+endif
+
 # Link together control code, drivers and kernels
 tealeaf: make_build_dir build_kernels $(OBJS) Makefile
 	$(TL_LINK) $(OBJS) $(KERNEL_OBJS) $(TL_LDFLAGS) -o tealeaf.$(KERNELS)
@@ -39,6 +53,9 @@ include $(KERNELS_PATH)/Makefile
 # Rule to make controlling code
 obj/$(KERNELS)/%.o: %.c Makefile make.deps $(KERNELS_PATH)/make.deps
 	$(TL_COMPILER) $(TL_FLAGS) -I$(KERNELS_PATH) $(OPTIONS) -c $< -o $@
+
+crc_iscsi_v_pcl.o: crc_iscsi_v_pcl.asm
+	yasm -f x64 -f elf64 -X gnu -g dwarf2 -D LINUX -o $@ $<
 
 # Create the object file directory and implementation sub-directory
 make_build_dir:
