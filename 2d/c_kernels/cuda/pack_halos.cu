@@ -83,7 +83,7 @@ void pack_or_unpack(
     if(pack)
     {
         cudaMemcpy(
-                chunk->ext->d_comm_buffer, buffer, buffer_length*sizeof(double),
+                buffer, chunk->ext->d_comm_buffer, buffer_length*sizeof(double),
                 cudaMemcpyDeviceToHost);
         check_errors(__LINE__, __FILE__);
     }

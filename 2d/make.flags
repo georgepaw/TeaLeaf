@@ -3,8 +3,9 @@ CFLAGS_INTEL    = -O3 -no-prec-div -restrict -fno-alias -xhost -std=gnu99
 CFLAGS_GNU      = -O3 -march=native -funroll-loops -std=gnu99
 CFLAGS_CRAY     = -h list=a 
 CFLAGS_PGI      = -fast -Mlist
-CFLAGS_CLANG    = -O3 -fopenmp -omptargets=nvptx64sm_35-nvidia-cuda
 CFLAGS_XL       = -O5
+CFLAGS_CLANG    = -O3 -fopenmp=libomp -fopenmp-targets=nvptx64-nvidia-cuda \
+									-I/localhd/mattmar/lomp/lomp/source/ #-ffp-contract=fast 
 
 CPPFLAGS_INTEL    = -O3 -no-prec-div -restrict -fno-alias -xhost -std=c++11
 CPPFLAGS_GNU      = -O3 -march=native -funroll-loops -std=c++11
