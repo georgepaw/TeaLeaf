@@ -1,11 +1,11 @@
 # Used specified parameters
-KERNELS  	= kokkos
-CPROFILER   = yes
-DEBUG       = no
-OPTIONS     = -DNO_MPI
-CC  		= icc
-CPP			= icpc
-COMPILER    = INTEL
+KERNELS   = omp4_clang
+CPROFILER = yes
+DEBUG     = no
+OPTIONS   = 
+CC        = /localhd/mattmar/trunk/obj/bin/clang
+CPP       = /localhd/mattmar/trunk/obj/bin/clang++
+COMPILER  = CLANG
 
 ABFT_METHOD =
 
@@ -14,10 +14,10 @@ ifneq ($(ABFT_METHOD),)
 endif
 
 # By default use C compiler and flags, may be overridden by implementation
-TL_LINK		= $(CC)
-TL_LDFLAGS	= -lrt -lm
-TL_COMPILER	= $(CC)
-TL_FLAGS	= $(CFLAGS)
+TL_LINK     = $(CC)
+TL_LDFLAGS  = -lrt -lm
+TL_COMPILER = $(CC)
+TL_FLAGS    = $(CFLAGS)
 
 IS_INTEL = $(shell lscpu | grep GenuineIntel)
 
@@ -44,7 +44,7 @@ endif
 
 # Link together control code, drivers and kernels
 tealeaf: make_build_dir build_kernels $(OBJS) Makefile
-	$(TL_LINK) $(OBJS) $(KERNEL_OBJS) $(TL_LDFLAGS) -o tealeaf.$(KERNELS)
+	$(TL_LINK) $(TL_FLAGS) $(OBJS) $(KERNEL_OBJS) $(TL_LDFLAGS) -o tealeaf.$(KERNELS)
 	cp tealeaf.$(KERNELS) tealeaf
 
 include make.deps

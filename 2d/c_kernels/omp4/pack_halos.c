@@ -13,7 +13,7 @@ void pack_left(
 {
     const int y_inner = y - 2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(from: buffer[:depth*y_inner])
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
@@ -37,7 +37,7 @@ void pack_right(
 {
     const int y_inner = y - 2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(from: buffer[:depth*y_inner])
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
@@ -61,7 +61,7 @@ void pack_top(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(from: buffer[:depth*x_inner])
     for(int jj = y-halo_depth-depth; jj < y-halo_depth; ++jj)
     {
@@ -85,7 +85,7 @@ void pack_bottom(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(from: buffer[:depth*x_inner])
     for(int jj = halo_depth; jj < halo_depth+depth; ++jj)
     {
@@ -109,7 +109,7 @@ void unpack_left(
 {
     const int y_inner = y - 2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(to: buffer[:depth*y_inner])
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
@@ -133,7 +133,7 @@ void unpack_right(
 { 
     const int y_inner = y - 2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(to: buffer[:depth*y_inner])
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
@@ -157,7 +157,7 @@ void unpack_top(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(to: buffer[:depth*x_inner])
     for(int jj = y-halo_depth; jj < y-halo_depth+depth; ++jj)
     {
@@ -181,7 +181,7 @@ void unpack_bottom(
 {
     const int x_inner = x-2*halo_depth;
 
-#pragma omp target teams distribute if(is_offload) \
+#pragma omp target teams distribute parallel for if(is_offload) \
     map(to: buffer[:depth*x_inner])
     for(int jj = halo_depth-depth; jj < halo_depth; ++jj)
     {

@@ -12,7 +12,7 @@ void cheby_calc_u(
         double* u,
         double* p)
 {
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
@@ -37,7 +37,7 @@ void cheby_init(
         double* kx,
         double* ky)
 {
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
@@ -68,7 +68,7 @@ void cheby_iterate(
         double* kx,
         double* ky)
 {
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)

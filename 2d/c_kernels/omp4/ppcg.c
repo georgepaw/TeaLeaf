@@ -13,7 +13,7 @@ void ppcg_init(
         double* r,
         double* sd)
 {
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
@@ -37,7 +37,7 @@ void ppcg_inner_iteration(
         double* ky,
         double* sd)
 {
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
@@ -49,7 +49,7 @@ void ppcg_inner_iteration(
         }
     }
 
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)

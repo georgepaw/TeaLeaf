@@ -10,4 +10,6 @@ build_kernels: $(KERNEL_OBJS)
 	-mv *.ptx *.cub obj/$(KERNELS)
 
 CFLAGS += -DDIFFUSE_OVERLOAD
+TL_LDFLAGS += -L/localhd/mattmar/lomp/lomp/source/lib64
+
 

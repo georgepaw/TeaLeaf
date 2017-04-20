@@ -27,7 +27,7 @@ void jacobi_init(
         die(__LINE__, __FILE__, "Coefficient %d is not valid.\n", coefficient);
     }
 
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
         for(int jj = 1; jj < y-1; ++jj)
         {
             for(int kk = 1; kk < x-1; ++kk)
@@ -39,7 +39,7 @@ void jacobi_init(
             }
         }
 
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
         for(int jj = halo_depth; jj < y-1; ++jj)
         {
             for(int kk = halo_depth; kk < x-1; ++kk)
@@ -70,7 +70,7 @@ void jacobi_iterate(
         double* u,
         double* r)
 {
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for
         for(int jj = 0; jj < y; ++jj)
         {
             for(int kk = 0; kk < x; ++kk)
@@ -81,7 +81,7 @@ void jacobi_iterate(
         }
 
     double err=0.0;
-#pragma omp target teams distribute reduction(+: err)
+#pragma omp target teams distribute parallel for reduction(+: err)
         for(int jj = halo_depth; jj < y-halo_depth; ++jj)
         {
             for(int kk = halo_depth; kk < x-halo_depth; ++kk)
