@@ -2,7 +2,7 @@
 KERNELS   = omp4_clang
 CPROFILER = yes
 DEBUG     = no
-OPTIONS   = 
+OPTIONS   = -DNO_MPI
 CC        = /localhd/mattmar/trunk/obj/bin/clang
 CPP       = /localhd/mattmar/trunk/obj/bin/clang++
 COMPILER  = CLANG
@@ -39,7 +39,7 @@ OBJS += $(patsubst drivers/%.c, obj/$(KERNELS)/%.o, $(wildcard drivers/*.c))
 
 ifneq ($(IS_INTEL),)
   # OPTIONS += -DINTEL_ASM
-  OBJS += crc_iscsi_v_pcl.o
+  OBJS += obj/$(KERNELS)/crc_iscsi_v_pcl.o
 endif
 
 # Link together control code, drivers and kernels
@@ -54,7 +54,7 @@ include $(KERNELS_PATH)/Makefile
 obj/$(KERNELS)/%.o: %.c Makefile make.deps $(KERNELS_PATH)/make.deps
 	$(TL_COMPILER) $(TL_FLAGS) -I$(KERNELS_PATH) $(OPTIONS) -c $< -o $@
 
-crc_iscsi_v_pcl.o: crc_iscsi_v_pcl.asm
+obj/$(KERNELS)/crc_iscsi_v_pcl.o: ABFT/crc_iscsi_v_pcl.asm
 	yasm -f x64 -f elf64 -X gnu -g dwarf2 -D LINUX -o $@ $<
 
 # Create the object file directory and implementation sub-directory

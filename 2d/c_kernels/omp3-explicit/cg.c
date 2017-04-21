@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include "../../shared.h"
 #ifdef CRC32C
-#include "../../crc.h"
+#include "../../ABFT/crc.h"
 #else
-#include "../../ecc.h"
+#include "../../ABFT/ecc.h"
 #endif
-#include "../../fault_injection.h"
+#include "../../ABFT/fault_injection.h"
 #ifdef FT_FTI
 #include <fti.h>
 #endif

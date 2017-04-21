@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include "../../shared.h"
 #ifdef CRC32C
-#include "../../crc.h"
+#include "../../ABFT/crc.h"
 #else
-#include "../../ecc.h"
+#include "../../ABFT/ecc.h"
 #endif
-#include "../../fault_injection.h"
+#include "../../ABFT/fault_injection.h"
 #ifdef NANOS_RECOVERY
 volatile uint32_t failed;
 volatile uint32_t f_jj, f_kk, f_idx;
