@@ -2,15 +2,20 @@
 KERNELS   = omp4_clang
 CPROFILER = yes
 DEBUG     = no
-OPTIONS   = -DNO_MPI
+OPTIONS   = -DNO_MPI -DINTERVAL_CHECKS=4
 CC        = /localhd/mattmar/trunk/obj/bin/clang
 CPP       = /localhd/mattmar/trunk/obj/bin/clang++
 COMPILER  = CLANG
 
 ABFT_METHOD =
+INJECT_FAULT = no
 
 ifneq ($(ABFT_METHOD),)
   OPTIONS += -D$(ABFT_METHOD)
+endif
+
+ifeq ($(INJECT_FAULT),yes)
+  OPTIONS += -DINJECT_FAULT
 endif
 
 # By default use C compiler and flags, may be overridden by implementation

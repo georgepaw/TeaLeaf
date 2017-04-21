@@ -29,6 +29,7 @@
 #define SOFTWARE_CRC_SPLIT
 #endif
 
+#define CHECK_ECC(a_cols, a_non_zeros, idx, fail_function)
 #define CHECK_CRC32C(a_col, a_non_zeros, row_begin, jj, kk, fail_function)\
 if(1){ \
   /*CRC32C TeaLeaf Specific*/\
@@ -363,35 +364,10 @@ inline uint32_t crc32c_chunk(uint32_t crc, const uint8_t * data, size_t num_byte
 #else
   //run hardware crc instructions using intrinsics
   //do as much as possible with each instruction
-  // uint32_t original_crc = crc;
-  // const uint8_t * origianl_data = data;
-  // size_t original_num_bytes = num_bytes;
-  // for (; num_bytes >= sizeof(uint64_t); num_bytes -= sizeof(uint64_t), data += sizeof(uint64_t))
-  // {
-  //   CRC32CD(crc, crc, *(uint64_t *)data);
-  // }
-  // for (; num_bytes >= sizeof(uint32_t); num_bytes -= sizeof(uint32_t), data += sizeof(uint32_t))
-  // {
-  //   CRC32CW(crc, crc, *(uint32_t *)data);
-  // }
-  // for (; num_bytes >= sizeof(uint16_t); num_bytes -= sizeof(uint16_t), data += sizeof(uint16_t))
-  // {
-  //   CRC32CH(crc, crc, *(uint16_t *)data);
-  // }
-  // for (; num_bytes >= sizeof(uint8_t); num_bytes -= sizeof(uint8_t), data += sizeof(uint8_t))
-  // {
-  //   CRC32CB(crc, crc, *(uint8_t *)data);
-  // }
-
   CALC_CRC32C(CRC32CD, crc, uint64_t, data, num_bytes);
   CALC_CRC32C(CRC32CW, crc, uint32_t, data, num_bytes);
   CALC_CRC32C(CRC32CH, crc, uint16_t, data, num_bytes);
   CALC_CRC32C(CRC32CB, crc, uint8_t, data, num_bytes);
-
-  // CALC_CRC32C(CRC32CW, original_crc, uint32_t, origianl_data, original_num_bytes);
-  // CALC_CRC32C(CRC32CH, original_crc, uint16_t, origianl_data, original_num_bytes);
-  // CALC_CRC32C(CRC32CB, original_crc, uint8_t, origianl_data, original_num_bytes);
-  // if(crc != original_crc) printf("64bit %llu 32 bit %llu\n", crc, original_crc);
 #endif
   return crc;
 }
