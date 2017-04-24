@@ -2,16 +2,18 @@
 #include <stdlib.h>
 #include "../../shared.h"
 #ifdef CRC32C
+#define NUM_ELEMENTS 5
 #include "../../ABFT/crc.h"
 #else
+#define NUM_ELEMENTS 1
 #include "../../ABFT/ecc.h"
 #endif
 #include "../../ABFT/fault_injection.h"
 #ifdef NANOS_RECOVERY
 volatile uint32_t failed;
 volatile uint32_t f_jj, f_kk, f_idx;
-volatile uint32_t f_cols[5];
-volatile double f_vals[5];
+volatile uint32_t f_cols[NUM_ELEMENTS];
+volatile double f_vals[NUM_ELEMENTS];
   #ifdef MB_LOGGING
   #include "../../mb_logging.h"
   #endif
@@ -20,7 +22,7 @@ volatile double f_vals[5];
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
 
-void fail_task(uint32_t* found_error, uint32_t jj, uint32_t kk, uint32_t idx, uint32_t * a_col_addr, double * a_non_zeros_addr, uint32_t num_elements)
+void fail_task(uint32_t* found_error, uint32_t jj, uint32_t kk, uint32_t idx, uint32_t * a_col_addr, double * a_non_zeros_addr)
 {
 #ifdef NANOS_RECOVERY
   if(!failed)
@@ -29,9 +31,11 @@ void fail_task(uint32_t* found_error, uint32_t jj, uint32_t kk, uint32_t idx, ui
     f_jj = jj;
     f_kk = kk;
     f_idx = idx;
-    memcpy(f_cols, a_col_addr, sizeof(uint32_t) * num_elements);
-    memcpy(f_vals, a_non_zeros_addr, sizeof(double) * num_elements);
-
+    for(uint32_t i = 0; i < NUM_ELEMENTS; i++)
+    {
+      f_cols[i] = a_col_addr[i];
+      f_vals[i] = a_non_zeros_addr[i];
+    }
     *found_error = 1;
   }
 #else
@@ -192,26 +196,6 @@ void cg_init(
   *rro += rro_temp;
 }
 
-static inline double calc_w_inner(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx, const double* p, const uint32_t x, const uint32_t y, const uint32_t do_FT_check)
-{
-#ifdef INTERVAL_CHECKS
-  if(!do_FT_check)
-  {
-    uint32_t col = a_col_index[idx] & 0x00FFFFFF;
-    COLUMN_CHECK(col, x, y, idx);
-    return a_non_zeros[idx] * p[col];
-  }
-  else
-  {
-    CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-    return a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
-  }
-#else
-  CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-  return a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
-#endif
-}
-
 // Calculates w
 void cg_calc_w(
   const int nnz,
@@ -251,16 +235,33 @@ void cg_calc_w(
       uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
 
-      if(do_FT_check) CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
+      if(do_FT_check) CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin]);return;);
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
-        tmp += calc_w_inner(a_col_index, a_non_zeros, idx, p, x, y, do_FT_check);
+#ifdef INTERVAL_CHECKS
+        if(!do_FT_check)
+        {
+          uint32_t col = a_col_index[idx] & 0x00FFFFFF;
+          COLUMN_CHECK(col, x, y, idx);
+          tmp += a_non_zeros[idx] * p[col];
+        }
+        else
+        {
+          CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx]);return;);
+          tmp += a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
+        }
+#else
+        CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx]);return;);
+        tmp += a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
+#endif
+
+
 #ifdef NANOS_RECOVERY
         if(failed && jj == f_jj && f_kk == kk && idx == f_idx)
         {
 #ifdef MB_LOGGING
-          compare_values(f_cols, &a_col_index[idx], f_vals, &a_non_zeros[idx], 5);
+          compare_values(f_cols, &a_col_index[idx], f_vals, &a_non_zeros[idx]);
 #endif
           failed = 0;
         }
@@ -345,83 +346,16 @@ void matrix_check(
 
       double tmp = 0.0;
 
-#if defined(SED_ASM)
-      int32_t err_index = -1;
-      asm (
-        // Compute pointers to start of column/value data for this row
-        "ldr     r4, [%[rowptr]]\n\t"
-        "add     r1, %[cols], r4, lsl #2\n\t"
-        "add     r4, %[values], r4, lsl #3\n\t"
-
-        // Compute pointer to end of column data for this row
-        "ldr     r5, [%[rowptr], #4]\n\t"
-        "add     r5, %[cols], r5, lsl #2\n\t"
-
-        "0:\n\t"
-        // Check if we've reached the end of this row
-        "cmp     r1, r5\n\t"
-        "beq     2f\n"
-
-        // *** Parity check starts ***
-        // Reduce data to 32-bits in r0
-        "ldr     r0, [r4]\n\t"
-        "ldr     r2, [r4, #4]\n\t"
-        "eor     r0, r0, r2\n\t"
-
-        // Load column into r2
-        "ldr     r2, [r1]\n\t"
-
-        // Continue reducing data to 32-bits
-        "eor     r0, r0, r2\n\t"
-        "eor     r0, r0, r0, lsr #16\n\t"
-        "eor     r0, r0, r0, lsr #8\n\t"
-
-        // Lookup final parity from table
-        "and     r0, r0, #0xFF\n\t"
-        "ldrB    r0, [%[PARITY_TABLE], r0]\n\t"
-
-        // Exit loop if parity fails
-        "cbz    r0, 1f\n\t"
-        "sub    %[err_index], r1, %[cols]\n\t"
-        "b      2f\n"
-        "1:\n\t"
-        // *** Parity check ends ***
-
-        // Increment data pointer, compare to end and branch to loop start
-        "add     r4, #8\n\t"
-        "add     r1, #4\n\t"
-        "b       0b\n"
-        "2:\n"
-        : [tmp] "+w" (tmp), [err_index] "+r" (err_index)
-        : [rowptr] "r" (a_row_index+row),
-          [cols] "r" (a_col_index),
-          [values] "r" (a_non_zeros),
-          [PARITY_TABLE] "r" (PARITY_TABLE)
-        : "cc", "r0", "r1", "r2", "r4", "r5", "d6", "d7"
-        );
-      if (err_index >= 0)
-      {
-        printf("[ECC] error detected at index %d\n", err_index/4);
-        fail_task(found_error, jj, kk, err_index/4, &a_col_index[err_index/4], &a_non_zeros[err_index/4], 1);
-        return;
-      }
-
-#elif defined(CRC32C)
+#if defined(CRC32C)
       uint32_t row_begin = a_row_index[row];
-      CHECK_CRC32C(&a_col_index[row_begin], &a_non_zeros[row_begin],
-                   row_begin, jj, kk, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin], 5);return;);
+      CHECK_CRC32C(a_col_index, a_non_zeros,
+                   row_begin, jj, kk, fail_task(found_error, jj, kk, row_begin, &a_col_index[row_begin], &a_non_zeros[row_begin]);return;);
 #else
       uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
-        uint32_t col = a_col_index[idx];
-        double val = a_non_zeros[idx];
-  #if defined(SED)
-        CHECK_SED(col, val, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
-  #elif defined(SECDED)
-        CHECK_SECDED(col, val, a_col_index, a_non_zeros, idx, 1, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx], 1);return;);
-  #endif
+        CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task(found_error, jj, kk, idx, &a_col_index[idx], &a_non_zeros[idx]);return;);
       }
 #endif
     }

@@ -8,6 +8,14 @@
 #include <string.h>
 
 
+#define GCC_COMPILER (defined(__GNUC__) && !defined(__clang__))
+#if defined(GCC_COMPILER)
+//The 64 bit intrinsic does not seem to work with older gcc versions
+#if (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__ < 40900)
+  #define NO_64BIT_CRC
+#endif
+#endif
+
 #if defined(__x86_64__)
 #include <nmmintrin.h>
 
@@ -364,7 +372,9 @@ inline uint32_t crc32c_chunk(uint32_t crc, const uint8_t * data, size_t num_byte
 #else
   //run hardware crc instructions using intrinsics
   //do as much as possible with each instruction
+#ifndef NO_64BIT_CRC
   CALC_CRC32C(CRC32CD, crc, uint64_t, data, num_bytes);
+#endif
   CALC_CRC32C(CRC32CW, crc, uint32_t, data, num_bytes);
   CALC_CRC32C(CRC32CH, crc, uint16_t, data, num_bytes);
   CALC_CRC32C(CRC32CB, crc, uint8_t, data, num_bytes);

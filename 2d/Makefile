@@ -2,7 +2,7 @@
 KERNELS   = omp4_clang
 CPROFILER = yes
 DEBUG     = no
-OPTIONS   = -DNO_MPI -DINTERVAL_CHECKS=4
+OPTIONS   = 
 CC        = /localhd/mattmar/trunk/obj/bin/clang
 CPP       = /localhd/mattmar/trunk/obj/bin/clang++
 COMPILER  = CLANG
@@ -11,9 +11,19 @@ ABFT_METHOD =
 INJECT_FAULT = no
 NANOS_RECOVERY = no
 MB_LOGGING = no
+MPI = no
+INTERVAL_CHECKS =
 
 ifneq ($(ABFT_METHOD),)
   OPTIONS += -D$(ABFT_METHOD)
+endif
+
+ifeq ($(MPI),no)
+  OPTIONS += -DNO_MPI
+endif
+
+ifeq ($(INJECT_FAULT),yes)
+  OPTIONS += -DINJECT_FAULT
 endif
 
 ifeq ($(NANOS_RECOVERY),yes)
@@ -22,6 +32,10 @@ endif
 
 ifeq ($(MB_LOGGING),yes)
   OPTIONS += -DMB_LOGGING
+endif
+
+ifneq ($(INTERVAL_CHECKS),)
+  OPTIONS += -DINTERVAL_CHECKS=$(INTERVAL_CHECKS)
 endif
 
 # By default use C compiler and flags, may be overridden by implementation

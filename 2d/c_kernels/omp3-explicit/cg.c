@@ -188,26 +188,6 @@ void cg_init(
   *rro += rro_temp;
 }
 
-static inline double calc_w_inner(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx, const double* p, const uint32_t x, const uint32_t y, const uint32_t do_FT_check)
-{
-#ifdef INTERVAL_CHECKS
-  if(!do_FT_check)
-  {
-    uint32_t col = a_col_index[idx] & 0x00FFFFFF;
-    COLUMN_CHECK(col, x, y, idx);
-    return a_non_zeros[idx] * p[col];
-  }
-  else
-  {
-    CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-    return a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
-  }
-#else
-  CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-  return a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
-#endif
-}
-
 // Calculates w
 void cg_calc_w(
   const int x,
@@ -249,7 +229,22 @@ void cg_calc_w(
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
-        tmp += calc_w_inner(a_col_index, a_non_zeros, idx, p, x, y, do_FT_check);
+  #ifdef INTERVAL_CHECKS
+        if(!do_FT_check)
+        {
+          uint32_t col = a_col_index[idx] & 0x00FFFFFF;
+          COLUMN_CHECK(col, x, y, idx);
+          tmp += a_non_zeros[idx] * p[col];
+        }
+        else
+        {
+          CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
+          tmp += a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
+        }
+#else
+        CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
+        tmp += a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
+#endif
       }
 
       w[row] = tmp;

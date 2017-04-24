@@ -6,6 +6,7 @@ CFLAGS_PGI      = -fast -Mlist
 CFLAGS_XL       = -O5
 CFLAGS_CLANG    = -O3 -fopenmp=libomp -fopenmp-targets=nvptx64-nvidia-cuda \
 									-I/localhd/mattmar/lomp/lomp/source/ #-ffp-contract=fast 
+CFLAGS_OMPSS    = $(CFLAGS_GNU)
 
 CPPFLAGS_INTEL    = -O3 -no-prec-div -restrict -fno-alias -xhost -std=c++11
 CPPFLAGS_GNU      = -O3 -march=native -funroll-loops -std=c++11
@@ -13,6 +14,7 @@ CPPFLAGS_CRAY     = -h list=a
 CPPFLAGS_PGI      = -fastsse -Mlist
 CPPFLAGS_CLANG    = -O3
 CPPFLAGS_XL       = -O5
+CPPFLAGS_OMPSS    = $(CPPFLAGS_GNU)
 
 FFLAGS_INTEL    = -O3 -no-prec-div -xhost
 FFLAGS_GNU      = -O3 -march=native -funroll-loops
@@ -24,6 +26,7 @@ OMP_CRAY    =
 OMP_CLANG   = 
 OMP_PGI     = -mp
 OMP_XL      = -qsmp=omp
+OMP_OMPSS   = --ompss
 OMP         = $(OMP_$(COMPILER))
 
 ifeq ($(DEBUG), yes)
@@ -33,6 +36,7 @@ ifeq ($(DEBUG), yes)
     CFLAGS_PGI    = -O0 -g -C -Mchkstk -Ktrap=fp -Mchkfpstk
     CFLAGS_CLANG  = -O0 -g
     CFLAGS_XL     = -O0 -g
+    CFLAGS_OMPSS    = $(CFLAGS_GNU)
 
     CPPFLAGS_GNU    = -O0 -g -O -Wall -Wextra -fbounds-check -std=c++11
     CPPFLAGS_INTEL  = -O0 -g -debug all -traceback -std=c++11
@@ -40,6 +44,7 @@ ifeq ($(DEBUG), yes)
     CPPFLAGS_PGI    = -O0 -g -C -Mchkstk -Ktrap=fp -Mchkfpstk
     CPPFLAGS_CLANG  = -O0 -g
     CPPFLAGS_XL     = -O0 -g
+    CPPFLAGS_OMPSS    = $(CPPFLAGS_GNU)
 
     FFLAGS_GNU    = -O0 -g -O -Wall -Wextra -fbounds-check
     FFLAGS_INTEL  = -O0 -g -debug all -check all -traceback -check noarg_temp_created
@@ -55,6 +60,7 @@ ifeq ($(IEEE), yes)
     I3E_CLANG     = 
     I3E_XL        =
     I3E           = $(I3E_$(COMPILER))
+    I3E_OMPSS     = $(I3E_GNU)
 endif
 
 CFLAGS   = $(CFLAGS_$(COMPILER)) $(I3E) $(OMP)
