@@ -188,9 +188,9 @@ void cg_init(
   *rro += rro_temp;
 }
 
-#ifdef INTERVAL_CHECKS
 static inline double calc_w_inner(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx, const double* p, const uint32_t x, const uint32_t y, const uint32_t do_FT_check)
 {
+#ifdef INTERVAL_CHECKS
   if(!do_FT_check)
   {
     uint32_t col = a_col_index[idx] & 0x00FFFFFF;
@@ -202,14 +202,11 @@ static inline double calc_w_inner(uint32_t * a_col_index, double * a_non_zeros, 
     CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
     return a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
   }
-}
 #else
-static inline double calc_w_inner(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx, const double* p)
-{
   CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
   return a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
-}
 #endif
+}
 
 // Calculates w
 void cg_calc_w(
@@ -228,6 +225,8 @@ void cg_calc_w(
 
 #ifdef INTERVAL_CHECKS
   const uint32_t do_FT_check = (*iteration % INTERVAL_CHECKS) == 0;
+#else
+  const uint32_t do_FT_check = 1;
 #endif
 
 #ifdef INJECT_FAULT
@@ -246,19 +245,11 @@ void cg_calc_w(
       uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
 
-#ifdef INTERVAL_CHECKS
       if(do_FT_check) CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
-#else
-      CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
-#endif
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
-#ifdef INTERVAL_CHECKS
         tmp += calc_w_inner(a_col_index, a_non_zeros, idx, p, x, y, do_FT_check);
-#else
-        tmp += calc_w_inner(a_col_index, a_non_zeros, idx, p);
-#endif
       }
 
       w[row] = tmp;
@@ -346,9 +337,7 @@ void matrix_check(
       uint32_t row_end   = a_row_index[row+1];
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
-  #if defined(SED) || defined(SECDED)
         CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-  #endif
       }
 #endif
     }

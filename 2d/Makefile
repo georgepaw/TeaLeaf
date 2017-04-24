@@ -9,13 +9,19 @@ COMPILER  = CLANG
 
 ABFT_METHOD =
 INJECT_FAULT = no
+NANOS_RECOVERY = no
+MB_LOGGING = no
 
 ifneq ($(ABFT_METHOD),)
   OPTIONS += -D$(ABFT_METHOD)
 endif
 
-ifeq ($(INJECT_FAULT),yes)
-  OPTIONS += -DINJECT_FAULT
+ifeq ($(NANOS_RECOVERY),yes)
+  OPTIONS += -DNANOS_RECOVERY
+endif
+
+ifeq ($(MB_LOGGING),yes)
+  OPTIONS += -DMB_LOGGING
 endif
 
 # By default use C compiler and flags, may be overridden by implementation
