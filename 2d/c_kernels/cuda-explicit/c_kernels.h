@@ -79,9 +79,9 @@ __global__ void cg_init_csr(
 
 __global__ void cg_init_others(
         const int x_inner, const int y_inner, const int halo_depth,
-        const double* u, const double* kx, const double* ky,
-        uint32_t* row_index, uint32_t* col_index, double* non_zeros,
-        double* p, double* r, double* w, double* mi, double* rro);
+        const double* u, uint32_t* row_index, uint32_t* col_index,
+        double* non_zeros, double* p, double* r, double* w, double* mi,
+        double* rro);
 
 __global__ void cg_calc_w(
         const int x_inner, const int y_inner, const int halo_depth,
@@ -166,5 +166,9 @@ void sum_reduce_buffer(
 
 __global__ void zero_buffer(
         const int x, const int y, double* buffer);
+
+__global__ void inject_bitflip(
+    const uint32_t bit, const uint32_t index, uint32_t* col_index,
+    double* non_zeros);
 
 

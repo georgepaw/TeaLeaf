@@ -10,12 +10,30 @@
 #include "../../ABFT/no_ecc.cuh"
 #endif
 
-#include "../../ABFT/fault_injection.cuh"
-
 __device__ inline void cuda_terminate()
 {
   __threadfence();
   asm("trap;");
+}
+
+__global__ void inject_bitflip(
+  const uint32_t bit,
+  const uint32_t index,
+        uint32_t* col_index,
+        double* non_zeros)
+{
+    // printf("Element was: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val: %lf\n", col_index[index] & 0xFF000000 >> 24, col_index[index] & 0x00FFFFFF, non_zeros[index]);
+    if (bit < 64)
+    {
+      uint64_t val = *((uint64_t*)&(non_zeros[index]));
+      val ^= 0x1ULL << (bit);
+      non_zeros[index] = *((double*)&val);
+    }
+    else
+    {
+      col_index[index] ^= 0x1U << (bit - 64);
+    }
+    // printf("Element is: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val: %lf\n", col_index[index] & 0xFF000000 >> 24, col_index[index] & 0x00FFFFFF, non_zeros[index]);
 }
 
 __global__ void cg_init_u(
@@ -137,8 +155,6 @@ __global__ void cg_init_others(
 		const int y_inner,
         const int halo_depth,
 		const double* u,
-		const double* kx,
-		const double* ky,
         uint32_t* row_index,
         uint32_t* col_index,
         double* non_zeros,
@@ -210,13 +226,13 @@ __global__ void cg_calc_w(
         uint32_t row_begin = row_index[index];
         uint32_t row_end   = row_index[index+1];
 
-        CHECK_CRC32C(col_index, non_zeros, row_begin, jj, kk, smvp += 10000;);
+        CHECK_CRC32C(col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
 
         for (uint32_t idx = row_begin; idx < row_end; idx++)
         {
             uint32_t col = col_index[idx];
             double val = non_zeros[idx];
-            CHECK_ECC(col, val, col_index, non_zeros, idx, smvp += 10000;);
+            CHECK_ECC(col, val, col_index, non_zeros, idx, cuda_terminate());
             smvp += val * p[MASK_INDEX(col)];
         }
 

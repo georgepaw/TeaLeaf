@@ -175,14 +175,13 @@ __device__ static inline uint32_t check_correct_ecc_bits(const uint32_t * col, c
       uint32_t bit_index = ecc_get_flipped_bit_col8(syndrome);
       if (bit_index < 64)
       {
-        uint64_t temp;
-        memcpy(&temp, &a_non_zeros[idx], sizeof(uint64_t));
-        temp ^= 0x1ULL << bit_index;
-        memcpy(&a_non_zeros[idx], &temp, sizeof(uint64_t));
+        uint64_t val = *((uint64_t*)&(a_non_zeros[idx]));
+        val ^= 0x1ULL << bit_index;
+        a_non_zeros[idx] = *((double*)&val);
       }
       else
       {
-        a_col_index[idx] ^= 0x1U << bit_index;
+        a_col_index[idx] ^= 0x1U << (bit_index - 64);
       }
       // printf("[ECC] corrected bit %u at index %d\n", bit_index, idx);
     }

@@ -3,6 +3,8 @@
 #include "cuknl_shared.h"
 #include "../../shared.h"
 
+#include "../../ABFT/fault_injection.cuh"
+
 #define KERNELS_START(pad) \
     START_PROFILING(settings->kernel_profile); \
 int x_inner = chunk->x - pad; \
@@ -170,7 +172,7 @@ void run_cg_init(
 
     cg_init_others<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, settings->halo_depth,
-            chunk->u, chunk->kx, chunk->ky, chunk->ext->d_row_index,
+            chunk->u, chunk->ext->d_row_index,
             chunk->ext->d_col_index, chunk->ext->d_non_zeros, chunk->p,
             chunk->r, chunk->w, chunk->mi,
             chunk->ext->d_reduce_buffer);
@@ -183,6 +185,10 @@ void run_cg_init(
 void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 {
     KERNELS_START(2*settings->halo_depth);
+
+#ifdef INJECT_FAULT
+    inject_bitflips(chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+#endif
 
     cg_calc_w<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, settings->halo_depth,
