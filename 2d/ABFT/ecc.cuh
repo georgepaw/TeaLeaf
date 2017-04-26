@@ -74,11 +74,9 @@ static uint8_t PARITY_TABLE[256] =
 
 #define CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_function)
 
-#define CHECK_ECC(a_col_index, a_non_zeros, idx, fail_function)\
+#define CHECK_ECC(col, val, a_col_index, a_non_zeros, idx, fail_function)\
 if(1){ \
-  uint32_t __col = a_col_index[idx]; \
-  double __val = a_non_zeros[idx]; \
-  if(!check_correct_ecc_bits(&__col, (uint32_t*)&__val, a_col_index, a_non_zeros, idx))\
+  if(!check_correct_ecc_bits(&col, (uint32_t*)&val, a_col_index, a_non_zeros, idx))\
   {\
     fail_function;\
   }\

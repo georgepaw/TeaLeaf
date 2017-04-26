@@ -214,8 +214,10 @@ __global__ void cg_calc_w(
 
         for (uint32_t idx = row_begin; idx < row_end; idx++)
         {
-            CHECK_ECC(col_index, non_zeros, idx, smvp += 10000;);
-            smvp += non_zeros[idx] * p[MASK_INDEX(col_index[idx])];
+            uint32_t col = col_index[idx];
+            double val = non_zeros[idx];
+            CHECK_ECC(col, val, col_index, non_zeros, idx, smvp += 10000;);
+            smvp += val * p[MASK_INDEX(col)];
         }
 
         w[index] = smvp;
