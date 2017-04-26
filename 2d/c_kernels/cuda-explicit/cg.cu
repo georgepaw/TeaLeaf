@@ -201,7 +201,7 @@ __global__ void cg_calc_w(
     {
         const int x = x_inner + 2*halo_depth;
         const int col = gid % x_inner;
-        const int row = gid / x_inner; 
+        const int row = gid / x_inner;
         const int off0 = halo_depth*(x + 1);
         const int index = off0 + col + row*x;
 
