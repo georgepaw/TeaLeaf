@@ -1,10 +1,9 @@
-#ifndef ECC_H
-#define ECC_H
+#ifndef ECC_CUH
+#define ECC_CUH
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cuda_runtime.h>
 
 #define ECC7_P1_0 0x56AAAD5B
 #define ECC7_P1_1 0xAB555555
@@ -95,7 +94,7 @@ if(1){ \
 // To check a matrix element for errors, simply use this function again, and
 // the returned value will be the error 'syndrome' which will be non-zero if
 // an error occured.
-static inline uint32_t ecc_compute_col8(uint32_t * a_col_index_addr, uint32_t * a_non_zeros_addr)
+__device__ static inline uint32_t ecc_compute_col8(uint32_t * a_col_index_addr, uint32_t * a_non_zeros_addr)
 {
 
   uint32_t result = 0;
@@ -103,43 +102,43 @@ static inline uint32_t ecc_compute_col8(uint32_t * a_col_index_addr, uint32_t * 
   uint32_t p;
 
   p = (a_non_zeros_addr[0] & ECC7_P1_0) ^ (a_non_zeros_addr[1] & ECC7_P1_1) ^ (*a_col_index_addr & ECC7_P1_2);
-  result |= __builtin_parity(p) << 31U;
+  result |= (__popc(p) & 1) << 31U;
 
   p = (a_non_zeros_addr[0] & ECC7_P2_0) ^ (a_non_zeros_addr[1] & ECC7_P2_1) ^ (*a_col_index_addr & ECC7_P2_2);
-  result |= __builtin_parity(p) << 30U;
+  result |= (__popc(p) & 1) << 30U;
 
   p = (a_non_zeros_addr[0] & ECC7_P3_0) ^ (a_non_zeros_addr[1] & ECC7_P3_1) ^ (*a_col_index_addr & ECC7_P3_2);
-  result |= __builtin_parity(p) << 29U;
+  result |= (__popc(p) & 1) << 29U;
 
   p = (a_non_zeros_addr[0] & ECC7_P4_0) ^ (a_non_zeros_addr[1] & ECC7_P4_1) ^ (*a_col_index_addr & ECC7_P4_2);
-  result |= __builtin_parity(p) << 28U;
+  result |= (__popc(p) & 1) << 28U;
 
   p = (a_non_zeros_addr[0] & ECC7_P5_0) ^ (a_non_zeros_addr[1] & ECC7_P5_1) ^ (*a_col_index_addr & ECC7_P5_2);
-  result |= __builtin_parity(p) << 27U;
+  result |= (__popc(p) & 1) << 27U;
 
   p = (a_non_zeros_addr[0] & ECC7_P6_0) ^ (a_non_zeros_addr[1] & ECC7_P6_1) ^ (*a_col_index_addr & ECC7_P6_2);
-  result |= __builtin_parity(p) << 26U;
+  result |= (__popc(p) & 1) << 26U;
 
   p = (a_non_zeros_addr[0] & ECC7_P7_0) ^ (a_non_zeros_addr[1] & ECC7_P7_1) ^ (*a_col_index_addr & ECC7_P7_2);
-  result |= __builtin_parity(p) << 25U;
+  result |= (__popc(p) & 1) << 25U;
 
   return result;
 }
 
-static inline int is_power_of_2(uint32_t x)
+__device__ static inline uint32_t is_power_of_2(uint32_t x)
 {
   return ((x != 0) && !(x & (x - 1)));
 }
 
 // Compute the overall parity of a 96-bit matrix element
-static inline uint32_t ecc_compute_overall_parity(const uint32_t * a_col_index_addr, const uint32_t * a_non_zeros_addr)
+__device__ static inline uint32_t ecc_compute_overall_parity(const uint32_t * a_col_index_addr, const uint32_t * a_non_zeros_addr)
 {
-  return __builtin_parity(a_non_zeros_addr[0] ^ a_non_zeros_addr[1] ^ *a_col_index_addr);
+  return __popc(a_non_zeros_addr[0] ^ a_non_zeros_addr[1] ^ *a_col_index_addr) & 1;
 }
 
 // This function will use the error 'syndrome' generated from a 7-bit parity
 // check to determine the index of the bit that has been flipped
-static inline uint32_t ecc_get_flipped_bit_col8(uint32_t syndrome)
+__device__ static inline uint32_t ecc_get_flipped_bit_col8(uint32_t syndrome)
 {
   // Compute position of flipped bit
   uint32_t hamm_bit = 0;
@@ -150,14 +149,14 @@ static inline uint32_t ecc_get_flipped_bit_col8(uint32_t syndrome)
   }
 
   // Map to actual data bit position
-  uint32_t data_bit = hamm_bit - (32-__builtin_clz(hamm_bit)) - 1;
+  uint32_t data_bit = hamm_bit - (32-__clz(hamm_bit)) - 1;
   if (is_power_of_2(hamm_bit))
-    data_bit = __builtin_clz(hamm_bit) + 64;
+    data_bit = __clz(hamm_bit) + 64;
 
   return data_bit;
 }
 
-static inline void generate_ecc_bits(uint32_t * a_col_index_addr, double * a_non_zeros_addr)
+__device__ static inline void generate_ecc_bits(uint32_t * a_col_index_addr, double * a_non_zeros_addr)
 {
 #if defined(SED) || defined(SED_ASM)
   *a_col_index_addr |= ecc_compute_overall_parity(a_col_index_addr, (uint32_t*)a_non_zeros_addr) << 31;
@@ -167,11 +166,11 @@ static inline void generate_ecc_bits(uint32_t * a_col_index_addr, double * a_non
 #endif
 }
 
-static inline uint32_t check_correct_ecc_bits(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx)
+__device__ static inline uint32_t check_correct_ecc_bits(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx)
 {
 #if defined(SED)
   uint32_t paritiy = ecc_compute_overall_parity(&a_col_index[idx], (uint32_t*)(&a_non_zeros[idx]));
-  if(paritiy) printf("[ECC] error detected at index %u\n", idx);
+  // if(paritiy) printf("[ECC] error detected at index %u\n", idx);
   return paritiy == 0;
 #elif defined(SECDED)
   /*  Check parity bits */
@@ -181,7 +180,7 @@ static inline uint32_t check_correct_ecc_bits(uint32_t * a_col_index, double * a
   if(overall_parity)
   {
 #if defined(INTERVAL_CHECKS)
-    printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
+    // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
     return 0; //can't correct when using intervals
 #endif
     if(syndrome)
@@ -199,13 +198,13 @@ static inline uint32_t check_correct_ecc_bits(uint32_t * a_col_index, double * a
       {
         a_col_index[idx] ^= 0x1U << bit_index;
       }
-      printf("[ECC] corrected bit %u at index %d\n", bit_index, idx);
+      // printf("[ECC] corrected bit %u at index %d\n", bit_index, idx);
     }
     else
     {
       /* Correct overall parity bit */
       a_col_index[idx] ^= 0x1U << 24;
-      printf("[ECC] corrected overall parity bit at index %d\n", idx);
+      // printf("[ECC] corrected overall parity bit at index %d\n", idx);
     }
   }
   else
@@ -214,7 +213,7 @@ static inline uint32_t check_correct_ecc_bits(uint32_t * a_col_index, double * a
     {
       /* Overall parity fine but error in syndrom */
       /* Must be double-bit error - cannot correct this*/
-      printf("[ECC] double-bit error detected at index %d\n", idx);
+      // printf("[ECC] double-bit error detected at index %d\n", idx);
       correct = 0;
     }
   }
@@ -222,4 +221,4 @@ static inline uint32_t check_correct_ecc_bits(uint32_t * a_col_index, double * a
 #endif
 }
 
-#endif // ECC_H
+#endif // ECC_CUH

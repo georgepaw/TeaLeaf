@@ -46,7 +46,7 @@ void kernel_initialise(
         double** cg_alphas, double** cg_betas, double** cheby_alphas,
         double** cheby_betas, double** d_comm_buffer, double** d_reduce_buffer, 
         double** d_reduce_buffer2, double** d_reduce_buffer3, double** d_reduce_buffer4,
-        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros)
+        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros, uint32_t* nnz)
 {
     print_and_log(settings,
             "Performing this solve with the CUDA %s solver\n",
@@ -132,6 +132,7 @@ void kernel_initialise(
             h_row_index[index+1] = h_row_index[index] + row_count;
         }
     }
+    *nnz = h_row_index[x*y];
 
     cudaMalloc((void**)d_row_index, sizeof(uint32_t)*(x*y+1));
     check_errors(__LINE__, __FILE__);

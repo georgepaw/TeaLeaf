@@ -76,7 +76,7 @@ void run_kernel_initialise(Chunk* chunk, Settings* settings)
             &(chunk->ext->d_comm_buffer), &(chunk->ext->d_reduce_buffer),
             &(chunk->ext->d_reduce_buffer2), &(chunk->ext->d_reduce_buffer3),
             &(chunk->ext->d_reduce_buffer4), &(chunk->ext->d_row_index),
-            &(chunk->ext->d_col_index), &(chunk->ext->d_non_zeros));
+            &(chunk->ext->d_col_index), &(chunk->ext->d_non_zeros), &(chunk->ext->nnz));
 }
 
 // Solver-wide kernels
@@ -186,7 +186,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 
     cg_calc_w<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, settings->halo_depth,
-            chunk->kx, chunk->ky, chunk->p, chunk->ext->d_row_index,
+            chunk->p, chunk->ext->d_row_index,
             chunk->ext->d_col_index, chunk->ext->d_non_zeros,
             chunk->w, chunk->ext->d_reduce_buffer);
 

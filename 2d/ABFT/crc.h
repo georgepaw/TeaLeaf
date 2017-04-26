@@ -47,6 +47,8 @@ if(1){ \
   }\
 } else
 
+#define MASK_INDEX(index) (index & 0x00FFFFFF)
+
 //CRC32
 const uint32_t crc32c_table[8][256] =
 {

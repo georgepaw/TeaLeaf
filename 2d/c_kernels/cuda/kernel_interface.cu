@@ -179,6 +179,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
             x_inner, y_inner, settings->halo_depth,
             chunk->kx, chunk->ky, chunk->p,
             chunk->w, chunk->ext->d_reduce_buffer);
+    check_errors(__LINE__, __FILE__);
 
     sum_reduce_buffer(chunk->ext->d_reduce_buffer, pw, num_blocks);
 

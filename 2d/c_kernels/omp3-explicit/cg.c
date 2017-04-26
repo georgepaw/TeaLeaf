@@ -1,11 +1,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "../../shared.h"
-#ifdef CRC32C
+
+#if defined(CRC32C)
 #include "../../ABFT/crc.h"
-#else
+#elif defined(SED) || defined(SECDED) || defined(SED_ASM)
 #include "../../ABFT/ecc.h"
+#else
+#include "../../ABFT/no_ecc.h"
 #endif
+
 #include "../../ABFT/fault_injection.h"
 #ifdef FT_FTI
 #include <fti.h>
@@ -172,10 +176,7 @@ void cg_init(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
-#if defined(CRC32C) || defined(SED) || defined(SED_ASM) || defined(SECDED)
-        col &= 0x00FFFFFF;
-#endif
-        tmp += a_non_zeros[idx] * u[col];
+        tmp += a_non_zeros[idx] * u[MASK_INDEX(col)];
       }
 
       w[index] = tmp;
@@ -229,21 +230,21 @@ void cg_calc_w(
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
-  #ifdef INTERVAL_CHECKS
+#ifdef INTERVAL_CHECKS
         if(!do_FT_check)
         {
-          uint32_t col = a_col_index[idx] & 0x00FFFFFF;
+          uint32_t col = MASK_INDEX(a_col_index[idx]);
           COLUMN_CHECK(col, x, y, idx);
           tmp += a_non_zeros[idx] * p[col];
         }
         else
         {
           CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-          tmp += a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
+          tmp += a_non_zeros[idx] * p[MASK_INDEX(a_col_index[idx])];
         }
 #else
         CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-        tmp += a_non_zeros[idx] * p[a_col_index[idx] & 0x00FFFFFF];
+        tmp += a_non_zeros[idx] * p[MASK_INDEX(a_col_index[idx])];
 #endif
       }
 

@@ -1,6 +1,6 @@
 # Used specified parameters
 KERNELS   = omp4_clang
-CPROFILER = yes
+CPROFILER = no
 DEBUG     = no
 OPTIONS   = 
 CC        = /localhd/mattmar/trunk/obj/bin/clang

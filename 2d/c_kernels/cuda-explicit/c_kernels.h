@@ -36,7 +36,7 @@ void kernel_initialise(
         double** cg_alphas, double** cg_betas, double** cheby_alphas,
         double** cheby_betas, double** d_comm_buffer, double** d_reduce_buffer, 
         double** d_reduce_buffer2, double** d_reduce_buffer3, double** d_reduce_buffer4,
-        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros);
+        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros, uint32_t* nnz);
 
 void kernel_finalise(
         double* cg_alphas, double* cg_betas, double* cheby_alphas,
@@ -85,9 +85,8 @@ __global__ void cg_init_others(
 
 __global__ void cg_calc_w(
         const int x_inner, const int y_inner, const int halo_depth,
-        const double* kx, const double* ky, const double* p,
-        uint32_t* row_index, uint32_t* col_index, double* non_zeros,
-        double* w, double* pw);
+        const double* p, uint32_t* row_index, uint32_t* col_index,
+        double* non_zeros, double* w, double* pw);
 
 __global__ void cg_calc_ur(
         const int x_inner, const int y_inner, const int halo_depth,

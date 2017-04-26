@@ -16,7 +16,7 @@ KERNEL_COMPILER = nvcc
 ifeq ($(DEBUG),yes)
   KERNEL_FLAGS += -O0 -g -G
 else
-  KERNEL_FLAGS += -O3 #--ptxas-options="-v"
+  KERNEL_FLAGS += -O3  -lineinfo #--ptxas-options="-v"
 endif
 
 include $(KERNELS_PATH)/make.deps
