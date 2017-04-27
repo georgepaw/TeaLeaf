@@ -232,11 +232,6 @@ __global__ void cg_calc_w(
         uint32_t cols[NUM_ELEMENTS];
         double vals[NUM_ELEMENTS];
 
-        for(uint32_t i = 0; i < NUM_ELEMENTS; i++)
-        {
-            cols[i] = col_index[row_begin + i];
-            vals[i] = non_zeros[row_begin + i];
-        }
         CHECK_CRC32C(cols, vals, col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
 #endif
 

@@ -682,11 +682,21 @@ __device__ static inline uint8_t check_correct_crc32c_bits(uint32_t * cols, doub
   //get the CRC and recalculate to check it's correct
   uint32_t prev_crc = 0;
 
+  //copy to local memory and mask out crc bits
   for(int i = 0; i < 4; i++)
   {
-    prev_crc |= (cols[i] & 0xFF000000)>>(8*i);
-    cols[i] &= 0x00FFFFFF;
+    uint32_t col = a_cols[idx + i];
+    vals[i] = a_non_zeros[idx + i];
+    prev_crc |= (col & 0xFF000000)>>(8*i);
+    cols[i] = col & 0x00FFFFFF;
   }
+
+  for(uint32_t i = 4; i < num_elements; i++)
+  {
+      cols[i] = a_cols[idx + i];
+      vals[i] = a_non_zeros[idx + i];
+  }
+
   uint32_t current_crc = generate_crc32c_bits_csr_elem(cols, vals, num_elements);
   uint8_t correct_crc = prev_crc == current_crc;
 
