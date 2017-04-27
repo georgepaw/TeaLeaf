@@ -4,10 +4,13 @@
 
 #if defined(CRC32C)
 #include "../../ABFT/crc.cuh"
+#define NUM_ELEMENTS 5
 #elif defined(SED) || defined(SECDED) || defined(SED_ASM)
 #include "../../ABFT/ecc.cuh"
+#define NUM_ELEMENTS 1
 #else
 #include "../../ABFT/no_ecc.cuh"
+#define NUM_ELEMENTS 1
 #endif
 
 __device__ inline void cuda_terminate()
@@ -223,16 +226,30 @@ __global__ void cg_calc_w(
 
         double smvp = 0.0;
 
-        uint32_t row_begin = row_index[index];
-        uint32_t row_end   = row_index[index+1];
+        const uint32_t row_begin = row_index[index];
+        const uint32_t row_end   = row_index[index+1];
+#ifdef CRC32C
+        uint32_t cols[NUM_ELEMENTS];
+        double vals[NUM_ELEMENTS];
 
-        CHECK_CRC32C(col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
-
-        for (uint32_t idx = row_begin; idx < row_end; idx++)
+        for(uint32_t i = 0; i < NUM_ELEMENTS; i++)
         {
+            cols[i] = col_index[row_begin + i];
+            vals[i] = non_zeros[row_begin + i];
+        }
+        CHECK_CRC32C(cols, vals, col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
+#endif
+
+        for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
+        {
+#ifdef CRC32C
+            uint32_t col = cols[i];
+            double val = vals[i];
+#else
             uint32_t col = col_index[idx];
             double val = non_zeros[idx];
             CHECK_ECC(col, val, col_index, non_zeros, idx, cuda_terminate());
+#endif
             smvp += val * p[MASK_INDEX(col)];
         }
 

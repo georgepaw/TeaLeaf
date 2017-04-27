@@ -72,7 +72,7 @@ static uint8_t PARITY_TABLE[256] =
   1, 0, 0, 1, 0, 1, 1, 0,
 };
 
-#define CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_function)
+#define CHECK_CRC32C(cols, vals, a_col_index, a_non_zeros, row_begin, jj, kk, fail_function)
 
 #define CHECK_ECC(col, val, a_col_index, a_non_zeros, idx, fail_function)\
 if(1){ \

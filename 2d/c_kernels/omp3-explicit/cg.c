@@ -4,10 +4,13 @@
 
 #if defined(CRC32C)
 #include "../../ABFT/crc.h"
+#define NUM_ELEMENTS 5
 #elif defined(SED) || defined(SECDED) || defined(SED_ASM)
 #include "../../ABFT/ecc.h"
+#define NUM_ELEMENTS 1
 #else
 #include "../../ABFT/no_ecc.h"
+#define NUM_ELEMENTS 1
 #endif
 
 #include "../../ABFT/fault_injection.h"

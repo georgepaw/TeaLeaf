@@ -12,6 +12,7 @@
 #define NUM_ELEMENTS 1
 #else
 #include "../../ABFT/no_ecc.h"
+#define NUM_ELEMENTS 1
 #endif
 
 #include "../../ABFT/fault_injection.h"

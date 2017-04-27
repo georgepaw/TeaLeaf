@@ -63,8 +63,10 @@ OBJS  = $(patsubst %.c, obj/$(KERNELS)/%.o, $(wildcard *.c))
 OBJS += $(patsubst drivers/%.c, obj/$(KERNELS)/%.o, $(wildcard drivers/*.c))
 
 ifneq ($(IS_INTEL),)
-  # OPTIONS += -DINTEL_ASM
-  OBJS += obj/$(KERNELS)/crc_iscsi_v_pcl.o
+  ifneq (,$(filter $(KERNELS),"omp3-explicit" "ompss-explicit"))
+    # OPTIONS += -DINTEL_ASM
+    OBJS += obj/$(KERNELS)/crc_iscsi_v_pcl.o
+  endif
 endif
 
 # Link together control code, drivers and kernels
