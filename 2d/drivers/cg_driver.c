@@ -40,6 +40,8 @@ void cg_driver(
   }
 #endif
 
+  calculate_initial_residual_driver(chunks, settings);
+
   // Iterate till convergence
   for(tt = 0; tt < settings->max_iters; ++tt)
   {
@@ -47,7 +49,7 @@ void cg_driver(
 
     halo_update_driver(chunks, settings, 1);
 
-    if(fabs(*error) < settings->eps) break;
+    if(sqrt(fabs(*error)) < settings->eps * settings->initial_residual) break;
   }
 
   print_and_log(settings, "CG: \t\t\t%d iterations\n", tt);
