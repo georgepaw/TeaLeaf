@@ -788,6 +788,11 @@ uint8_t check_correct_crc32c_bits(uint32_t * a_cols, double * a_non_zeros, uint3
     a_cols[idx + i] += masks[i];
   }
 
+#if defined(INTERVAL_CHECKS)
+    // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
+    if(!correct_crc) return 0; //can't correct when using intervals
+#endif
+
   if(!correct_crc)
   {
     // for(uint32_t i = 0; i < num_elements; i++)

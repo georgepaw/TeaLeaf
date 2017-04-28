@@ -199,7 +199,7 @@ __global__ void cg_init_others(
     reduce<double, BLOCK_SIZE/2>::run(rro_shared, rro, SUM);
 }
 
-__global__ void cg_calc_w(
+__global__ void cg_calc_w_check(
         const int x_inner,
         const int y_inner,
         const int halo_depth,
@@ -213,8 +213,6 @@ __global__ void cg_calc_w(
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];
     pw_shared[threadIdx.x] = 0.0;
-
-    const uint32_t do_FT_check = 1;
 
     if(gid < x_inner*y_inner)
     {
@@ -246,6 +244,50 @@ __global__ void cg_calc_w(
             CHECK_ECC(col, val, col_index, non_zeros, idx, cuda_terminate());
 #endif
             smvp += val * p[MASK_INDEX(col)];
+        }
+
+        w[index] = smvp;
+        pw_shared[threadIdx.x] = smvp*p[index];
+    }
+
+    reduce<double, BLOCK_SIZE/2>::run(pw_shared, pw, SUM);
+}
+
+__global__ void cg_calc_w_no_check(
+        const int x_inner,
+        const int y_inner,
+        const int halo_depth,
+        const double* p,
+        uint32_t* row_index,
+        uint32_t* col_index,
+        double* non_zeros,
+        double* w,
+        double* pw)
+{
+    const int gid = threadIdx.x+blockIdx.x*blockDim.x;
+    __shared__ double pw_shared[BLOCK_SIZE];
+    pw_shared[threadIdx.x] = 0.0;
+
+    if(gid < x_inner*y_inner)
+    {
+        const int x = x_inner + 2*halo_depth;
+        const int y = y_inner + 2*halo_depth;
+        const int col = gid % x_inner;
+        const int row = gid / x_inner;
+        const int off0 = halo_depth*(x + 1);
+        const int index = off0 + col + row*x;
+
+        double smvp = 0.0;
+
+        const uint32_t row_begin = row_index[index];
+        const uint32_t row_end   = row_index[index+1];
+
+        for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
+        {
+            uint32_t col = MASK_INDEX(col_index[idx]);
+            double val = non_zeros[idx];
+            COLUMN_CHECK(col, x, y, idx);
+            smvp += val * p[col];
         }
 
         w[index] = smvp;
@@ -304,5 +346,43 @@ __global__ void cg_calc_p(
 	const int index = off0 + col + row*x;
 
     p[index] = r[index] + beta*p[index];
+}
+
+__global__ void matrix_check(
+        const int x_inner,
+        const int y_inner,
+        const int halo_depth,
+        uint32_t* row_index,
+        uint32_t* col_index,
+        double* non_zeros)
+{
+    const int gid = threadIdx.x+blockIdx.x*blockDim.x;
+
+    if(gid < x_inner*y_inner)
+    {
+        const int x = x_inner + 2*halo_depth;
+        const int col = gid % x_inner;
+        const int row = gid / x_inner;
+        const int off0 = halo_depth*(x + 1);
+        const int index = off0 + col + row*x;
+
+        const uint32_t row_begin = row_index[index];
+
+#ifdef CRC32C
+        uint32_t cols[NUM_ELEMENTS];
+        double vals[NUM_ELEMENTS];
+
+        CHECK_CRC32C(cols, vals, col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
+#else
+
+        const uint32_t row_end   = row_index[index+1];
+        for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
+        {
+            uint32_t col = col_index[idx];
+            double val = non_zeros[idx];
+            CHECK_ECC(col, val, col_index, non_zeros, idx, cuda_terminate());
+        }
+#endif
+    }
 }
 

@@ -700,6 +700,10 @@ __device__ static inline uint8_t check_correct_crc32c_bits(uint32_t * cols, doub
   uint32_t current_crc = generate_crc32c_bits_csr_elem(cols, vals, num_elements);
   uint8_t correct_crc = prev_crc == current_crc;
 
+#if defined(INTERVAL_CHECKS)
+    // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
+    if(!correct_crc) return 0; //can't correct when using intervals
+#endif
 
   // if(!correct_crc)
   // {

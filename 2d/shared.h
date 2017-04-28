@@ -62,11 +62,7 @@ void die(int lineNum, const char* file, const char* format, ...);
 
 #define COLUMN_CHECK(col, x, y, idx) \
 if(1){ \
-	if (col >= x*y) \
-    { \
-      printf("column size constraint violated at index %d\n", idx); \
-      col = x*y - 1; \
-    } \
+	col = col >= x*y ? x*y - 1 : col; \
 } else
 
 #endif

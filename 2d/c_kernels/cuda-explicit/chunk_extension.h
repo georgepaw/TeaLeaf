@@ -16,6 +16,7 @@ typedef struct ChunkExtension
     uint32_t* d_col_index;
     double*   d_non_zeros;
     uint32_t  nnz;
+    uint32_t*  iteration;
 } ChunkExtension;
 
 #endif
