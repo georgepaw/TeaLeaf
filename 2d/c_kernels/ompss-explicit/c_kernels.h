@@ -68,11 +68,17 @@ void cg_init(
   uint32_t* a_row_index, uint32_t* a_col_index,
   double* a_non_zeros, uint32_t* found_error, uint32_t* iteration);
 
-void cg_calc_w(
-  const int nnz, const int x, const int y, const int halo_depth, double* pw,
+void cg_calc_w_check(
+  const int x, const int y, const int halo_depth, double* pw,
   double* p, double* w,
   uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros, uint32_t* found_error, uint32_t* iteration);
+  double* a_non_zeros, uint32_t* found_error);
+
+void cg_calc_w_no_check(
+  const int x, const int y, const int halo_depth, double* pw,
+  double* p, double* w,
+  uint32_t* a_row_index, uint32_t* a_col_index,
+  double* a_non_zeros);
 
 void cg_calc_ur(
   const int x, const int y, const int halo_depth,

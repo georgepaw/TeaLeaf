@@ -111,12 +111,32 @@ void run_cg_init(
 void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 {
   START_PROFILING(settings->kernel_profile);
-  cg_calc_w(chunk->ext->a_row_index[chunk->x * chunk->y], //nnz
-            chunk->x, chunk->y,
-            settings->halo_depth, pw, chunk->p, chunk->w,
-            chunk->ext->a_row_index, chunk->ext->a_col_index,
-            chunk->ext->a_non_zeros, chunk->ext->found_error,
-            chunk->ext->iteration);
+
+#ifdef INTERVAL_CHECKS
+  const uint32_t do_FT_check = ((*chunk->ext->iteration)++ % INTERVAL_CHECKS) == 0;
+#else
+  const uint32_t do_FT_check = 1;
+#endif
+
+#ifdef INJECT_FAULT
+  inject_bitflips(chunk->ext->a_col_index, chunk->ext->a_non_zeros);
+#endif
+
+  if(do_FT_check)
+  {
+    cg_calc_w_check(chunk->x, chunk->y,
+              settings->halo_depth, pw, chunk->p, chunk->w,
+              chunk->ext->a_row_index, chunk->ext->a_col_index,
+              chunk->ext->a_non_zeros, chunk->ext->found_error);
+  }
+  else
+  {
+    cg_calc_w_no_check(chunk->x, chunk->y,
+              settings->halo_depth, pw, chunk->p, chunk->w,
+              chunk->ext->a_row_index, chunk->ext->a_col_index,
+              chunk->ext->a_non_zeros);
+  }
+
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -249,6 +269,10 @@ void run_matrix_check(
         Chunk* chunk, Settings* settings)
 {
   START_PROFILING(settings->kernel_profile);
+#ifdef INJECT_FAULT
+  inject_bitflips(chunk->ext->a_col_index, chunk->ext->a_non_zeros);
+#endif
+
   matrix_check(chunk->x, chunk->y, settings->halo_depth,
             chunk->ext->a_row_index, chunk->ext->a_col_index,
             chunk->ext->a_non_zeros, chunk->ext->found_error);

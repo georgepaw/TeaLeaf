@@ -13,7 +13,6 @@
 #define NUM_ELEMENTS 1
 #endif
 
-#include "../../ABFT/fault_injection.h"
 #ifdef FT_FTI
 #include <fti.h>
 #endif
@@ -193,7 +192,7 @@ void cg_init(
 }
 
 // Calculates w
-void cg_calc_w(
+void cg_calc_w_check(
   const int x,
   const int y,
   const int halo_depth,
@@ -202,20 +201,9 @@ void cg_calc_w(
   double* w,
   uint32_t* a_row_index,
   uint32_t* a_col_index,
-  double* a_non_zeros,
-  uint32_t* iteration)
+  double* a_non_zeros)
 {
   double pw_temp = 0.0;
-
-#ifdef INTERVAL_CHECKS
-  const uint32_t do_FT_check = (*iteration % INTERVAL_CHECKS) == 0;
-#else
-  const uint32_t do_FT_check = 1;
-#endif
-
-#ifdef INJECT_FAULT
-  inject_bitflips(a_col_index, a_non_zeros);
-#endif
 
 #pragma omp parallel for reduction(+:pw_temp)
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -229,26 +217,12 @@ void cg_calc_w(
       uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
 
-      if(do_FT_check) CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
+      CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
-#ifdef INTERVAL_CHECKS
-        if(!do_FT_check)
-        {
-          uint32_t col = MASK_INDEX(a_col_index[idx]);
-          COLUMN_CHECK(col, x, y, idx);
-          tmp += a_non_zeros[idx] * p[col];
-        }
-        else
-        {
-          CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-          tmp += a_non_zeros[idx] * p[MASK_INDEX(a_col_index[idx])];
-        }
-#else
         CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
         tmp += a_non_zeros[idx] * p[MASK_INDEX(a_col_index[idx])];
-#endif
       }
 
       w[row] = tmp;
@@ -257,7 +231,46 @@ void cg_calc_w(
   }
 
   *pw += pw_temp;
-  *iteration += 1;
+}
+
+void cg_calc_w_no_check(
+  const int x,
+  const int y,
+  const int halo_depth,
+  double* pw,
+  double* p,
+  double* w,
+  uint32_t* a_row_index,
+  uint32_t* a_col_index,
+  double* a_non_zeros)
+{
+  double pw_temp = 0.0;
+
+#pragma omp parallel for reduction(+:pw_temp)
+  for(int jj = halo_depth; jj < y-halo_depth; ++jj)
+  {
+    for(int kk = halo_depth; kk < x-halo_depth; ++kk)
+    {
+      const int row = kk + jj*x;
+
+      double tmp = 0.0;
+
+      uint32_t row_begin = a_row_index[row];
+      uint32_t row_end   = a_row_index[row+1];
+
+      for (uint32_t idx = row_begin; idx < row_end; idx++)
+      {
+        uint32_t col = MASK_INDEX(a_col_index[idx]);
+        COLUMN_CHECK(col, x, y, idx);
+        tmp += a_non_zeros[idx] * p[col];
+      }
+
+      w[row] = tmp;
+      pw_temp += tmp*p[row];
+    }
+  }
+
+  *pw += pw_temp;
 }
 
 // Calculates u and r
@@ -316,9 +329,6 @@ void matrix_check(
   uint32_t* a_row_index, uint32_t* a_col_index,
   double* a_non_zeros)
 {
-#ifdef INJECT_FAULT
-  inject_bitflips(a_col_index, a_non_zeros);
-#endif
 #pragma omp parallel for
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
   {

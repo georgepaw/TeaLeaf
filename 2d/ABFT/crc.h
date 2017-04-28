@@ -722,6 +722,9 @@ inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_cols, double * a_non_
   uint32_t * data = a_cols;
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_4_INNER(crc, crc, data);
+#elif defined(INTEL_ASM)
+  //use Intel assembly code to accelerate crc calculations
+  crc = crc_pcl((const uint8_t*)a_cols, num_elements * sizeof(uint32_t), crc);
 #else
   CRC32CD(crc, crc, ((uint64_t*)a_cols)[0]);
   CRC32CD(crc, crc, ((uint64_t*)a_cols)[1]);
@@ -734,6 +737,9 @@ inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_cols, double * a_non_
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_8_INNER(crc, crc, data);
+#elif defined(INTEL_ASM)
+  //use Intel assembly code to accelerate crc calculations
+  crc = crc_pcl((const uint8_t*)a_non_zeros, num_elements * sizeof(double), crc);
 #else
   uint64_t * data = (uint64_t*)a_non_zeros;
   CRC32CD(crc, crc, data[0]);
