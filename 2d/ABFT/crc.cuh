@@ -579,66 +579,66 @@ __device__ static inline uint32_t crc32c_software_simple(uint32_t crc, const uin
 }
 
 // process sixteen bytes at once
-#define SPLIT_BY_16_INNER(crc, data)                                                      \
-if(1) {                                                                                   \
-  uint32_t one   = *data++ ^ crc;                                                         \
-  uint32_t two   = *data++;                                                               \
-  uint32_t three = *data++;                                                               \
-  uint32_t four  = *data++;                                                               \
-  crc = crc32c_table[ 0][(four  >> 24) & 0xFF] ^ crc32c_table[ 1][(four  >> 16) & 0xFF] ^ \
-        crc32c_table[ 2][(four  >>  8) & 0xFF] ^ crc32c_table[ 3][ four         & 0xFF] ^ \
-        crc32c_table[ 4][(three >> 24) & 0xFF] ^ crc32c_table[ 5][(three >> 16) & 0xFF] ^ \
-        crc32c_table[ 6][(three >>  8) & 0xFF] ^ crc32c_table[ 7][ three        & 0xFF] ^ \
-        crc32c_table[ 8][(two   >> 24) & 0xFF] ^ crc32c_table[ 9][(two   >> 16) & 0xFF] ^ \
-        crc32c_table[10][(two   >>  8) & 0xFF] ^ crc32c_table[11][ two          & 0xFF] ^ \
-        crc32c_table[12][(one   >> 24) & 0xFF] ^ crc32c_table[13][(one   >> 16) & 0xFF] ^ \
-        crc32c_table[14][(one   >>  8) & 0xFF] ^ crc32c_table[15][ one          & 0xFF];  \
+#define SPLIT_BY_16_INNER(crc_out, crc_in, data)                                              \
+if(1) {                                                                                       \
+  uint32_t one   = *data++ ^ crc_in;                                                          \
+  uint32_t two   = *data++;                                                                   \
+  uint32_t three = *data++;                                                                   \
+  uint32_t four  = *data++;                                                                   \
+  crc_out = crc32c_table[ 0][(four  >> 24) & 0xFF] ^ crc32c_table[ 1][(four  >> 16) & 0xFF] ^ \
+            crc32c_table[ 2][(four  >>  8) & 0xFF] ^ crc32c_table[ 3][ four         & 0xFF] ^ \
+            crc32c_table[ 4][(three >> 24) & 0xFF] ^ crc32c_table[ 5][(three >> 16) & 0xFF] ^ \
+            crc32c_table[ 6][(three >>  8) & 0xFF] ^ crc32c_table[ 7][ three        & 0xFF] ^ \
+            crc32c_table[ 8][(two   >> 24) & 0xFF] ^ crc32c_table[ 9][(two   >> 16) & 0xFF] ^ \
+            crc32c_table[10][(two   >>  8) & 0xFF] ^ crc32c_table[11][ two          & 0xFF] ^ \
+            crc32c_table[12][(one   >> 24) & 0xFF] ^ crc32c_table[13][(one   >> 16) & 0xFF] ^ \
+            crc32c_table[14][(one   >>  8) & 0xFF] ^ crc32c_table[15][ one          & 0xFF];  \
 } else
 
-#define SPLIT_BY_16(crc, data, num_bytes)                                           \
+#define SPLIT_BY_16(crc_out, crc_in, data, num_bytes)                               \
 while (num_bytes >= 16)                                                             \
 {                                                                                   \
-  SPLIT_BY_16_INNER(crc, data);                                                     \
+  SPLIT_BY_16_INNER(crc_out, crc_in, data);                                         \
   num_bytes -= 16;                                                                  \
 }
 
 // process eight bytes at once
-#define SPLIT_BY_8_INNER(crc, data)                                                 \
+#define SPLIT_BY_8_INNER(crc_out, crc_in, data)                                     \
 if(1) {                                                                             \
-  uint32_t one = *data++ ^ crc;                                                     \
+  uint32_t one = *data++ ^ crc_in;                                                  \
   uint32_t two = *data++;                                                           \
-  crc = crc32c_table[7][ one      & 0xFF] ^ crc32c_table[6][(one>> 8) & 0xFF] ^     \
-        crc32c_table[5][(one>>16) & 0xFF] ^ crc32c_table[4][ one>>24        ] ^     \
-        crc32c_table[3][ two      & 0xFF] ^ crc32c_table[2][(two>> 8) & 0xFF] ^     \
-        crc32c_table[1][(two>>16) & 0xFF] ^ crc32c_table[0][ two>>24        ];      \
+  crc_out = crc32c_table[7][ one      & 0xFF] ^ crc32c_table[6][(one>> 8) & 0xFF] ^ \
+            crc32c_table[5][(one>>16) & 0xFF] ^ crc32c_table[4][ one>>24        ] ^ \
+            crc32c_table[3][ two      & 0xFF] ^ crc32c_table[2][(two>> 8) & 0xFF] ^ \
+            crc32c_table[1][(two>>16) & 0xFF] ^ crc32c_table[0][ two>>24        ];  \
 } else
 
-#define SPLIT_BY_8(crc, data, num_bytes)                                            \
+#define SPLIT_BY_8(crc_out, crc_in, data, num_bytes)                                \
 while (num_bytes >= 8)                                                              \
 {                                                                                   \
-  SPLIT_BY_8_INNER(crc, data);                                                      \
+  SPLIT_BY_8_INNER(crc_out, crc_in, data);                                          \
   num_bytes -= 8;                                                                   \
 }
 
 // process four bytes at once
-#define SPLIT_BY_4_INNER(crc, data)                                                 \
-if(1) {                                                                             \
-  crc ^= *data++;                                                                   \
-  crc  = crc32c_table[3][ crc      & 0xFF] ^ crc32c_table[2][(crc>> 8) & 0xFF] ^    \
-         crc32c_table[1][(crc>>16) & 0xFF] ^ crc32c_table[0][ crc>>24        ];     \
+#define SPLIT_BY_4_INNER(crc_out, crc_in, data)                                              \
+if(1) {                                                                                      \
+  crc_out = crc_in ^ *data++;                                                                \
+  crc_out = crc32c_table[3][ crc_out      & 0xFF] ^ crc32c_table[2][(crc_out>> 8) & 0xFF] ^  \
+            crc32c_table[1][(crc_out>>16) & 0xFF] ^ crc32c_table[0][ crc_out>>24        ];   \
 } else
 
-#define SPLIT_BY_4(crc, data, num_bytes)                                            \
+#define SPLIT_BY_4(crc_out, crc_in, data, num_bytes)                                \
 while (num_bytes >= 4)                                                              \
 {                                                                                   \
-  SPLIT_BY_4_INNER(crc, data);                                                      \
+  SPLIT_BY_4_INNER(crc_out, crc_in, data);                                          \
   num_bytes -= 4;                                                                   \
 }
 
-//This function does 32bit at a time vs the simple version with only 8 bits at a time
+//This function does 16Bytes at a time vs the simple version with only byte at a time
 __device__ static inline uint32_t crc32c_software_split(uint32_t crc, const uint32_t * data, size_t num_bytes)
 {
-  SPLIT_BY_16(crc, data, num_bytes);
+  SPLIT_BY_16(crc, crc, data, num_bytes);
   return crc32c_software_simple(crc, (uint8_t*)data, num_bytes);
 }
 
@@ -649,14 +649,14 @@ __device__ static inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_col
   //Assume 5 elements
   //first do a_cols - 5 elems * 4 bytes each = 20 bytes
   uint32_t * data = a_cols;
-  SPLIT_BY_16_INNER(crc, data);
-  SPLIT_BY_4_INNER(crc, data);
+  SPLIT_BY_16_INNER(crc, crc, data);
+  SPLIT_BY_4_INNER(crc, crc, data);
 
   //then do a_non_zeros - 5 elems * 8 bytes each = 40 bytes
   data = (uint32_t*)a_non_zeros;
-  SPLIT_BY_16_INNER(crc, data);
-  SPLIT_BY_16_INNER(crc, data);
-  SPLIT_BY_8_INNER(crc, data);
+  SPLIT_BY_16_INNER(crc, crc, data);
+  SPLIT_BY_16_INNER(crc, crc, data);
+  SPLIT_BY_8_INNER(crc, crc, data);
 
   return crc;
 }
