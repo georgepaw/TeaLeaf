@@ -152,7 +152,7 @@ __device__ static inline void generate_ecc_bits(uint32_t * a_col_index_addr, con
 #endif
 }
 
-__device__ static inline uint32_t check_correct_ecc_bits(const uint32_t * col, const uint32_t * val, uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx)
+__device__ static inline uint32_t check_correct_ecc_bits(uint32_t * col, uint32_t * val, uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx)
 {
 #if defined(SED)
   uint32_t paritiy = ecc_compute_overall_parity(col, val);
@@ -175,20 +175,24 @@ __device__ static inline uint32_t check_correct_ecc_bits(const uint32_t * col, c
       uint32_t bit_index = ecc_get_flipped_bit_col8(syndrome);
       if (bit_index < 64)
       {
-        uint64_t val = *((uint64_t*)&(a_non_zeros[idx]));
-        val ^= 0x1ULL << bit_index;
-        a_non_zeros[idx] = *((double*)&val);
+        uint64_t val_int = *((uint64_t*)&(a_non_zeros[idx]));
+        val_int ^= 0x1ULL << bit_index;
+        val[0] = ((uint32_t*)&val_int)[0];
+        val[1] = ((uint32_t*)&val_int)[1];
+        a_non_zeros[idx] = *((double*)&val_int);
       }
       else
       {
-        a_col_index[idx] ^= 0x1U << (bit_index - 64);
+        *col ^= 0x1U << (bit_index - 64);
+        a_col_index[idx] = *col;
       }
       // printf("[ECC] corrected bit %u at index %d\n", bit_index, idx);
     }
     else
     {
       /* Correct overall parity bit */
-      a_col_index[idx] ^= 0x1U << 24;
+      *col ^= 0x1U << 24;
+      a_col_index[idx] = *col;
       // printf("[ECC] corrected overall parity bit at index %d\n", idx);
     }
   }
