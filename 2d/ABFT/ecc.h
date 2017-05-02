@@ -159,9 +159,9 @@ static inline uint32_t ecc_get_flipped_bit_col8(uint32_t syndrome)
 
 static inline void generate_ecc_bits(uint32_t * a_col_index_addr, double * a_non_zeros_addr)
 {
-#if defined(SED) || defined(SED_ASM)
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM)
   *a_col_index_addr |= ecc_compute_overall_parity(a_col_index_addr, (uint32_t*)a_non_zeros_addr) << 31;
-#elif defined(SECDED)
+#elif defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
   *a_col_index_addr |= ecc_compute_col8(a_col_index_addr, (uint32_t*)a_non_zeros_addr);
   *a_col_index_addr |= ecc_compute_overall_parity(a_col_index_addr, (uint32_t*)a_non_zeros_addr) << 24;
 #endif
@@ -169,11 +169,11 @@ static inline void generate_ecc_bits(uint32_t * a_col_index_addr, double * a_non
 
 static inline uint32_t check_correct_ecc_bits(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx)
 {
-#if defined(SED)
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED)
   uint32_t paritiy = ecc_compute_overall_parity(&a_col_index[idx], (uint32_t*)(&a_non_zeros[idx]));
   if(paritiy) printf("[ECC] error detected at index %u\n", idx);
   return paritiy == 0;
-#elif defined(SECDED)
+#elif defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
   /*  Check parity bits */
   uint32_t overall_parity = ecc_compute_overall_parity(&a_col_index[idx], (uint32_t*)(&a_non_zeros[idx]));
   uint32_t syndrome = ecc_compute_col8(&a_col_index[idx], (uint32_t*)(&a_non_zeros[idx]));

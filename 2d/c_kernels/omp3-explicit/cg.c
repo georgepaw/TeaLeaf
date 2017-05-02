@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include "../../shared.h"
 
-#if defined(CRC32C)
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
 #include "../../ABFT/crc.h"
 #define NUM_ELEMENTS 5
-#elif defined(SED) || defined(SECDED) || defined(SED_ASM)
+#elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
 #include "../../ABFT/ecc.h"
 #define NUM_ELEMENTS 1
 #else
@@ -121,14 +121,14 @@ void cg_init(
       }
       a_non_zeros[offset] = -ky[index];
       a_col_index[offset] = index-x;
-#if defined(SED) || defined(SED_ASM) || defined(SECDED)
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
       a_non_zeros[offset] = -kx[index];
       a_col_index[offset] = index-1;
-#if defined(SED) || defined(SED_ASM) || defined(SECDED)
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
@@ -137,26 +137,26 @@ void cg_init(
                                  kx[index+1] + kx[index] +
                                  ky[index+x] + ky[index]);
       a_col_index[offset] = index;
-#if defined(SED) || defined(SED_ASM) || defined(SECDED)
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
       a_non_zeros[offset] = -kx[index+1];
       a_col_index[offset] = index+1;
-#if defined(SED) || defined(SED_ASM) || defined(SECDED)
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
       a_non_zeros[offset] = -ky[index+x];
       a_col_index[offset] = index+x;
-#if defined(SED) || defined(SED_ASM) || defined(SECDED)
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-#ifdef CRC32C
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
       assign_crc32c_bits(a_col_index, a_non_zeros, coef_index, 5);
 #endif
     }
@@ -338,10 +338,10 @@ void matrix_check(
 
       double tmp = 0.0;
 
-#if defined(CRC32C)
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
       uint32_t row_begin = a_row_index[row];
       CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
-#else
+#elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       uint32_t row_begin = a_row_index[row];
       uint32_t row_end   = a_row_index[row+1];
       for (uint32_t idx = row_begin; idx < row_end; idx++)

@@ -7,15 +7,15 @@ CC        = /localhd/mattmar/trunk/obj/bin/clang
 CPP       = /localhd/mattmar/trunk/obj/bin/clang++
 COMPILER  = CLANG
 
-ABFT_METHOD =
+ABFT_METHOD_CSR_ELEMENT =
 INJECT_FAULT = no
 NANOS_RECOVERY = no
 MB_LOGGING = no
 MPI = no
 INTERVAL_CHECKS =
 
-ifneq ($(ABFT_METHOD),)
-  OPTIONS += -D$(ABFT_METHOD)
+ifneq ($(ABFT_METHOD_CSR_ELEMENT),)
+  OPTIONS += -DABFT_METHOD_CSR_ELEMENT_$(ABFT_METHOD_CSR_ELEMENT)
 endif
 
 ifeq ($(MPI),no)
