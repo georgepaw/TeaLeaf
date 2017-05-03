@@ -5,6 +5,8 @@
 
 #include "../../ABFT/fault_injection.cuh"
 
+#include "cuda_abft_helper.h"
+
 #define KERNELS_START(pad) \
     START_PROFILING(settings->kernel_profile); \
 int x_inner = chunk->x - pad; \
@@ -13,6 +15,10 @@ int num_blocks = ceil((double)(x_inner*y_inner) / (double)BLOCK_SIZE);
 
 #define KERNELS_END() \
     check_errors(__LINE__, __FILE__); \
+STOP_PROFILING(settings->kernel_profile, __func__);
+
+#define KERNELS_END_WITH_INFO(kernel) \
+    check_errors_kernel(__LINE__, __FILE__, kernel); \
 STOP_PROFILING(settings->kernel_profile, __func__);
 
 void run_set_chunk_data(Chunk* chunk, Settings* settings)
@@ -58,8 +64,6 @@ void run_set_chunk_state(Chunk* chunk, Settings* settings, State* states)
                 chunk->density, chunk->energy0, chunk->u,
                 states[ii]);
     }
-
-    check_errors(__LINE__, __FILE__);
 
     KERNELS_END();
 }
@@ -179,6 +183,7 @@ void run_cg_init(
             chunk->ext->d_col_index, chunk->ext->d_non_zeros, chunk->p,
             chunk->r, chunk->w, chunk->mi,
             chunk->ext->d_reduce_buffer);
+    check_errors_kernel(__LINE__, __FILE__, CG_INIT);
 
     sum_reduce_buffer(chunk->ext->d_reduce_buffer, rro, num_blocks);
 
@@ -206,7 +211,6 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
                 chunk->p, chunk->ext->d_row_index,
                 chunk->ext->d_col_index, chunk->ext->d_non_zeros,
                 chunk->w, chunk->ext->d_reduce_buffer);
-        check_errors(__LINE__, __FILE__);
     }
     else
     {
@@ -216,6 +220,8 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
                 chunk->ext->d_col_index, chunk->ext->d_non_zeros,
                 chunk->w, chunk->ext->d_reduce_buffer);
     }
+    check_errors_kernel(__LINE__, __FILE__, CG_CALC_W);
+
     sum_reduce_buffer(chunk->ext->d_reduce_buffer, pw, num_blocks);
 
     KERNELS_END();
@@ -230,6 +236,7 @@ void run_cg_calc_ur(
             x_inner, y_inner, settings->halo_depth, alpha, chunk->p,
             chunk->w, chunk->u, chunk->r,
             chunk->ext->d_reduce_buffer);
+    check_errors_kernel(__LINE__, __FILE__, CG_CALC_UR);
 
     sum_reduce_buffer(chunk->ext->d_reduce_buffer, rrn, num_blocks);
 
@@ -244,7 +251,7 @@ void run_cg_calc_p(Chunk* chunk, Settings* settings, double beta)
             x_inner, y_inner, settings->halo_depth, beta,
             chunk->r, chunk->p);
 
-    KERNELS_END();
+    KERNELS_END_WITH_INFO(CG_CALC_P);
 }
 
 // Chebyshev solver kernels
@@ -344,7 +351,7 @@ void run_copy_u(Chunk* chunk, Settings* settings)
     copy_u<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, settings->halo_depth, chunk->u, chunk->u0);
 
-    KERNELS_END();
+    KERNELS_END_WITH_INFO(COPY_U);
 }
 
 void run_calculate_residual(Chunk* chunk, Settings* settings)
@@ -355,7 +362,7 @@ void run_calculate_residual(Chunk* chunk, Settings* settings)
             x_inner, y_inner, settings->halo_depth, chunk->u, chunk->u0,
             chunk->kx, chunk->ky, chunk->r);
 
-    KERNELS_END();
+    KERNELS_END_WITH_INFO(CALCULATE_RESIDUAL);
 }
 
 void run_calculate_2norm(
@@ -370,7 +377,7 @@ void run_calculate_2norm(
     sum_reduce_buffer(
             chunk->ext->d_reduce_buffer, norm, num_blocks);
 
-    KERNELS_END();
+    KERNELS_END_WITH_INFO(CALCULATE_2NORM);
 }
 
 void run_finalise(Chunk* chunk, Settings* settings)
@@ -381,7 +388,7 @@ void run_finalise(Chunk* chunk, Settings* settings)
             x_inner, y_inner, settings->halo_depth, chunk->density,
             chunk->u, chunk->energy);
 
-    KERNELS_END();
+    KERNELS_END_WITH_INFO(FINALISE);
 }
 
 void run_kernel_finalise(Chunk* chunk, Settings* settings)
@@ -403,7 +410,6 @@ void run_matrix_check(
     matrix_check<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, settings->halo_depth, chunk->ext->d_row_index,
             chunk->ext->d_col_index, chunk->ext->d_non_zeros);
-    check_errors(__LINE__, __FILE__);
 
-    KERNELS_END();
+    KERNELS_END_WITH_INFO(MATRIX_CHECK);
 }

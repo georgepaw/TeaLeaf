@@ -3,14 +3,19 @@
 
 void check_errors(int line_num, const char* file)
 {
+	check_errors_kernel(line_num, file, UNKNOWN);
+}
+
+void check_errors_kernel(int line_num, const char* file, CUDA_KERNEL kernel)
+{
     cudaDeviceSynchronize();
 
     int result = cudaGetLastError();
 
     if(result != cudaSuccess)
     {
-        die(line_num, file, "Error in %s - return code %d (%s)\n",
-                file, result, cuda_codes(result));
+        die(line_num, file, "Error in %s - return code %d (%s) - kernel %s\n",
+                file, result, cuda_codes(result), abft_error_code(kernel));
     }
 }
 

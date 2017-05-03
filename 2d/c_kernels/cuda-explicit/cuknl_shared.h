@@ -4,6 +4,8 @@
 #define BLOCK_SIZE 256
 #endif
 
+#include "cuda_abft_helper.h"
+
 __device__ inline double SUM(double a, double b)
 {
 	return a + b;
@@ -41,4 +43,6 @@ class reduce < T, 0 >
 };
 
 void check_errors(int line_num, const char* file);
+void check_errors_kernel(int line_num, const char* file, CUDA_KERNEL kernel);
+
 const char* cuda_codes(int code);
