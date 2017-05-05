@@ -4,13 +4,13 @@
 #include "abft_common.h"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#include "../../ABFT/CPU/crc.h"
+#include "../../ABFT/CPU/crc_csr_element.h"
 #define NUM_ELEMENTS 5
 #elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-#include "../../ABFT/CPU/ecc.h"
+#include "../../ABFT/CPU/ecc_csr_element.h"
 #define NUM_ELEMENTS 1
 #else
-#include "../../ABFT/CPU/no_ecc.h"
+#include "../../ABFT/CPU/no_ecc_csr_element.h"
 #define NUM_ELEMENTS 1
 #endif
 
@@ -61,12 +61,12 @@ void calculate_residual(
             uint32_t row_begin = a_row_index[index];
             uint32_t row_end   = a_row_index[index+1];
 
-            CHECK_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
+            CHECK_CSR_ELEMENT_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
 
             for (uint32_t idx = row_begin; idx < row_end; idx++)
             {
-                CHECK_ECC(a_col_index, a_non_zeros, idx, fail_task());
-                smvp += a_non_zeros[idx] * u[MASK_INDEX(a_col_index[idx])];
+                CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_task());
+                smvp += a_non_zeros[idx] * u[MASK_CSR_ELEMENT_INDEX(a_col_index[idx])];
             }
 
             r[index] = u0[index] - smvp;
@@ -90,7 +90,7 @@ void calculate_2norm(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            norm_temp += buffer[index]*buffer[index];			
+            norm_temp += buffer[index]*buffer[index];
         }
     }
 
