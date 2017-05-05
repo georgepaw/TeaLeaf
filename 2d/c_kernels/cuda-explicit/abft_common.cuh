@@ -1,6 +1,5 @@
-#pragma once
-#ifndef CUDA_ABFT_HELPER_H
-#define CUDA_ABFT_HELPER_H
+#ifndef ABFT_COMMON_CUH
+#define ABFT_COMMON_CUH
 
 enum CUDA_KERNEL {
   CG_INIT,
@@ -17,6 +16,12 @@ enum CUDA_KERNEL {
   FINALISE,
   UNKNOWN
 };
+
+__device__ inline void cuda_terminate()
+{
+  __threadfence();
+  asm("trap;");
+}
 
 inline const char* abft_error_code(CUDA_KERNEL error_code)
 {
@@ -39,4 +44,4 @@ inline const char* abft_error_code(CUDA_KERNEL error_code)
   return "";
 }
 
-#endif //CUDA_ABFT_HELPER_H
+#endif //ABFT_COMMON_CUH

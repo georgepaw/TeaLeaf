@@ -5,7 +5,7 @@
 
 #include "../../ABFT/fault_injection.cuh"
 
-#include "cuda_abft_helper.h"
+#include "abft_common.cuh"
 
 #define KERNELS_START(pad) \
     START_PROFILING(settings->kernel_profile); \
@@ -360,7 +360,8 @@ void run_calculate_residual(Chunk* chunk, Settings* settings)
 
     calculate_residual<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, settings->halo_depth, chunk->u, chunk->u0,
-            chunk->kx, chunk->ky, chunk->r);
+            chunk->ext->d_row_index, chunk->ext->d_col_index,
+            chunk->ext->d_non_zeros, chunk->r);
 
     KERNELS_END_WITH_INFO(CALCULATE_RESIDUAL);
 }

@@ -125,8 +125,8 @@ void copy_u(
 
 void calculate_residual(
   const int x, const int y, const int halo_depth,
-  double* u, double* u0, double* r, double* kx,
-  double* ky);
+  double* u, double* u0, double* r, uint32_t* a_row_index,
+  uint32_t* a_col_index, double* a_non_zeros);
 
 void calculate_2norm(
   const int x, const int y, const int halo_depth,

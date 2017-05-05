@@ -44,7 +44,7 @@ if(1){ \
 #define MASK_INDEX(index) (index & 0x00FFFFFF)
 
 //CRC32C table
-const uint32_t crc32c_table[16][256] =
+static const uint32_t crc32c_table[16][256] =
 {
   {
     0x00000000, 0xF26B8303, 0xE13B70F7, 0x1350F3F4, 0xC79A971F, 0x35F1141C, 0x26A1E7E8, 0xD4CA64EB,
@@ -691,7 +691,7 @@ static inline uint32_t crc32c_software_split(uint32_t crc, const uint32_t * data
   } while(0)
 
 
-inline uint32_t crc32c_chunk(uint32_t crc, const uint8_t * data, size_t num_bytes)
+static inline uint32_t crc32c_chunk(uint32_t crc, const uint8_t * data, size_t num_bytes)
 {
 #if defined(SOFTWARE_CRC_SIMPLE)
   crc = crc32c_software_simple(crc, data, num_bytes);
@@ -713,7 +713,7 @@ inline uint32_t crc32c_chunk(uint32_t crc, const uint8_t * data, size_t num_byte
   return crc;
 }
 
-inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_cols, double * a_non_zeros, uint32_t num_elements)
+static inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_cols, double * a_non_zeros, uint32_t num_elements)
 {
   uint32_t crc = 0xFFFFFFFF;
   //Assume 5 elements
@@ -726,8 +726,10 @@ inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_cols, double * a_non_
   //use Intel assembly code to accelerate crc calculations
   crc = crc_pcl((const uint8_t*)a_cols, num_elements * sizeof(uint32_t), crc);
 #else
-  CRC32CD(crc, crc, ((uint64_t*)a_cols)[0]);
-  CRC32CD(crc, crc, ((uint64_t*)a_cols)[1]);
+  // CRC32CD(crc, crc, ((uint64_t*)a_cols)[0]); <- doesn't seem to work
+  // CRC32CD(crc, crc, ((uint64_t*)a_cols)[1]);
+  CRC32CD(crc, crc, (uint64_t) a_cols[1] << 32 | a_cols[0]);
+  CRC32CD(crc, crc, (uint64_t) a_cols[3] << 32 | a_cols[2]);
   CRC32CW(crc, crc, a_cols[4]);
 #endif
 
@@ -751,7 +753,7 @@ inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_cols, double * a_non_
   return crc;
 }
 
-void printBits(size_t const size, void const * const ptr)
+static void printBits(size_t const size, void const * const ptr)
 {
   unsigned char *b = (unsigned char*) ptr;
   unsigned char byte;
@@ -767,7 +769,7 @@ void printBits(size_t const size, void const * const ptr)
   }
 }
 
-uint8_t check_correct_crc32c_bits(uint32_t * a_cols, double * a_non_zeros, uint32_t idx, uint32_t num_elements)
+static uint8_t check_correct_crc32c_bits(uint32_t * a_cols, double * a_non_zeros, uint32_t idx, uint32_t num_elements)
 {
   uint32_t masks[4];
   //get the CRC and recalculate to check it's correct
@@ -905,7 +907,7 @@ uint8_t check_correct_crc32c_bits(uint32_t * a_cols, double * a_non_zeros, uint3
   return correct_crc;
 }
 
-inline void assign_crc32c_bits(uint32_t * a_cols, double * a_non_zeros, uint32_t idx, uint32_t num_elements)
+static inline void assign_crc32c_bits(uint32_t * a_cols, double * a_non_zeros, uint32_t idx, uint32_t num_elements)
 {
   if(num_elements < 4)
   {

@@ -661,22 +661,6 @@ __device__ static inline uint32_t generate_crc32c_bits_csr_elem(uint32_t * a_col
   return crc;
 }
 
-void printBits(size_t const size, void const * const ptr)
-{
-  unsigned char *b = (unsigned char*) ptr;
-  unsigned char byte;
-  int i, j;
-
-  for (i=size-1;i>=0;i--)
-  {
-    for (j=7;j>=0;j--)
-    {
-        byte = (b[i] >> j) & 1;
-        printf("%u", byte);
-    }
-  }
-}
-
 __device__ static inline uint8_t check_correct_crc32c_bits(uint32_t * cols, double * vals, uint32_t * a_cols, double * a_non_zeros, uint32_t idx, uint32_t num_elements)
 {
   //get the CRC and recalculate to check it's correct

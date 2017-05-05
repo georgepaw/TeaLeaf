@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "c_kernels.h"
 #include "cuknl_shared.h"
+#include "abft_common.cuh"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
 #include "../../ABFT/crc.cuh"
@@ -12,12 +13,6 @@
 #include "../../ABFT/no_ecc.cuh"
 #define NUM_ELEMENTS 1
 #endif
-
-__device__ inline void cuda_terminate()
-{
-  __threadfence();
-  asm("trap;");
-}
 
 __global__ void inject_bitflip(
   const uint32_t bit,

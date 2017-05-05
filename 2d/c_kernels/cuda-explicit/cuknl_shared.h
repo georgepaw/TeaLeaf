@@ -4,7 +4,7 @@
 #define BLOCK_SIZE 256
 #endif
 
-#include "cuda_abft_helper.h"
+#include "abft_common.cuh"
 
 __device__ inline double SUM(double a, double b)
 {

@@ -241,7 +241,8 @@ void run_calculate_residual(Chunk* chunk, Settings* settings)
 {
   START_PROFILING(settings->kernel_profile);
   calculate_residual(chunk->x, chunk->y, settings->halo_depth, chunk->u,
-                     chunk->u0, chunk->r, chunk->kx, chunk->ky);
+                     chunk->u0, chunk->r, chunk->ext->a_row_index,
+                     chunk->ext->a_col_index, chunk->ext->a_non_zeros);
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 

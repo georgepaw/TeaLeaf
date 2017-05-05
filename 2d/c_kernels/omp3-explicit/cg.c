@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "../../shared.h"
+#include "abft_common.h"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
 #include "../../ABFT/crc.h"
@@ -20,25 +21,6 @@
 /*
  *		CONJUGATE GRADIENT SOLVER KERNEL
  */
-
-void fail_task()
-{
-#if defined(FT_FTI)
-  if (FTI_SCES != FTI_Recover())
-  {
-    printf("Failed to recover. Exiting...\n");
-    exit(1);
-  }
-  else 
-  {
-    printf("Recovery succesful!\n");
-  }
-#elif defined(FT_BLCR)
-
-#else
-   exit(1);
-#endif
-}
 
 
 // Initialises the CG solver

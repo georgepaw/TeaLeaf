@@ -156,8 +156,8 @@ __global__ void copy_u(
 
 __global__ void calculate_residual(
 		const int x_inner, const int y_inner, const int halo_depth,
-		const double* u, const double* u0, const double* kx,
-		const double* ky, double* r);
+		const double* u, const double* u0, uint32_t* row_index, uint32_t* col_index,
+    double* non_zeros, double* r);
 
 __global__ void calculate_2norm(
 		const int x_inner, const int y_inner, const int halo_depth,
