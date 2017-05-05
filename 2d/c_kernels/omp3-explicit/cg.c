@@ -4,13 +4,13 @@
 #include "abft_common.h"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#include "../../ABFT/crc.h"
+#include "../../ABFT/CPU/crc.h"
 #define NUM_ELEMENTS 5
 #elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-#include "../../ABFT/ecc.h"
+#include "../../ABFT/CPU/ecc.h"
 #define NUM_ELEMENTS 1
 #else
-#include "../../ABFT/no_ecc.h"
+#include "../../ABFT/CPU/no_ecc.h"
 #define NUM_ELEMENTS 1
 #endif
 

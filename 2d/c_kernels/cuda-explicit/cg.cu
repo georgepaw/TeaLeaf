@@ -4,13 +4,13 @@
 #include "abft_common.cuh"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#include "../../ABFT/crc.cuh"
+#include "../../ABFT/GPU/crc.cuh"
 #define NUM_ELEMENTS 5
 #elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-#include "../../ABFT/ecc.cuh"
+#include "../../ABFT/GPU/ecc.cuh"
 #define NUM_ELEMENTS 1
 #else
-#include "../../ABFT/no_ecc.cuh"
+#include "../../ABFT/GPU/no_ecc.cuh"
 #define NUM_ELEMENTS 1
 #endif
 

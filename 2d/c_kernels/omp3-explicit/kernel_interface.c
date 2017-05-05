@@ -2,7 +2,7 @@
 #include "c_kernels.h"
 #include <stdlib.h>
 
-#include "../../ABFT/fault_injection.h"
+#include "../../ABFT/CPU/fault_injection.h"
 
 // Initialisation kernels
 void run_set_chunk_data(Chunk* chunk, Settings* settings)

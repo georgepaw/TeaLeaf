@@ -3,7 +3,7 @@
 #include "cuknl_shared.h"
 #include "../../shared.h"
 
-#include "../../ABFT/fault_injection.cuh"
+#include "../../ABFT/GPU/fault_injection.cuh"
 
 #include "abft_common.cuh"
 

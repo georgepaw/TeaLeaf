@@ -81,7 +81,7 @@ include $(KERNELS_PATH)/Makefile
 obj/$(KERNELS)/%.o: %.c Makefile make.deps $(KERNELS_PATH)/make.deps
 	$(TL_COMPILER) $(TL_FLAGS) -I$(KERNELS_PATH) $(OPTIONS) -c $< -o $@
 
-obj/$(KERNELS)/crc_iscsi_v_pcl.o: ABFT/crc_iscsi_v_pcl.asm
+obj/$(KERNELS)/crc_iscsi_v_pcl.o: ABFT/CPU/crc_iscsi_v_pcl.asm
 	yasm -f x64 -f elf64 -X gnu -g dwarf2 -D LINUX -o $@ $<
 
 # Create the object file directory and implementation sub-directory
