@@ -1,7 +1,7 @@
 #ifndef ECC_CSR_ELEMENT_H
 #define ECC_CSR_ELEMENT_H
 
-#include "ecc-96bits.h"
+#include "ecc_96bits.h"
 
 #define CHECK_CSR_ELEMENT_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_function)
 
