@@ -1,7 +1,15 @@
 #include "../../settings.h"
 #include "../../shared.h"
 
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C)
+#include "../../ABFT/CPU/.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
 #include "../../ABFT/CPU/ecc_double_vector.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+#include "../../ABFT/CPU/ecc_double_vector.h"
+#else
+#include "../../ABFT/CPU/no_ecc_double_vector.h"
+#endif
 
 /*
  * 		SET CHUNK DATA KERNEL
@@ -28,29 +36,35 @@ void set_chunk_data(
 
 	for(int ii = 0; ii < x+1; ++ii)
 	{
-		vertex_x[ii] = mask_double(x_min + settings->dx*(ii-settings->halo_depth));
+		vertex_x[ii] = add_ecc_double(x_min + settings->dx*(ii-settings->halo_depth));
 	}
 
 	for(int ii = 0; ii < y+1; ++ii)
 	{
-		vertex_y[ii] = mask_double(y_min + settings->dy*(ii-settings->halo_depth));
+		vertex_y[ii] = add_ecc_double(y_min + settings->dy*(ii-settings->halo_depth));
 	}
 
 	for(int ii = 0; ii < x; ++ii)
 	{
-		cell_x[ii] = mask_double(0.5*(vertex_x[ii]+vertex_x[ii+1]));
+    DOUBLE_VECTOR_START(vertex_x);
+		cell_x[ii] = add_ecc_double(0.5*(DOUBLE_VECTOR_ACCESS(vertex_x, ii)
+                                    +DOUBLE_VECTOR_ACCESS(vertex_x, ii+1)));
+    DOUBLE_VECTOR_ERROR_STATUS(vertex_x);
 	}
 
 	for(int ii = 0; ii < y; ++ii)
 	{
-		cell_y[ii] = mask_double(0.5*(vertex_y[ii]+vertex_y[ii+1]));
+    DOUBLE_VECTOR_START(vertex_y);
+		cell_y[ii] = add_ecc_double(0.5*(DOUBLE_VECTOR_ACCESS(vertex_y, ii)
+                                    +DOUBLE_VECTOR_ACCESS(vertex_y, ii+1)));
+    DOUBLE_VECTOR_ERROR_STATUS(vertex_y);
 	}
 
 	for(int ii = 0; ii < x*y; ++ii)
 	{
-		volume[ii] = mask_double(settings->dx*settings->dy);
-		x_area[ii] = mask_double(settings->dy);
-		y_area[ii] = mask_double(settings->dx);
+		volume[ii] = add_ecc_double(settings->dx*settings->dy);
+		x_area[ii] = add_ecc_double(settings->dy);
+		y_area[ii] = add_ecc_double(settings->dx);
 	}
 }
 

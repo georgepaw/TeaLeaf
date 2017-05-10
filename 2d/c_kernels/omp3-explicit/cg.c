@@ -14,7 +14,15 @@
 #define NUM_ELEMENTS 1
 #endif
 
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C)
+#include "../../ABFT/CPU/.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
 #include "../../ABFT/CPU/ecc_double_vector.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+#include "../../ABFT/CPU/ecc_double_vector.h"
+#else
+#include "../../ABFT/CPU/no_ecc_double_vector.h"
+#endif
 
 #ifdef FT_FTI
 #include <fti.h>
@@ -58,10 +66,15 @@ void cg_init(
   {
     for(int kk = 0; kk < x; ++kk)
     {
+      DOUBLE_VECTOR_START(energy);
+      DOUBLE_VECTOR_START(density);
       const int index = kk + jj*x;
-      p[index] = mask_double(0.0);
-      r[index] = mask_double(0.0);
-      u[index] = mask_double(energy[index]*density[index]);
+      p[index] = add_ecc_double(0.0);
+      r[index] = add_ecc_double(0.0);
+      u[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(energy, index)
+                               *DOUBLE_VECTOR_ACCESS(density, index));
+      DOUBLE_VECTOR_ERROR_STATUS(energy);
+      DOUBLE_VECTOR_ERROR_STATUS(density);
     }
   }
 
@@ -70,9 +83,11 @@ void cg_init(
   {
     for(int kk = 1; kk < x-1; ++kk)
     {
+      DOUBLE_VECTOR_START(density);
       const int index = kk + jj*x;
-      w[index] = mask_double((coefficient == CONDUCTIVITY)
-        ? density[index] : 1.0/density[index]);
+      w[index] = add_ecc_double((coefficient == CONDUCTIVITY)
+        ? DOUBLE_VECTOR_ACCESS(density, index) : 1.0/DOUBLE_VECTOR_ACCESS(density, index));
+      DOUBLE_VECTOR_ERROR_STATUS(density);
     }
   }
 
@@ -82,10 +97,12 @@ void cg_init(
     for(int kk = halo_depth; kk < x-1; ++kk)
     {
       const int index = kk + jj*x;
-      kx[index] = mask_double(rx*(w[index-1]+w[index]) /
-        (2.0*w[index-1]*w[index]));
-      ky[index] = mask_double(ry*(w[index-x]+w[index]) /
-        (2.0*w[index-x]*w[index]));
+      DOUBLE_VECTOR_START(w);
+      kx[index] = add_ecc_double(rx*(DOUBLE_VECTOR_ACCESS(w, index-1)+DOUBLE_VECTOR_ACCESS(w, index)) /
+        (2.0*DOUBLE_VECTOR_ACCESS(w, index-1)*DOUBLE_VECTOR_ACCESS(w, index)));
+      ky[index] = add_ecc_double(ry*(DOUBLE_VECTOR_ACCESS(w, index-x)+DOUBLE_VECTOR_ACCESS(w, index)) /
+        (2.0*DOUBLE_VECTOR_ACCESS(w, index-x)*DOUBLE_VECTOR_ACCESS(w, index)));
+      DOUBLE_VECTOR_ERROR_STATUS(w);
     }
   }
 
@@ -103,37 +120,39 @@ void cg_init(
       {
         continue;
       }
-      a_non_zeros[offset] = mask_double(-ky[index]);
+      DOUBLE_VECTOR_START(kx);
+      DOUBLE_VECTOR_START(ky);
+      a_non_zeros[offset] = -DOUBLE_VECTOR_ACCESS(ky, index);
       a_col_index[offset] = index-x;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = mask_double(-kx[index]);
+      a_non_zeros[offset] = -DOUBLE_VECTOR_ACCESS(kx, index);
       a_col_index[offset] = index-1;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = mask_double((1.0 +
-                                 kx[index+1] + kx[index] +
-                                 ky[index+x] + ky[index]));
+      a_non_zeros[offset] = (1.0 +
+                                 DOUBLE_VECTOR_ACCESS(kx, index+1) + DOUBLE_VECTOR_ACCESS(kx, index) +
+                                 DOUBLE_VECTOR_ACCESS(ky, index+x) + DOUBLE_VECTOR_ACCESS(ky, index));
       a_col_index[offset] = index;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = mask_double(-kx[index+1]);
+      a_non_zeros[offset] = -DOUBLE_VECTOR_ACCESS(kx, index+1);
       a_col_index[offset] = index+1;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = mask_double(-ky[index+x]);
+      a_non_zeros[offset] = -DOUBLE_VECTOR_ACCESS(ky, index+x);
       a_col_index[offset] = index+x;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
@@ -143,6 +162,8 @@ void cg_init(
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
       assign_crc32c_bits_csr_element(a_col_index, a_non_zeros, coef_index, 5);
 #endif
+      DOUBLE_VECTOR_ERROR_STATUS(kx);
+      DOUBLE_VECTOR_ERROR_STATUS(ky);
     }
   }
 
@@ -161,14 +182,19 @@ void cg_init(
       uint32_t row_end   = a_row_index[index+1];
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
+        DOUBLE_VECTOR_START(u);
         uint32_t col = a_col_index[idx];
-        tmp += a_non_zeros[idx] * mask_double(u[MASK_CSR_ELEMENT_INDEX(col)]);
+        tmp += a_non_zeros[idx] * DOUBLE_VECTOR_ACCESS(u, MASK_CSR_ELEMENT_INDEX(col));
+        DOUBLE_VECTOR_ERROR_STATUS(u);
       }
-
-      w[index] = mask_double(tmp);
-      r[index] = mask_double(u[index] - tmp);
-      p[index] = mask_double(r[index]);
-      rro_temp += mask_double(r[index]*r[index]);
+      DOUBLE_VECTOR_START(u);
+      DOUBLE_VECTOR_START(r);
+      w[index] = add_ecc_double(tmp);
+      r[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u, index) - tmp);
+      p[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(r, index));
+      rro_temp += DOUBLE_VECTOR_ACCESS(r, index)*DOUBLE_VECTOR_ACCESS(r, index);
+      DOUBLE_VECTOR_ERROR_STATUS(u);
+      DOUBLE_VECTOR_ERROR_STATUS(r);
     }
   }
 
@@ -205,12 +231,17 @@ void cg_calc_w_check(
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
+        DOUBLE_VECTOR_START(p);
         CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_task());
-        tmp += a_non_zeros[idx] * mask_double(p[MASK_CSR_ELEMENT_INDEX(a_col_index[idx])]);
+        // if(MASK_CSR_ELEMENT_INDEX(a_col_index[idx]) == 9021) printf("Found index %d\n", a_col_index[idx]);
+        tmp += a_non_zeros[idx] * DOUBLE_VECTOR_ACCESS(p, MASK_CSR_ELEMENT_INDEX(a_col_index[idx]));
+        DOUBLE_VECTOR_ERROR_STATUS(p);
       }
 
-      w[row] = mask_double(tmp);
-      pw_temp += mask_double(tmp*p[row]);
+      DOUBLE_VECTOR_START(p);
+      w[row] = add_ecc_double(tmp);
+      pw_temp += tmp*DOUBLE_VECTOR_ACCESS(p, row);
+      DOUBLE_VECTOR_ERROR_STATUS(p);
     }
   }
 
@@ -249,8 +280,8 @@ void cg_calc_w_no_check(
         tmp += a_non_zeros[idx] * mask_double(p[col]);
       }
 
-      w[row] = mask_double(tmp);
-      pw_temp += mask_double(tmp*p[row]);
+      w[row] = add_ecc_double(tmp);
+      pw_temp += tmp*mask_double(p[row]);
     }
   }
 
@@ -278,9 +309,17 @@ void cg_calc_ur(
     {
       const int index = kk + jj*x;
 
-      u[index] = mask_double(u[index] + alpha*p[index]);
-      r[index] = mask_double(r[index] - alpha*w[index]);
+      DOUBLE_VECTOR_START(u);
+      DOUBLE_VECTOR_START(r);
+      DOUBLE_VECTOR_START(p);
+      DOUBLE_VECTOR_START(w);
+      u[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u, index) + alpha*DOUBLE_VECTOR_ACCESS(p, index));
+      r[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(r, index) - alpha*DOUBLE_VECTOR_ACCESS(w, index));
       rrn_temp += r[index]*r[index];
+      DOUBLE_VECTOR_ERROR_STATUS(u);
+      DOUBLE_VECTOR_ERROR_STATUS(r);
+      DOUBLE_VECTOR_ERROR_STATUS(p);
+      DOUBLE_VECTOR_ERROR_STATUS(w);
     }
   }
 
@@ -302,8 +341,11 @@ void cg_calc_p(
     for(int kk = halo_depth; kk < x-halo_depth; ++kk)
     {
       const int index = kk + jj*x;
-
-      p[index] = mask_double(beta*p[index] + r[index]);
+      DOUBLE_VECTOR_START(p);
+      DOUBLE_VECTOR_START(r);
+      p[index] = add_ecc_double(beta*DOUBLE_VECTOR_ACCESS(p, index) + DOUBLE_VECTOR_ACCESS(r, index));
+      DOUBLE_VECTOR_ERROR_STATUS(p);
+      DOUBLE_VECTOR_ERROR_STATUS(r);
     }
   }
 }

@@ -1,6 +1,14 @@
 #include "../../shared.h"
 
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C)
+#include "../../ABFT/CPU/.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
 #include "../../ABFT/CPU/ecc_double_vector.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+#include "../../ABFT/CPU/ecc_double_vector.h"
+#else
+#include "../../ABFT/CPU/no_ecc_double_vector.h"
+#endif
 
 /*
  * 		FIELD SUMMARY KERNEL
@@ -30,13 +38,21 @@ void field_summary(
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
+            DOUBLE_VECTOR_START(volume);
+            DOUBLE_VECTOR_START(density);
+            DOUBLE_VECTOR_START(energy0);
+            DOUBLE_VECTOR_START(u);
             const int index = kk + jj*x;
-            double cellVol = mask_double(volume[index]);
-            double cellMass = cellVol*mask_double(density[index]);
+            double cellVol = DOUBLE_VECTOR_ACCESS(volume, index);
+            double cellMass = cellVol*DOUBLE_VECTOR_ACCESS(density, index);
             vol += cellVol;
             mass += cellMass;
-            ie += cellMass*mask_double(energy0[index]);
-            temp += cellMass*mask_double(u[index]);
+            ie += cellMass*DOUBLE_VECTOR_ACCESS(energy0, index);
+            temp += cellMass*DOUBLE_VECTOR_ACCESS(u, index);
+            DOUBLE_VECTOR_ERROR_STATUS(volume);
+            DOUBLE_VECTOR_ERROR_STATUS(density);
+            DOUBLE_VECTOR_ERROR_STATUS(energy0);
+            DOUBLE_VECTOR_ERROR_STATUS(u);
         }
     }
 

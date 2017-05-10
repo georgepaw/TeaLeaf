@@ -76,4 +76,34 @@ static void inject_bitflips(uint32_t* a_col_index, double* a_non_zeros)
   __fault_injection_itteration++;
 }
 
+static void inject_bitflips_buffer(double* buffer)
+{
+#ifndef NO_MPI
+  //get the MPI Rank
+  if(__fault_injection_itteration == 0)
+  {
+    MPI_Comm_rank(_MPI_COMM_WORLD, &mpi_rank);
+  }
+  //only inject faults on one rank
+  if(mpi_rank != FAULT_INJECTION_RANK) return;
+#endif
+  // printf("FI itter is %u, injecting when itter %u\n", itteration, FAULT_INJECTION_ITTERATION);
+
+  uint32_t start_index = 9021;
+  uint32_t elemts_to_flip = 1;
+  int num_flips_per_elem = 1;
+  if(__fault_injection_itteration == FAULT_INJECTION_ITTERATION)
+  {
+    for(uint32_t i = 0; i < elemts_to_flip; i++)
+    {
+      uint64_t temp;
+      memcpy(&temp, &buffer[start_index + i], sizeof(double));
+      printf("*** flipping bit %d at index %d ***\n", 63, start_index + i);
+      temp ^= 0x1ULL << 63;
+      memcpy(&buffer[start_index + i], &temp, sizeof(double));
+    }
+  }
+  __fault_injection_itteration++;
+}
+
 #endif //FAULT_INJECTION_H

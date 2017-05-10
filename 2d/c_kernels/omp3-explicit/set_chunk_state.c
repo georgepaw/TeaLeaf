@@ -1,7 +1,15 @@
 #include <math.h>
 #include "../../settings.h"
 
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C)
+#include "../../ABFT/CPU/.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
 #include "../../ABFT/CPU/ecc_double_vector.h"
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+#include "../../ABFT/CPU/ecc_double_vector.h"
+#else
+#include "../../ABFT/CPU/no_ecc_double_vector.h"
+#endif
 
 /*
  *      SET CHUNK STATE KERNEL
@@ -25,8 +33,8 @@ void set_chunk_state(
     // Set the initial state
     for(int ii = 0; ii != x*y; ++ii)
     {
-        energy0[ii] = mask_double(states[0].energy);
-        density[ii] = mask_double(states[0].density);
+        energy0[ii] = add_ecc_double(states[0].energy);
+        density[ii] = add_ecc_double(states[0].density);
     }	
 
     // Apply all of the states in turn
@@ -40,35 +48,47 @@ void set_chunk_state(
 
                 if(states[ss].geometry == RECTANGULAR)
                 {
+                    DOUBLE_VECTOR_START(vertex_x);
+                    DOUBLE_VECTOR_START(vertex_y);
                     apply_state = (
-                            vertex_x[kk+1] >= states[ss].x_min && 
-                            vertex_x[kk] < states[ss].x_max    &&
-                            vertex_y[jj+1] >= states[ss].y_min &&
-                            vertex_y[jj] < states[ss].y_max);
+                            DOUBLE_VECTOR_ACCESS(vertex_x, kk+1) >= states[ss].x_min && 
+                            DOUBLE_VECTOR_ACCESS(vertex_x, kk) < states[ss].x_max    &&
+                            DOUBLE_VECTOR_ACCESS(vertex_y, jj+1) >= states[ss].y_min &&
+                            DOUBLE_VECTOR_ACCESS(vertex_y, jj) < states[ss].y_max);
+                    DOUBLE_VECTOR_ERROR_STATUS(vertex_x);
+                    DOUBLE_VECTOR_ERROR_STATUS(vertex_y);
                 }
                 else if(states[ss].geometry == CIRCULAR)
                 {
+                    DOUBLE_VECTOR_START(cell_x);
+                    DOUBLE_VECTOR_START(cell_y);
                     double radius = sqrt(
-                            (cell_x[kk]-states[ss].x_min)*
-                            (cell_x[kk]-states[ss].x_min)+
-                            (cell_y[jj]-states[ss].y_min)*
-                            (cell_y[jj]-states[ss].y_min));
+                            (DOUBLE_VECTOR_ACCESS(cell_x, kk)-states[ss].x_min)*
+                            (DOUBLE_VECTOR_ACCESS(cell_x, kk)-states[ss].x_min)+
+                            (DOUBLE_VECTOR_ACCESS(cell_y, jj)-states[ss].y_min)*
+                            (DOUBLE_VECTOR_ACCESS(cell_y, jj)-states[ss].y_min));
+                    DOUBLE_VECTOR_ERROR_STATUS(cell_x);
+                    DOUBLE_VECTOR_ERROR_STATUS(cell_y);
 
                     apply_state = (radius <= states[ss].radius);
                 }
                 else if(states[ss].geometry == POINT)
                 {
+                    DOUBLE_VECTOR_START(vertex_x);
+                    DOUBLE_VECTOR_START(vertex_y);
                     apply_state = (
-                            vertex_x[kk] == states[ss].x_min &&
-                            vertex_y[jj] == states[ss].y_min);
+                            DOUBLE_VECTOR_ACCESS(vertex_x, kk) == states[ss].x_min &&
+                            DOUBLE_VECTOR_ACCESS(vertex_y, jj) == states[ss].y_min);
+                    DOUBLE_VECTOR_ERROR_STATUS(vertex_x);
+                    DOUBLE_VECTOR_ERROR_STATUS(vertex_y);
                 }
 
                 // Check if state applies at this vertex, and apply
                 if(apply_state)
                 {
                     const int index = kk + jj*x;
-                    energy0[index] = mask_double(states[ss].energy);
-                    density[index] = mask_double(states[ss].density);
+                    energy0[index] = add_ecc_double(states[ss].energy);
+                    density[index] = add_ecc_double(states[ss].density);
                 }
             }
         }
@@ -79,8 +99,13 @@ void set_chunk_state(
     {
         for(int kk = 1; kk != x-1; ++kk) 
         {
+            DOUBLE_VECTOR_START(energy0);
+            DOUBLE_VECTOR_START(density);
             const int index = kk + jj*x;
-            u[index] = mask_double(energy0[index]*density[index]);
+            u[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(energy0, index)
+                                     *DOUBLE_VECTOR_ACCESS(density, index));
+            DOUBLE_VECTOR_ERROR_STATUS(energy0);
+            DOUBLE_VECTOR_ERROR_STATUS(density);
         }
     }
 }
