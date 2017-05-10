@@ -1,6 +1,8 @@
 #include <math.h>
 #include "../../settings.h"
 
+#include "../../ABFT/CPU/ecc_double_vector.h"
+
 /*
  *      SET CHUNK STATE KERNEL
  *		Sets up the chunk geometry.
@@ -23,8 +25,8 @@ void set_chunk_state(
     // Set the initial state
     for(int ii = 0; ii != x*y; ++ii)
     {
-        energy0[ii] = states[0].energy;
-        density[ii] = states[0].density;
+        energy0[ii] = mask_double(states[0].energy);
+        density[ii] = mask_double(states[0].density);
     }	
 
     // Apply all of the states in turn
@@ -65,8 +67,8 @@ void set_chunk_state(
                 if(apply_state)
                 {
                     const int index = kk + jj*x;
-                    energy0[index] = states[ss].energy;
-                    density[index] = states[ss].density;
+                    energy0[index] = mask_double(states[ss].energy);
+                    density[index] = mask_double(states[ss].density);
                 }
             }
         }
@@ -78,7 +80,7 @@ void set_chunk_state(
         for(int kk = 1; kk != x-1; ++kk) 
         {
             const int index = kk + jj*x;
-            u[index] = energy0[index]*density[index];
+            u[index] = mask_double(energy0[index]*density[index]);
         }
     }
 }

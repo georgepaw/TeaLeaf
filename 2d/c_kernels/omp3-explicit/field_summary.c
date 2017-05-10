@@ -1,5 +1,7 @@
 #include "../../shared.h"
 
+#include "../../ABFT/CPU/ecc_double_vector.h"
+
 /*
  * 		FIELD SUMMARY KERNEL
  * 		Calculates aggregates of values in field.
@@ -29,12 +31,12 @@ void field_summary(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            double cellVol = volume[index];
-            double cellMass = cellVol*density[index];
+            double cellVol = mask_double(volume[index]);
+            double cellMass = cellVol*mask_double(density[index]);
             vol += cellVol;
             mass += cellMass;
-            ie += cellMass*energy0[index];
-            temp += cellMass*u[index];
+            ie += cellMass*mask_double(energy0[index]);
+            temp += cellMass*mask_double(u[index]);
         }
     }
 

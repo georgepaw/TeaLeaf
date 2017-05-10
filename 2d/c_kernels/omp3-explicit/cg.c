@@ -14,6 +14,8 @@
 #define NUM_ELEMENTS 1
 #endif
 
+#include "../../ABFT/CPU/ecc_double_vector.h"
+
 #ifdef FT_FTI
 #include <fti.h>
 #endif
@@ -57,9 +59,9 @@ void cg_init(
     for(int kk = 0; kk < x; ++kk)
     {
       const int index = kk + jj*x;
-      p[index] = 0.0;
-      r[index] = 0.0;
-      u[index] = energy[index]*density[index];
+      p[index] = mask_double(0.0);
+      r[index] = mask_double(0.0);
+      u[index] = mask_double(energy[index]*density[index]);
     }
   }
 
@@ -69,8 +71,8 @@ void cg_init(
     for(int kk = 1; kk < x-1; ++kk)
     {
       const int index = kk + jj*x;
-      w[index] = (coefficient == CONDUCTIVITY)
-        ? density[index] : 1.0/density[index];
+      w[index] = mask_double((coefficient == CONDUCTIVITY)
+        ? density[index] : 1.0/density[index]);
     }
   }
 
@@ -80,10 +82,10 @@ void cg_init(
     for(int kk = halo_depth; kk < x-1; ++kk)
     {
       const int index = kk + jj*x;
-      kx[index] = rx*(w[index-1]+w[index]) /
-        (2.0*w[index-1]*w[index]);
-      ky[index] = ry*(w[index-x]+w[index]) /
-        (2.0*w[index-x]*w[index]);
+      kx[index] = mask_double(rx*(w[index-1]+w[index]) /
+        (2.0*w[index-1]*w[index]));
+      ky[index] = mask_double(ry*(w[index-x]+w[index]) /
+        (2.0*w[index-x]*w[index]));
     }
   }
 
@@ -101,37 +103,37 @@ void cg_init(
       {
         continue;
       }
-      a_non_zeros[offset] = -ky[index];
+      a_non_zeros[offset] = mask_double(-ky[index]);
       a_col_index[offset] = index-x;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = -kx[index];
+      a_non_zeros[offset] = mask_double(-kx[index]);
       a_col_index[offset] = index-1;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = (1.0 +
+      a_non_zeros[offset] = mask_double((1.0 +
                                  kx[index+1] + kx[index] +
-                                 ky[index+x] + ky[index]);
+                                 ky[index+x] + ky[index]));
       a_col_index[offset] = index;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = -kx[index+1];
+      a_non_zeros[offset] = mask_double(-kx[index+1]);
       a_col_index[offset] = index+1;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
 #endif
       offset++;
 
-      a_non_zeros[offset] = -ky[index+x];
+      a_non_zeros[offset] = mask_double(-ky[index+x]);
       a_col_index[offset] = index+x;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
       generate_ecc_bits_csr_element(&a_col_index[offset], &a_non_zeros[offset]);
@@ -160,13 +162,13 @@ void cg_init(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = a_col_index[idx];
-        tmp += a_non_zeros[idx] * u[MASK_CSR_ELEMENT_INDEX(col)];
+        tmp += a_non_zeros[idx] * mask_double(u[MASK_CSR_ELEMENT_INDEX(col)]);
       }
 
-      w[index] = tmp;
-      r[index] = u[index] - tmp;
-      p[index] = r[index];
-      rro_temp += r[index]*r[index];
+      w[index] = mask_double(tmp);
+      r[index] = mask_double(u[index] - tmp);
+      p[index] = mask_double(r[index]);
+      rro_temp += mask_double(r[index]*r[index]);
     }
   }
 
@@ -204,11 +206,11 @@ void cg_calc_w_check(
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_task());
-        tmp += a_non_zeros[idx] * p[MASK_CSR_ELEMENT_INDEX(a_col_index[idx])];
+        tmp += a_non_zeros[idx] * mask_double(p[MASK_CSR_ELEMENT_INDEX(a_col_index[idx])]);
       }
 
-      w[row] = tmp;
-      pw_temp += tmp*p[row];
+      w[row] = mask_double(tmp);
+      pw_temp += mask_double(tmp*p[row]);
     }
   }
 
@@ -244,11 +246,11 @@ void cg_calc_w_no_check(
       {
         uint32_t col = MASK_CSR_ELEMENT_INDEX(a_col_index[idx]);
         COLUMN_CHECK(col, x, y, idx);
-        tmp += a_non_zeros[idx] * p[col];
+        tmp += a_non_zeros[idx] * mask_double(p[col]);
       }
 
-      w[row] = tmp;
-      pw_temp += tmp*p[row];
+      w[row] = mask_double(tmp);
+      pw_temp += mask_double(tmp*p[row]);
     }
   }
 
@@ -276,8 +278,8 @@ void cg_calc_ur(
     {
       const int index = kk + jj*x;
 
-      u[index] += alpha*p[index];
-      r[index] -= alpha*w[index];
+      u[index] = mask_double(u[index] + alpha*p[index]);
+      r[index] = mask_double(r[index] - alpha*w[index]);
       rrn_temp += r[index]*r[index];
     }
   }
@@ -301,7 +303,7 @@ void cg_calc_p(
     {
       const int index = kk + jj*x;
 
-      p[index] = beta*p[index] + r[index];
+      p[index] = mask_double(beta*p[index] + r[index]);
     }
   }
 }

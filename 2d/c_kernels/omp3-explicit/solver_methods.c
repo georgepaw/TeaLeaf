@@ -14,6 +14,8 @@
 #define NUM_ELEMENTS 1
 #endif
 
+#include "../../ABFT/CPU/ecc_double_vector.h"
+
 /*
  *		SHARED SOLVER METHODS
  */
@@ -32,7 +34,7 @@ void copy_u(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            u0[index] = u[index];	
+            u0[index] = mask_double(u[index]);
         }
     }
 }
@@ -66,10 +68,10 @@ void calculate_residual(
             for (uint32_t idx = row_begin; idx < row_end; idx++)
             {
                 CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_task());
-                smvp += a_non_zeros[idx] * u[MASK_CSR_ELEMENT_INDEX(a_col_index[idx])];
+                smvp += a_non_zeros[idx] * mask_double(u[MASK_CSR_ELEMENT_INDEX(a_col_index[idx])]);
             }
 
-            r[index] = u0[index] - smvp;
+            r[index] = mask_double(u0[index] - smvp);
         }
     }
 }
@@ -90,7 +92,7 @@ void calculate_2norm(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            norm_temp += buffer[index]*buffer[index];
+            norm_temp += mask_double(buffer[index]*buffer[index]);
         }
     }
 
@@ -112,7 +114,7 @@ void finalise(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            energy[index] = u[index]/density[index];
+            energy[index] = mask_double(u[index]/density[index]);
         }
     }
 }

@@ -1,6 +1,8 @@
 #include "../../settings.h"
 #include "../../shared.h"
 
+#include "../../ABFT/CPU/ecc_double_vector.h"
+
 /*
  * 		SET CHUNK DATA KERNEL
  * 		Initialises the chunk's mesh data.
@@ -26,29 +28,29 @@ void set_chunk_data(
 
 	for(int ii = 0; ii < x+1; ++ii)
 	{
-		vertex_x[ii] = x_min + settings->dx*(ii-settings->halo_depth);
+		vertex_x[ii] = mask_double(x_min + settings->dx*(ii-settings->halo_depth));
 	}
 
 	for(int ii = 0; ii < y+1; ++ii)
 	{
-		vertex_y[ii] = y_min + settings->dy*(ii-settings->halo_depth);
+		vertex_y[ii] = mask_double(y_min + settings->dy*(ii-settings->halo_depth));
 	}
 
 	for(int ii = 0; ii < x; ++ii)
 	{
-		cell_x[ii] = 0.5*(vertex_x[ii]+vertex_x[ii+1]);
+		cell_x[ii] = mask_double(0.5*(vertex_x[ii]+vertex_x[ii+1]));
 	}
 
 	for(int ii = 0; ii < y; ++ii)
 	{
-		cell_y[ii] = 0.5*(vertex_y[ii]+vertex_y[ii+1]);
+		cell_y[ii] = mask_double(0.5*(vertex_y[ii]+vertex_y[ii+1]));
 	}
 
 	for(int ii = 0; ii < x*y; ++ii)
 	{
-		volume[ii] = settings->dx*settings->dy;
-		x_area[ii] = settings->dy;
-		y_area[ii] = settings->dx;
+		volume[ii] = mask_double(settings->dx*settings->dy);
+		x_area[ii] = mask_double(settings->dy);
+		y_area[ii] = mask_double(settings->dx);
 	}
 }
 
