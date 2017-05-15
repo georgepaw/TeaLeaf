@@ -15,7 +15,7 @@ volatile int mpi_rank;
   #define _MPI_COMM_WORLD MPI_COMM_WORLD
   #endif
 #endif
-#define FAULT_INJECTION_ITTERATION 121
+#define FAULT_INJECTION_ITTERATION 12
 #define FAULT_INJECTION_RANK 1
 
 volatile uint32_t __fault_injection_itteration = 0;
@@ -98,8 +98,10 @@ static void inject_bitflips_buffer(double* buffer)
     {
       uint64_t temp;
       memcpy(&temp, &buffer[start_index + i], sizeof(double));
-      printf("*** flipping bit %d at index %d ***\n", 63, start_index + i);
-      temp ^= 0x1ULL << 63;
+      uint32_t bit = 3;
+      printf("*** flipping bit %d at index %d ***\n", bit, start_index + i);
+      temp ^= 0x1ULL << bit;
+      // temp ^= 0xFFFFFFFFFFFFFFFF << 63;
       memcpy(&buffer[start_index + i], &temp, sizeof(double));
     }
   }

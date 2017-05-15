@@ -1,21 +1,18 @@
 #ifndef ECC_DOUBLE_VECTOR_H
 #define ECC_DOUBLE_VECTOR_H
 #include <stdint.h>
-
-union double_bits
-{
-  double val;
-  uint64_t bits;
-};
+#include <stdio.h>
+#include <inttypes.h>
+#include "ecc_64bit.h"
 
 #define DOUBLE_VECTOR_START(array) \
   uint32_t __vector_ ## array ## _flag = 0;
 
 #define DOUBLE_VECTOR_CHECK(array, index) \
-  check_ecc_double(array[index], &__vector_ ## array ## _flag)
+  check_ecc_double(&array[index], &__vector_ ## array ## _flag)
 
 #define DOUBLE_VECTOR_ACCESS(array, index) \
-  mask_double(check_ecc_double(array[index], &__vector_ ## array ## _flag))
+  mask_double(check_ecc_double(&array[index], &__vector_ ## array ## _flag))
 
 #define STR(x)   #x
 
@@ -24,33 +21,114 @@ union double_bits
     printf("Errors in vector %s (function %s)\n", STR(array), __func__);\
   } else
 
-static inline double check_ecc_double(double in, uint32_t * flag)
+static inline int32_t get_fliped_bit_location(uint32_t syndrome)
 {
-  union double_bits t;
-  t.val = in;
-  uint64_t parity = __builtin_parityll(t.bits);
+  for(uint32_t i = 0; i < 64; i++)
+  {
+    if(syndrome == secded64_syndrome_table[i])
+    {
+      return i;
+    }
+  }
+  return -1;
+}
+
+static inline double check_ecc_double(double * in, uint32_t * flag)
+{
+  uint64_t all_bits = *((uint64_t*)in);
+  uint64_t parity = __builtin_parityll(all_bits);
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
   if(parity) (*flag)++;
-  return t.val;
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+  uint64_t secded_in = all_bits & 0xFFULL;
+
+  uint64_t bits = all_bits & 0xFFFFFFFFFFFFFF00ULL;
+  uint32_t syndrome =
+        __builtin_parityll((S1 & bits) ^ (secded_in & C1))
+      | __builtin_parityll((S2 & bits) ^ (secded_in & C2)) << 1
+      | __builtin_parityll((S3 & bits) ^ (secded_in & C3)) << 2
+      | __builtin_parityll((S4 & bits) ^ (secded_in & C4)) << 3
+      | __builtin_parityll((S5 & bits) ^ (secded_in & C5)) << 4
+      | __builtin_parityll((S6 & bits) ^ (secded_in & C6)) << 5
+      | __builtin_parityll((S7 & bits) ^ (secded_in & C7)) << 6
+      | __builtin_parityll((S8 & bits) ^ (secded_in & C8)) << 7;
+
+  if(parity)
+  {
+  printf("0x%" PRIX64 "\n", all_bits);
+    if(syndrome)
+    {
+      int32_t bit_position = get_fliped_bit_location(syndrome);
+      if(bit_position < 0)
+      {
+        printf("Uncorrectable error with odd number of bitflips\n");
+        (*flag)++;
+      }
+      else
+      {
+        all_bits ^= 0x1ULL << bit_position;
+        *in = *((double*)&all_bits);
+        printf("Correctable error found bit %d\n", bit_position);
+      }
+    }
+  }
+  else
+  {
+    if(syndrome)
+    {
+      printf("Uncorrectable error with even number of bitflips\n");
+      (*flag)++;
+    }
+  }
+#endif
+  return *((double*)&all_bits);
 }
 
 static inline double add_ecc_double(double in)
 {
-  union double_bits t;
-  t.val = in;
-  uint64_t parity = __builtin_parityll(t.bits);
-  t.bits ^= parity;
-  return t.val;
+  uint64_t all_bits = *((uint64_t*)&in);
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
+  uint64_t parity = __builtin_parityll(all_bits);
+  all_bits ^= parity;
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+  all_bits &= 0xFFFFFFFFFFFFFF00ULL;
+
+  const int secded_bits[] =
+  {
+    __builtin_parityll(S1 & all_bits),
+    __builtin_parityll(S2 & all_bits),
+    __builtin_parityll(S3 & all_bits),
+    __builtin_parityll(S4 & all_bits),
+    __builtin_parityll(S5 & all_bits),
+    __builtin_parityll(S6 & all_bits),
+    __builtin_parityll(S7 & all_bits),
+    __builtin_parityll(S8 & all_bits)
+  };
+  all_bits |= (secded_bits[0]
+          | secded_bits[1] << 1
+          | secded_bits[2] << 2
+          | secded_bits[3] << 3
+          | secded_bits[4] << 4
+          | secded_bits[5] << 5
+          | secded_bits[6] << 6
+          | secded_bits[7] << 7);
+
+#endif
+  return *((double*)&all_bits);
 }
 
 static inline double mask_double(double in)
 {
-  union double_bits t;
-  t.val = in;
+  uint64_t all_bits = *((uint64_t*)&in);
   // asm(  "and $0xfffffffffffffffe,%0\n"
-  //     : "=a" (t.bits)
-  //     : "a" (t.bits));
-  t.bits &= 0xFFFFFFFFFFFFFFFEULL;
-  return t.val;
+  //     : "=a" (all_bits)
+  //     : "a" (all_bits));
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
+  all_bits &= 0xFFFFFFFFFFFFFFFEULL;
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+  all_bits &= 0xFFFFFFFFFFFFFF00ULL;
+#endif
+  return *((double*)&all_bits);
 }
 
 #endif //ECC_DOUBLE_VECTOR_H

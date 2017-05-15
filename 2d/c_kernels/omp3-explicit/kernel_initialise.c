@@ -93,7 +93,7 @@ void kernel_initialise(
   }
 
   int num_non_zeros = (*a_row_index)[x*y];
-  *a_col_index = (int*)malloc(sizeof(int)*num_non_zeros);
+  *a_col_index = (uint32_t*)malloc(sizeof(uint32_t)*num_non_zeros);
   *a_non_zeros = (double*)malloc(sizeof(double)*num_non_zeros);
   *iteration = (uint32_t*)malloc(sizeof(uint32_t));
 }

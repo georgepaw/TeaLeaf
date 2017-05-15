@@ -3,27 +3,6 @@
 #include "../../shared.h"
 #include "abft_common.h"
 
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#include "../../ABFT/CPU/crc_csr_element.h"
-#define NUM_ELEMENTS 5
-#elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-#include "../../ABFT/CPU/ecc_csr_element.h"
-#define NUM_ELEMENTS 1
-#else
-#include "../../ABFT/CPU/no_ecc_csr_element.h"
-#define NUM_ELEMENTS 1
-#endif
-
-#if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C)
-#include "../../ABFT/CPU/.h"
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
-#include "../../ABFT/CPU/ecc_double_vector.h"
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
-#include "../../ABFT/CPU/ecc_double_vector.h"
-#else
-#include "../../ABFT/CPU/no_ecc_double_vector.h"
-#endif
-
 /*
  *		SHARED SOLVER METHODS
  */

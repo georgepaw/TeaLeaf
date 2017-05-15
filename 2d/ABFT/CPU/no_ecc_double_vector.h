@@ -4,9 +4,9 @@
 
 #define DOUBLE_VECTOR_START(array)
 
-#define DOUBLE_VECTOR_CHECK(array, index) array(index)
+#define DOUBLE_VECTOR_CHECK(array, index) array[index]
 
-#define DOUBLE_VECTOR_ACCESS(array, index) array(index)
+#define DOUBLE_VECTOR_ACCESS(array, index) array[index]
 
 #define DOUBLE_VECTOR_ERROR_STATUS(array)
 
