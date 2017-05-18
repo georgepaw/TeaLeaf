@@ -59,8 +59,12 @@ void die(int lineNum, const char* file, const char* format, ...);
         temp += buffer[ii];\
     }\
     printf("%s = %.12E\n", #buffer, temp);
+#define ROW_CHECK(row, nnz) \
+if(1){ \
+  row = row > nnz ? nnz - 1 : row; \
+} else
 
-#define COLUMN_CHECK(col, x, y, idx) \
+#define COLUMN_CHECK(col, x, y) \
 if(1){ \
 	col = col >= x*y ? x*y - 1 : col; \
 } else

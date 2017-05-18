@@ -1,5 +1,6 @@
 #include "../../settings.h"
 #include "../../shared.h"
+#include "abft_common.h"
 #include <stdlib.h>
 
 // Allocates, and zeroes an individual buffer
@@ -34,7 +35,7 @@ void kernel_initialise(
   double** vertex_dy, double** vertex_x, double** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
   double** cheby_betas, uint32_t** a_row_index, uint32_t** a_col_index,
-  double** a_non_zeros, uint32_t** iteration)
+  double** a_non_zeros, uint32_t* nnz)
 {
   print_and_log(settings,
                 "Performing this solve with the OpenMP 3.0 (explicit) %s solver\n",
@@ -88,14 +89,13 @@ void kernel_initialise(
         row_count = 0;
       }
 
-      (*a_row_index)[index+1] = (*a_row_index)[index] + row_count;
+      (*a_row_index)[index+1] = add_ecc_int((*a_row_index)[index] + row_count);
     }
   }
 
-  int num_non_zeros = (*a_row_index)[x*y];
-  *a_col_index = (uint32_t*)malloc(sizeof(uint32_t)*num_non_zeros);
-  *a_non_zeros = (double*)malloc(sizeof(double)*num_non_zeros);
-  *iteration = (uint32_t*)malloc(sizeof(uint32_t));
+  *nnz = (*a_row_index)[x*y];
+  *a_col_index = (uint32_t*)malloc(sizeof(uint32_t)*(*nnz));
+  *a_non_zeros = (double*)malloc(sizeof(double)*(*nnz));
 }
 
 void kernel_finalise(
@@ -106,7 +106,7 @@ void kernel_finalise(
   double* cell_y, double* cell_dx, double* cell_dy, double* vertex_dx,
   double* vertex_dy, double* vertex_x, double* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
-  double* cheby_betas, uint32_t* iteration)
+  double* cheby_betas)
 {
   free(density0);
   free(density);
@@ -136,5 +136,4 @@ void kernel_finalise(
   free(cg_betas);
   free(cheby_alphas);
   free(cheby_betas);
-  free(iteration);
 }

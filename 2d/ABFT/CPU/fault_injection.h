@@ -18,9 +18,7 @@ volatile int mpi_rank;
 #define FAULT_INJECTION_ITTERATION 12
 #define FAULT_INJECTION_RANK 1
 
-volatile uint32_t __fault_injection_itteration = 0;
-
-static void inject_bitflip(uint32_t* a_col_index, double* a_non_zeros, uint32_t index, int num_flips)
+static void inject_bitflip_csr_elem(uint32_t* a_col_index, double* a_non_zeros, uint32_t index, int num_flips)
 {
 
   int start = 0;
@@ -50,11 +48,11 @@ static void inject_bitflip(uint32_t* a_col_index, double* a_non_zeros, uint32_t 
   }
 }
 
-static void inject_bitflips(uint32_t* a_col_index, double* a_non_zeros)
+static void inject_bitflips_csr_elem(uint32_t* a_col_index, double* a_non_zeros, uint32_t iteration)
 {
 #ifndef NO_MPI
   //get the MPI Rank
-  if(__fault_injection_itteration == 0)
+  if(iteration == 0)
   {
     MPI_Comm_rank(_MPI_COMM_WORLD, &mpi_rank);
   }
@@ -66,21 +64,20 @@ static void inject_bitflips(uint32_t* a_col_index, double* a_non_zeros)
   uint32_t start_index = 1000;
   uint32_t elemts_to_flip = 1;
   int num_flips_per_elem = 1;
-  if(__fault_injection_itteration == FAULT_INJECTION_ITTERATION)
+  if(iteration == FAULT_INJECTION_ITTERATION)
   {
     for(uint32_t i = 0; i < elemts_to_flip; i++)
     {
-      inject_bitflip(a_col_index, a_non_zeros, start_index + i, num_flips_per_elem);
+      inject_bitflip_csr_elem(a_col_index, a_non_zeros, start_index + i, num_flips_per_elem);
     }
   }
-  __fault_injection_itteration++;
 }
 
-static void inject_bitflips_buffer(double* buffer)
+static void inject_bitflips_double_vector(double* double_vector, uint32_t iteration)
 {
 #ifndef NO_MPI
   //get the MPI Rank
-  if(__fault_injection_itteration == 0)
+  if(iteration == 0)
   {
     MPI_Comm_rank(_MPI_COMM_WORLD, &mpi_rank);
   }
@@ -92,20 +89,45 @@ static void inject_bitflips_buffer(double* buffer)
   uint32_t start_index = 9021;
   uint32_t elemts_to_flip = 1;
   int num_flips_per_elem = 1;
-  if(__fault_injection_itteration == FAULT_INJECTION_ITTERATION)
+  if(iteration == FAULT_INJECTION_ITTERATION)
   {
     for(uint32_t i = 0; i < elemts_to_flip; i++)
     {
       uint64_t temp;
-      memcpy(&temp, &buffer[start_index + i], sizeof(double));
+      memcpy(&temp, &double_vector[start_index + i], sizeof(double));
       uint32_t bit = 3;
       printf("*** flipping bit %d at index %d ***\n", bit, start_index + i);
       temp ^= 0x1ULL << bit;
-      // temp ^= 0xFFFFFFFFFFFFFFFF << 63;
-      memcpy(&buffer[start_index + i], &temp, sizeof(double));
+      memcpy(&double_vector[start_index + i], &temp, sizeof(double));
     }
   }
-  __fault_injection_itteration++;
+}
+
+static void inject_bitflips_int_vector(uint32_t* int_vector, uint32_t iteration)
+{
+#ifndef NO_MPI
+  //get the MPI Rank
+  if(iteration == 0)
+  {
+    MPI_Comm_rank(_MPI_COMM_WORLD, &mpi_rank);
+  }
+  //only inject faults on one rank
+  if(mpi_rank != FAULT_INJECTION_RANK) return;
+#endif
+  // printf("FI itter is %u, injecting when itter %u\n", itteration, FAULT_INJECTION_ITTERATION);
+
+  uint32_t start_index = 9021;
+  uint32_t elemts_to_flip = 1;
+  int num_flips_per_elem = 1;
+  if(iteration == FAULT_INJECTION_ITTERATION)
+  {
+    for(uint32_t i = 0; i < elemts_to_flip; i++)
+    {
+      uint32_t bit = 30;
+      printf("*** flipping bit %d at index %d ***\n", bit, start_index + i);
+      int_vector[start_index + i] ^= 0x1U << bit;
+    }
+  }
 }
 
 #endif //FAULT_INJECTION_H

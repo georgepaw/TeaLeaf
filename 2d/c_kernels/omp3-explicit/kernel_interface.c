@@ -33,7 +33,7 @@ void run_kernel_initialise(Chunk* chunk, Settings* settings)
                     &(chunk->vertex_y), &(chunk->cg_alphas), &(chunk->cg_betas),
                     &(chunk->cheby_alphas), &(chunk->cheby_betas),
                     &(chunk->ext->a_row_index), &(chunk->ext->a_col_index),
-                    &(chunk->ext->a_non_zeros), &(chunk->ext->iteration));
+                    &(chunk->ext->a_non_zeros), &(chunk->ext->nnz));
 }
 
 void run_kernel_finalise(
@@ -46,8 +46,7 @@ void run_kernel_finalise(
     chunk->y_area, chunk->cell_x, chunk->cell_y, chunk->cell_dx,
     chunk->cell_dy, chunk->vertex_dx, chunk->vertex_dy, chunk->vertex_x,
     chunk->vertex_y, chunk->cg_alphas, chunk->cg_betas,
-    chunk->cheby_alphas, chunk->cheby_betas,
-    chunk->ext->iteration);
+    chunk->cheby_alphas, chunk->cheby_betas);
 }
 
 // Solver-wide kernels
@@ -96,13 +95,14 @@ void run_cg_init(
   double rx, double ry, double* rro)
 {
   START_PROFILING(settings->kernel_profile);
+  chunk->ext->iteration = 0;
   cg_init(chunk->x, chunk->y,
           settings->halo_depth, settings->coefficient, rx, ry,
           rro, chunk->density, chunk->energy, chunk->u,
           chunk->p, chunk->r, chunk->w,
           chunk->kx, chunk->ky,
           chunk->ext->a_row_index, chunk->ext->a_col_index,
-          chunk->ext->a_non_zeros, chunk->ext->iteration);
+          chunk->ext->a_non_zeros);
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -111,14 +111,15 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
   START_PROFILING(settings->kernel_profile);
 
 #ifdef INTERVAL_CHECKS
-  const uint32_t do_FT_check = ((*chunk->ext->iteration)++ % INTERVAL_CHECKS) == 0;
+  const uint32_t do_FT_check = (chunk->ext->iteration % INTERVAL_CHECKS) == 0;
 #else
   const uint32_t do_FT_check = 1;
 #endif
 
 #ifdef INJECT_FAULT
-  inject_bitflips(chunk->ext->a_col_index, chunk->ext->a_non_zeros);
-  // inject_bitflips_buffer(chunk->p);
+  // inject_bitflips_csr_elem(chunk->ext->a_col_index, chunk->ext->a_non_zeros, chunk->ext->iteration);
+  // inject_bitflips_double_vector(chunk->p, chunk->ext->iteration);
+  inject_bitflips_int_vector(chunk->ext->a_row_index, chunk->ext->iteration);
 #endif
 
   if(do_FT_check)
@@ -133,9 +134,9 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
     cg_calc_w_no_check(chunk->x, chunk->y,
               settings->halo_depth, pw, chunk->p, chunk->w,
               chunk->ext->a_row_index, chunk->ext->a_col_index,
-              chunk->ext->a_non_zeros);
+              chunk->ext->a_non_zeros, chunk->ext->nnz);
   }
-
+  chunk->ext->iteration++;
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -269,9 +270,6 @@ void run_matrix_check(
         Chunk* chunk, Settings* settings)
 {
   START_PROFILING(settings->kernel_profile);
-#ifdef INJECT_FAULT
-  inject_bitflips(chunk->ext->a_col_index, chunk->ext->a_non_zeros);
-#endif
   matrix_check(chunk->x, chunk->y, settings->halo_depth,
             chunk->ext->a_row_index, chunk->ext->a_col_index,
             chunk->ext->a_non_zeros);

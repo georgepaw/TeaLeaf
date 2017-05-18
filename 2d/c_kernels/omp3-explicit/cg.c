@@ -31,15 +31,13 @@ void cg_init(
   double* ky,
   uint32_t* a_row_index,
   uint32_t* a_col_index,
-  double* a_non_zeros,
-  uint32_t* iteration)
+  double* a_non_zeros)
 {
   if(coefficient != CONDUCTIVITY && coefficient != RECIP_CONDUCTIVITY)
   {
     die(__LINE__, __FILE__, "Coefficient %d is not valid.\n", coefficient);
   }
 
-  *iteration = 0;
 #pragma omp parallel for
   for(int jj = 0; jj < y; ++jj)
   {
@@ -92,7 +90,9 @@ void cg_init(
     for(int kk = halo_depth; kk < x-1; ++kk)
     {
       const int index = jj*x + kk;
-      const int coef_index = a_row_index[index];
+      INT_VECTOR_START(a_row_index);
+      const int coef_index = INT_VECTOR_ACCESS(a_row_index, index);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
       int offset = coef_index;
       if (jj <    halo_depth || kk <    halo_depth ||
           jj >= y-halo_depth || kk >= x-halo_depth)
@@ -156,9 +156,12 @@ void cg_init(
       const int index = kk + jj*x;
 
       double tmp = 0.0;
+      INT_VECTOR_START(a_row_index);
 
-      uint32_t row_begin = a_row_index[index];
-      uint32_t row_end   = a_row_index[index+1];
+      uint32_t row_begin = INT_VECTOR_ACCESS(a_row_index, index);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
+      uint32_t row_end   = INT_VECTOR_ACCESS(a_row_index, index+1);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         DOUBLE_VECTOR_START(u);
@@ -202,9 +205,12 @@ void cg_calc_w_check(
       const int row = kk + jj*x;
 
       double tmp = 0.0;
+      INT_VECTOR_START(a_row_index);
 
-      uint32_t row_begin = a_row_index[row];
-      uint32_t row_end   = a_row_index[row+1];
+      uint32_t row_begin = INT_VECTOR_ACCESS(a_row_index, row);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
+      uint32_t row_end   = INT_VECTOR_ACCESS(a_row_index, row+1);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
 
       CHECK_CSR_ELEMENT_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
 
@@ -236,7 +242,8 @@ void cg_calc_w_no_check(
   double* w,
   uint32_t* a_row_index,
   uint32_t* a_col_index,
-  double* a_non_zeros)
+  double* a_non_zeros,
+  uint32_t nnz)
 {
   double pw_temp = 0.0;
 
@@ -249,13 +256,13 @@ void cg_calc_w_no_check(
 
       double tmp = 0.0;
 
-      uint32_t row_begin = a_row_index[row];
-      uint32_t row_end   = a_row_index[row+1];
+      uint32_t row_begin = mask_int(a_row_index[row]); ROW_CHECK(row_begin, nnz);
+      uint32_t row_end   = mask_int(a_row_index[row+1]); ROW_CHECK(row_end, nnz);
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col = MASK_CSR_ELEMENT_INDEX(a_col_index[idx]);
-        COLUMN_CHECK(col, x, y, idx);
+        COLUMN_CHECK(col, x, y);
         tmp += a_non_zeros[idx] * mask_double(p[col]);
       }
 
@@ -341,12 +348,17 @@ void matrix_check(
     {
       const int row = kk + jj*x;
 
+      INT_VECTOR_START(a_row_index);
+
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-      uint32_t row_begin = a_row_index[row];
+      uint32_t row_begin = INT_VECTOR_ACCESS(a_row_index, row);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
       CHECK_CSR_ELEMENT_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
 #elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-      uint32_t row_begin = a_row_index[row];
-      uint32_t row_end   = a_row_index[row+1];
+      uint32_t row_begin = INT_VECTOR_ACCESS(a_row_index, row);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
+      uint32_t row_end   = INT_VECTOR_ACCESS(a_row_index, row+1);
+      INT_VECTOR_ERROR_STATUS(a_row_index);
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_task());

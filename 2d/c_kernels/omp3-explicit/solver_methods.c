@@ -49,8 +49,12 @@ void calculate_residual(
 
             double smvp = 0.0;
 
-            uint32_t row_begin = a_row_index[index];
-            uint32_t row_end   = a_row_index[index+1];
+            INT_VECTOR_START(a_row_index);
+
+            uint32_t row_begin = INT_VECTOR_ACCESS(a_row_index, index);
+            INT_VECTOR_ERROR_STATUS(a_row_index);
+            uint32_t row_end   = INT_VECTOR_ACCESS(a_row_index, index+1);
+            INT_VECTOR_ERROR_STATUS(a_row_index);
 
             DOUBLE_VECTOR_START(u0);
 
