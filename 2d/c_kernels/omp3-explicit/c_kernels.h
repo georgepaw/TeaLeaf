@@ -1,4 +1,6 @@
 #include "../../settings.h"
+#include "../../ABFT/CPU/csr_matrix.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 /*
  *      This is the main interface file for C based implementations.
@@ -7,33 +9,33 @@
 // Initialisation kernels
 void set_chunk_data(
   Settings* settings, int x, int y, int left,
-  int bottom, double* cell_x, double* cell_y,
-  double* vertex_x, double* vertex_y, double* volume,
-  double* x_area, double* y_area);
+  int bottom, double_vector* cell_x, double_vector* cell_y,
+  double_vector* vertex_x, double_vector* vertex_y, double_vector* volume,
+  double_vector* x_area, double_vector* y_area);
 
 void set_chunk_state(
-  int x, int y, double* vertex_x, double* vertex_y, double* cell_x,
-  double* cell_y, double* density, double* energy0, double* u,
+  int x, int y, double_vector* vertex_x, double_vector* vertex_y, double_vector* cell_x,
+  double_vector* cell_y, double_vector* density, double_vector* energy0, double_vector* u,
   const int num_states, State* state);
 
 void kernel_initialise(
-  Settings* settings, int x, int y, double** density0,
-  double** density, double** energy0, double** energy, double** u,
-  double** u0, double** p, double** r, double** mi,
-  double** w, double** kx, double** ky, double** sd,
-  double** volume, double** x_area, double** y_area, double** cell_x,
-  double** cell_y, double** cell_dx, double** cell_dy, double** vertex_dx,
-  double** vertex_dy, double** vertex_x, double** vertex_y,
+  Settings* settings, int x, int y, double_vector** density0,
+  double_vector** density, double_vector** energy0, double_vector** energy, double_vector** u,
+  double_vector** u0, double_vector** p, double_vector** r, double_vector** mi,
+  double_vector** w, double_vector** kx, double_vector** ky, double_vector** sd,
+  double_vector** volume, double_vector** x_area, double_vector** y_area, double_vector** cell_x,
+  double_vector** cell_y, double_vector** cell_dx, double_vector** cell_dy, double_vector** vertex_dx,
+  double_vector** vertex_dy, double_vector** vertex_x, double_vector** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
   double** cheby_betas, csr_matrix * matrix);
 
 void kernel_finalise(
-  double* density0, double* density, double* energy0, double* energy,
-  double* u, double* u0, double* p, double* r, double* mi,
-  double* w, double* kx, double* ky, double* sd,
-  double* volume, double* x_area, double* y_area, double* cell_x,
-  double* cell_y, double* cell_dx, double* cell_dy, double* vertex_dx,
-  double* vertex_dy, double* vertex_x, double* vertex_y,
+  double_vector* density0, double_vector* density, double_vector* energy0, double_vector* energy,
+  double_vector* u, double_vector* u0, double_vector* p, double_vector* r, double_vector* mi,
+  double_vector* w, double_vector* kx, double_vector* ky, double_vector* sd,
+  double_vector* volume, double_vector* x_area, double_vector* y_area, double_vector* cell_x,
+  double_vector* cell_y, double_vector* cell_dx, double_vector* cell_dy, double_vector* vertex_dx,
+  double_vector* vertex_dy, double_vector* vertex_x, double_vector* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
   double* cheby_betas, csr_matrix * matrix);
 
@@ -41,86 +43,86 @@ void kernel_finalise(
 void local_halos(
   const int x, const int y, const int depth,
   const int halo_depth, const int* chunk_neighbours,
-  const bool* fields_to_exchange, double* density, double* energy0,
-  double* energy, double* u, double* p, double* sd);
+  const bool* fields_to_exchange, double_vector* density, double_vector* energy0,
+  double_vector* energy, double_vector* u, double_vector* p, double_vector* sd);
 
 void pack_or_unpack(
   const int x, const int y, const int depth,
   const int halo_depth, const int face, bool pack,
-  double *field, double* buffer);
+  double_vector* field, double* buffer);
 
 void store_energy(
-  int x, int y, double* energy0, double* energy);
+  int x, int y, double_vector* energy0, double_vector* energy);
 
 void field_summary(
   const int x, const int y, const int halo_depth,
-  double* volume, double* density, double* energy0, double* u,
+  double_vector* volume, double_vector* density, double_vector* energy0, double_vector* u,
   double* volOut, double* massOut, double* ieOut, double* tempOut);
 
 // CG solver kernels
 void cg_init(
   const int x, const int y, const int halo_depth,
   const int coefficient, double rx, double ry, double* rro,
-  double* density, double* energy, double* u, double* p,
-  double* r, double* w, double* kx, double* ky, csr_matrix * matrix);
+  double_vector* density, double_vector* energy, double_vector* u, double_vector* p,
+  double_vector* r, double_vector* w, double_vector* kx, double_vector* ky, csr_matrix * matrix);
 
 void cg_calc_w_check(
   const int x, const int y, const int halo_depth, double* pw,
-  double* p, double* w, csr_matrix * matrix);
+  double_vector* p, double_vector* w, csr_matrix * matrix);
 
 void cg_calc_w_no_check(
   const int x, const int y, const int halo_depth, double* pw,
-  double* p, double* w, csr_matrix * matrix);
+  double_vector* p, double_vector* w, csr_matrix * matrix);
 
 void cg_calc_ur(
   const int x, const int y, const int halo_depth,
-  const double alpha, double* rrn, double* u, double* p,
-  double* r, double* w);
+  const double alpha, double* rrn, double_vector* u, double_vector* p,
+  double_vector* r, double_vector* w);
 
 void cg_calc_p(
   const int x, const int y, const int halo_depth,
-  const double beta, double* p, double* r);
+  const double beta, double_vector* p, double_vector* r);
 
 // Chebyshev solver kernels
 void cheby_init(const int x, const int y,
-                const int halo_depth, const double theta, double* u, double* u0,
-                double* p, double* r, double* w, csr_matrix * matrix);
+                const int halo_depth, const double theta, double_vector* u, double_vector* u0,
+                double_vector* p, double_vector* r, double_vector* w, csr_matrix * matrix);
 void cheby_iterate(const int x, const int y,
-                   const int halo_depth, double alpha, double beta, double* u,
-                   double* u0, double* p, double* r, double* w, csr_matrix * matrix);
+                   const int halo_depth, double alpha, double beta, double_vector* u,
+                   double_vector* u0, double_vector* p, double_vector* r, double_vector* w, csr_matrix * matrix);
 
 // Jacobi solver kernels
 void jacobi_init(const int x, const int y,
                  const int halo_depth, const int coefficient, double rx, double ry,
-                 double* density, double* energy, double* u0, double* u,
-                 double* kx, double* ky);
+                 double_vector* density, double_vector* energy, double_vector* u0, double_vector* u,
+                 double_vector* kx, double_vector* ky);
 void jacobi_iterate(const int x, const int y,
-                    const int halo_depth, double* error, double* kx, double* ky,
-                    double* u0, double* u, double* r);
+                    const int halo_depth, double* error, double_vector* kx, double_vector* ky,
+                    double_vector* u0, double_vector* u, double_vector* r);
 
 // PPCG solver kernels
 void ppcg_init(const int x, const int y, const int halo_depth,
-               double theta, double* r, double* sd);
+               double theta, double_vector* r, double_vector* sd);
 void ppcg_inner_iteration(const int x, const int y,
-                          const int halo_depth, double alpha, double beta, double* u,
-                          double* r, double* sd, csr_matrix * matrix);
+                          const int halo_depth, double alpha, double beta, double_vector* u,
+                          double_vector* r, double_vector* sd, csr_matrix * matrix);
 
 // Shared solver kernels
 void copy_u(
   const int x, const int y, const int halo_depth,
-  double* u0, double* u);
+  double_vector* u0, double_vector* u);
 
 void calculate_residual(
   const int x, const int y, const int halo_depth,
-  double* u, double* u0, double* r, csr_matrix * matrix);
+  double_vector* u, double_vector* u0, double_vector* r, csr_matrix * matrix);
 
 void calculate_2norm(
   const int x, const int y, const int halo_depth,
-  double* buffer, double* norm);
+  double_vector* buffer, double* norm);
 
 void matrix_check(
   const int x, const int y, const int halo_depth, csr_matrix * matrix);
 
 void finalise(
   const int x, const int y, const int halo_depth,
-  double* energy, double* density, double* u);
+  double_vector* energy, double_vector* density, double_vector* u);

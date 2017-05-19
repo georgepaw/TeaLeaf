@@ -1,22 +1,23 @@
 #include <stdlib.h>
 #include "../../shared.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 /*
  * 		LOCAL HALOS KERNEL
  */	
 
 void update_left(const int x, const int y, 
-        const int halo_depth, const int depth, double* buffer);
+        const int halo_depth, const int depth, double_vector* buffer);
 void update_right(const int x, const int y, 
-        const int halo_depth, const int depth, double* buffer);
+        const int halo_depth, const int depth, double_vector* buffer);
 void update_top(const int x, const int y, 
-        const int halo_depth, const int depth, double* buffer); 
+        const int halo_depth, const int depth, double_vector* buffer); 
 void update_bottom(const int x, const int y, 
-        const int halo_depth, const int depth, double* buffer);
+        const int halo_depth, const int depth, double_vector* buffer);
 void update_face(const int x, const int y, const int halo_depth, 
-        const int* chunk_neighbours, const int depth, double* buffer);
+        const int* chunk_neighbours, const int depth, double_vector* buffer);
 
-typedef void (*update_kernel)(int,double*);
+typedef void (*update_kernel)(int,double_vector*);
 
 // The kernel for updating halos locally
 void local_halos(
@@ -26,12 +27,12 @@ void local_halos(
         const int halo_depth,
         const int* chunk_neighbours,
         const bool* fields_to_exchange,
-        double* density,
-        double* energy0,
-        double* energy,
-        double* u,
-        double* p,
-        double* sd)
+        double_vector* density,
+        double_vector* energy0,
+        double_vector* energy,
+        double_vector* u,
+        double_vector* p,
+        double_vector* sd)
 {
 #define LAUNCH_UPDATE(index, buffer)\
     if(fields_to_exchange[index])\
@@ -55,7 +56,7 @@ void update_face(
         const int halo_depth,
         const int* chunk_neighbours,
         const int depth,
-        double* buffer)
+        double_vector* buffer)
 {
 #define UPDATE_FACE(face, updateKernel) \
     if(chunk_neighbours[face] == EXTERNAL_FACE)\
@@ -75,7 +76,7 @@ void update_left(
         const int y,
         const int halo_depth,
         const int depth, 
-        double* buffer)
+        double_vector* buffer)
 {
 #pragma omp parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -83,7 +84,7 @@ void update_left(
         for(int kk = 0; kk < depth; ++kk)
         {
             int base = jj*x;
-            buffer[base+(halo_depth-kk-1)] = buffer[base+(halo_depth+kk)];			
+            dv_copy_value(buffer, buffer, base+(halo_depth-kk-1), base+(halo_depth+kk));
         }
     }
 }
@@ -94,7 +95,7 @@ void update_right(
         const int y,
         const int halo_depth,
         const int depth,
-        double* buffer)
+        double_vector* buffer)
 {
 #pragma omp parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -102,8 +103,7 @@ void update_right(
         for(int kk = 0; kk < depth; ++kk)
         {
             int base = jj*x;
-            buffer[base+(x-halo_depth+kk)] 
-                = buffer[base+(x-halo_depth-1-kk)];
+            dv_copy_value(buffer, buffer, base+(x-halo_depth+kk), base+(x-halo_depth-1-kk));
         }
     }
 }
@@ -114,7 +114,7 @@ void update_top(
         const int y,
         const int halo_depth,
         const int depth, 
-        double* buffer)
+        double_vector* buffer)
 {
     for(int jj = 0; jj < depth; ++jj)
     {
@@ -122,8 +122,7 @@ void update_top(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int base = kk;
-            buffer[base+(y-halo_depth+jj)*x] 
-                = buffer[base+(y-halo_depth-1-jj)*x];
+            dv_copy_value(buffer, buffer, base+(y-halo_depth+jj)*x, base+(y-halo_depth-1-jj)*x);
         }
     }
 }
@@ -134,7 +133,7 @@ void update_bottom(
         const int y,
         const int halo_depth,
         const int depth, 
-        double* buffer)
+        double_vector* buffer)
 {
     for(int jj = 0; jj < depth; ++jj)
     {
@@ -142,8 +141,7 @@ void update_bottom(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int base = kk;
-            buffer[base+(halo_depth-jj-1)*x] 
-                = buffer[base+(halo_depth+jj)*x];
+            dv_copy_value(buffer, buffer, base+(halo_depth-jj-1)*x, base+(halo_depth+jj)*x);
         }
     }
 }

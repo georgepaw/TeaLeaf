@@ -1,7 +1,8 @@
 #pragma once
 #include "../../ABFT/CPU/csr_matrix.h"
+#include "../../ABFT/CPU/double_vector.h"
 
-typedef double* FieldBufferType;
+typedef double_vector* FieldBufferType;
 
 // Empty extension point
 typedef struct ChunkExtension

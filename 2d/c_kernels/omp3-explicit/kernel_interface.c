@@ -62,7 +62,7 @@ void run_local_halos(
 
 void run_pack_or_unpack(
   Chunk* chunk, Settings* settings, int depth,
-  int face, bool pack, double* field, double* buffer)
+  int face, bool pack, double_vector* field, double* buffer)
 {
   START_PROFILING(settings->kernel_profile);
   pack_or_unpack(chunk->x, chunk->y, depth,
@@ -235,7 +235,7 @@ void run_calculate_residual(Chunk* chunk, Settings* settings)
 }
 
 void run_calculate_2norm(
-  Chunk* chunk, Settings* settings, double* buffer, double* norm)
+  Chunk* chunk, Settings* settings, double_vector* buffer, double* norm)
 {
   START_PROFILING(settings->kernel_profile);
   calculate_2norm(

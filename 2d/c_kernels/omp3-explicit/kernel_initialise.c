@@ -2,6 +2,7 @@
 #include "../../shared.h"
 #include <stdlib.h>
 #include "../../ABFT/CPU/csr_matrix.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 // Allocates, and zeroes an individual buffer
 void allocate_buffer(double** a, int x, int y)
@@ -26,13 +27,13 @@ void allocate_buffer(double** a, int x, int y)
 
 // Allocates all of the field buffers
 void kernel_initialise(
-  Settings* settings, int x, int y, double** density0,
-  double** density, double** energy0, double** energy, double** u,
-  double** u0, double** p, double** r, double** mi,
-  double** w, double** kx, double** ky, double** sd,
-  double** volume, double** x_area, double** y_area, double** cell_x,
-  double** cell_y, double** cell_dx, double** cell_dy, double** vertex_dx,
-  double** vertex_dy, double** vertex_x, double** vertex_y,
+  Settings* settings, int x, int y, double_vector** density0,
+  double_vector** density, double_vector** energy0, double_vector** energy, double_vector** u,
+  double_vector** u0, double_vector** p, double_vector** r, double_vector** mi,
+  double_vector** w, double_vector** kx, double_vector** ky, double_vector** sd,
+  double_vector** volume, double_vector** x_area, double_vector** y_area, double_vector** cell_x,
+  double_vector** cell_y, double_vector** cell_dx, double_vector** cell_dy, double_vector** vertex_dx,
+  double_vector** vertex_dy, double_vector** vertex_x, double_vector** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
   double** cheby_betas, csr_matrix * matrix)
 {
@@ -40,30 +41,30 @@ void kernel_initialise(
                 "Performing this solve with the OpenMP 3.0 (explicit) %s solver\n",
                 settings->solver_name);
 
-  allocate_buffer(density0, x, y);
-  allocate_buffer(density, x, y);
-  allocate_buffer(energy0, x, y);
-  allocate_buffer(energy, x, y);
-  allocate_buffer(u, x, y);
-  allocate_buffer(u0, x, y);
-  allocate_buffer(p, x, y);
-  allocate_buffer(r, x, y);
-  allocate_buffer(mi, x, y);
-  allocate_buffer(w, x, y);
-  allocate_buffer(kx, x, y);
-  allocate_buffer(ky, x, y);
-  allocate_buffer(sd, x, y);
-  allocate_buffer(volume, x, y);
-  allocate_buffer(x_area, x+1, y);
-  allocate_buffer(y_area, x, y+1);
-  allocate_buffer(cell_x, x, 1);
-  allocate_buffer(cell_y, 1, y);
-  allocate_buffer(cell_dx, x, 1);
-  allocate_buffer(cell_dy, 1, y);
-  allocate_buffer(vertex_dx, x+1, 1);
-  allocate_buffer(vertex_dy, 1, y+1);
-  allocate_buffer(vertex_x, x+1, 1);
-  allocate_buffer(vertex_y, 1, y+1);
+  dv_set_size(density0, x * y);
+  dv_set_size(density, x * y);
+  dv_set_size(energy0, x * y);
+  dv_set_size(energy, x * y);
+  dv_set_size(u, x * y);
+  dv_set_size(u0, x * y);
+  dv_set_size(p, x * y);
+  dv_set_size(r, x * y);
+  dv_set_size(mi, x * y);
+  dv_set_size(w, x * y);
+  dv_set_size(kx, x * y);
+  dv_set_size(ky, x * y);
+  dv_set_size(sd, x * y);
+  dv_set_size(volume, x * y);
+  dv_set_size(x_area, (x+1) * y);
+  dv_set_size(y_area, x * (y+1));
+  dv_set_size(cell_x, x * 1);
+  dv_set_size(cell_y, 1 * y);
+  dv_set_size(cell_dx, x * 1);
+  dv_set_size(cell_dy, 1 * y);
+  dv_set_size(vertex_dx, (x+1) * 1);
+  dv_set_size(vertex_dy, 1 * (y+1));
+  dv_set_size(vertex_x, (x+1) * 1);
+  dv_set_size(vertex_y, 1 * (y+1));
   allocate_buffer(cg_alphas, settings->max_iters, 1);
   allocate_buffer(cg_betas, settings->max_iters, 1);
   allocate_buffer(cheby_alphas, settings->max_iters, 1);
@@ -99,39 +100,39 @@ void kernel_initialise(
 }
 
 void kernel_finalise(
-  double* density0, double* density, double* energy0, double* energy,
-  double* u, double* u0, double* p, double* r, double* mi,
-  double* w, double* kx, double* ky, double* sd,
-  double* volume, double* x_area, double* y_area, double* cell_x,
-  double* cell_y, double* cell_dx, double* cell_dy, double* vertex_dx,
-  double* vertex_dy, double* vertex_x, double* vertex_y,
+  double_vector* density0, double_vector* density, double_vector* energy0, double_vector* energy,
+  double_vector* u, double_vector* u0, double_vector* p, double_vector* r, double_vector* mi,
+  double_vector* w, double_vector* kx, double_vector* ky, double_vector* sd,
+  double_vector* volume, double_vector* x_area, double_vector* y_area, double_vector* cell_x,
+  double_vector* cell_y, double_vector* cell_dx, double_vector* cell_dy, double_vector* vertex_dx,
+  double_vector* vertex_dy, double_vector* vertex_x, double_vector* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
   double* cheby_betas, csr_matrix * matrix)
 {
-  free(density0);
-  free(density);
-  free(energy0);
-  free(energy);
-  free(u);
-  free(u0);
-  free(p);
-  free(r);
-  free(mi);
-  free(w);
-  free(kx);
-  free(ky);
-  free(sd);
-  free(volume);
-  free(x_area);
-  free(y_area);
-  free(cell_x);
-  free(cell_y);
-  free(cell_dx);
-  free(cell_dy);
-  free(vertex_dx);
-  free(vertex_dy);
-  free(vertex_x);
-  free(vertex_y);
+  dv_free_vector(density0);
+  dv_free_vector(density);
+  dv_free_vector(energy0);
+  dv_free_vector(energy);
+  dv_free_vector(u);
+  dv_free_vector(u0);
+  dv_free_vector(p);
+  dv_free_vector(r);
+  dv_free_vector(mi);
+  dv_free_vector(w);
+  dv_free_vector(kx);
+  dv_free_vector(ky);
+  dv_free_vector(sd);
+  dv_free_vector(volume);
+  dv_free_vector(x_area);
+  dv_free_vector(y_area);
+  dv_free_vector(cell_x);
+  dv_free_vector(cell_y);
+  dv_free_vector(cell_dx);
+  dv_free_vector(cell_dy);
+  dv_free_vector(vertex_dx);
+  dv_free_vector(vertex_dy);
+  dv_free_vector(vertex_x);
+  dv_free_vector(vertex_y);
   free(cg_alphas);
   free(cg_betas);
   free(cheby_alphas);

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "../../shared.h"
 #include "../../ABFT/CPU/csr_matrix.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 #ifdef FT_FTI
 #include <fti.h>
@@ -21,14 +22,14 @@ void cg_init(
   double rx,
   double ry,
   double* rro,
-  double* density,
-  double* energy,
-  double* u,
-  double* p,
-  double* r,
-  double* w,
-  double* kx,
-  double* ky,
+  double_vector* density,
+  double_vector* energy,
+  double_vector* u,
+  double_vector* p,
+  double_vector* r,
+  double_vector* w,
+  double_vector* kx,
+  double_vector* ky,
   csr_matrix * matrix)
 {
   if(coefficient != CONDUCTIVITY && coefficient != RECIP_CONDUCTIVITY)
@@ -42,10 +43,9 @@ void cg_init(
     for(int kk = 0; kk < x; ++kk)
     {
       const int index = kk + jj*x;
-      p[index] = add_ecc_double(0.0);
-      r[index] = add_ecc_double(0.0);
-      u[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(energy, index)
-                               *DOUBLE_VECTOR_ACCESS(density, index));
+      dv_set_value(p, 0.0, index);
+      dv_set_value(r, 0.0, index);
+      dv_set_value(u, dv_get_value(energy, index)*dv_get_value(density, index), index);
     }
   }
 
@@ -55,8 +55,8 @@ void cg_init(
     for(int kk = 1; kk < x-1; ++kk)
     {
       const int index = kk + jj*x;
-      w[index] = add_ecc_double((coefficient == CONDUCTIVITY)
-        ? DOUBLE_VECTOR_ACCESS(density, index) : 1.0/DOUBLE_VECTOR_ACCESS(density, index));
+      dv_set_value(w, (coefficient == CONDUCTIVITY)
+        ? dv_get_value(density, index) : 1.0/dv_get_value(density, index), index);
     }
   }
 
@@ -66,10 +66,10 @@ void cg_init(
     for(int kk = halo_depth; kk < x-1; ++kk)
     {
       const int index = kk + jj*x;
-      kx[index] = add_ecc_double(rx*(DOUBLE_VECTOR_ACCESS(w, index-1)+DOUBLE_VECTOR_ACCESS(w, index)) /
-        (2.0*DOUBLE_VECTOR_ACCESS(w, index-1)*DOUBLE_VECTOR_ACCESS(w, index)));
-      ky[index] = add_ecc_double(ry*(DOUBLE_VECTOR_ACCESS(w, index-x)+DOUBLE_VECTOR_ACCESS(w, index)) /
-        (2.0*DOUBLE_VECTOR_ACCESS(w, index-x)*DOUBLE_VECTOR_ACCESS(w, index)));
+      dv_set_value(kx, rx*(dv_get_value(w, index-1)+dv_get_value(w, index)) /
+        (2.0*dv_get_value(w, index-1)*dv_get_value(w, index)), index);
+      dv_set_value(ky, ry*(dv_get_value(w, index-x)+dv_get_value(w, index)) /
+        (2.0*dv_get_value(w, index-x)*dv_get_value(w, index)), index);
     }
   }
 
@@ -90,12 +90,12 @@ void cg_init(
       }
       double vals[] =
       {
-        -DOUBLE_VECTOR_ACCESS(ky, index),
-        -DOUBLE_VECTOR_ACCESS(kx, index),
-        (1.0 + DOUBLE_VECTOR_ACCESS(kx, index+1) + DOUBLE_VECTOR_ACCESS(kx, index) +
-               DOUBLE_VECTOR_ACCESS(ky, index+x) + DOUBLE_VECTOR_ACCESS(ky, index)),
-        -DOUBLE_VECTOR_ACCESS(kx, index+1),
-        -DOUBLE_VECTOR_ACCESS(ky, index+x)
+        -dv_get_value(ky, index),
+        -dv_get_value(kx, index),
+        (1.0 + dv_get_value(kx, index+1) + dv_get_value(kx, index) +
+               dv_get_value(ky, index+x) + dv_get_value(ky, index)),
+        -dv_get_value(kx, index+1),
+        -dv_get_value(ky, index+x)
       };
 
       uint32_t cols[] =
@@ -132,12 +132,12 @@ void cg_init(
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
-        tmp += val * DOUBLE_VECTOR_ACCESS(u, col);
+        tmp += val * dv_get_value(u, col);
       }
-      w[index] = add_ecc_double(tmp);
-      r[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u, index) - tmp);
-      p[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(r, index));
-      rro_temp += DOUBLE_VECTOR_ACCESS(r, index)*DOUBLE_VECTOR_ACCESS(r, index);
+      dv_set_value(w, tmp, index);
+      dv_set_value(r, dv_get_value(u, index) - tmp, index);
+      dv_set_value(p, dv_get_value(r, index), index);
+      rro_temp += dv_get_value(r, index)*dv_get_value(r, index);
     }
   }
 
@@ -150,8 +150,8 @@ void cg_calc_w_check(
   const int y,
   const int halo_depth,
   double* pw,
-  double* p,
-  double* w,
+  double_vector* p,
+  double_vector* w,
   csr_matrix * matrix)
 {
   double pw_temp = 0.0;
@@ -175,11 +175,11 @@ void cg_calc_w_check(
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
-        tmp += val * DOUBLE_VECTOR_ACCESS(p, col);
+        tmp += val * dv_get_value(p, col);
       }
 
-      w[row] = add_ecc_double(tmp);
-      pw_temp += tmp*DOUBLE_VECTOR_ACCESS(p, row);
+      dv_set_value(w, tmp, row);
+      pw_temp += tmp*dv_get_value(p, row);
     }
   }
 
@@ -191,8 +191,8 @@ void cg_calc_w_no_check(
   const int y,
   const int halo_depth,
   double* pw,
-  double* p,
-  double* w,
+  double_vector* p,
+  double_vector* w,
   csr_matrix * matrix)
 {
   double pw_temp = 0.0;
@@ -216,11 +216,11 @@ void cg_calc_w_no_check(
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
-        tmp += val * DOUBLE_VECTOR_ACCESS(p, col);
+        tmp += val * dv_get_value(p, col);
       }
 
-      w[row] = add_ecc_double(tmp);
-      pw_temp += tmp*mask_double(p[row]);
+      dv_set_value(w, tmp, row);
+      pw_temp += tmp*dv_get_value(p, row);
     }
   }
 
@@ -234,10 +234,10 @@ void cg_calc_ur(
   const int halo_depth,
   const double alpha,
   double* rrn,
-  double* u,
-  double* p,
-  double* r,
-  double* w)
+  double_vector* u,
+  double_vector* p,
+  double_vector* r,
+  double_vector* w)
 {
   double rrn_temp = 0.0;
 
@@ -248,9 +248,9 @@ void cg_calc_ur(
     {
       const int index = kk + jj*x;
 
-      u[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u, index) + alpha*DOUBLE_VECTOR_ACCESS(p, index));
-      r[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(r, index) - alpha*DOUBLE_VECTOR_ACCESS(w, index));
-      rrn_temp += r[index]*r[index];
+      dv_set_value(u, dv_get_value(u, index) + alpha*dv_get_value(p, index), index);
+      dv_set_value(r, dv_get_value(r, index) - alpha*dv_get_value(w, index), index);
+      rrn_temp += dv_get_value(r, index)*dv_get_value(r, index);
     }
   }
 
@@ -263,8 +263,8 @@ void cg_calc_p(
   const int y,
   const int halo_depth,
   const double beta,
-  double* p,
-  double* r)
+  double_vector* p,
+  double_vector* r)
 {
 #pragma omp parallel for
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -272,7 +272,7 @@ void cg_calc_p(
     for(int kk = halo_depth; kk < x-halo_depth; ++kk)
     {
       const int index = kk + jj*x;
-      p[index] = add_ecc_double(beta*DOUBLE_VECTOR_ACCESS(p, index) + DOUBLE_VECTOR_ACCESS(r, index));
+      dv_set_value(p, beta*dv_get_value(p, index) + dv_get_value(r, index), index);
     }
   }
 }

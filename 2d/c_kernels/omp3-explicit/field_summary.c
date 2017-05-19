@@ -1,5 +1,5 @@
 #include "../../shared.h"
-#include "abft_common.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 /*
  * 		FIELD SUMMARY KERNEL
@@ -11,10 +11,10 @@ void field_summary(
         const int x,
         const int y,
         const int halo_depth,
-        double* volume,
-        double* density,
-        double* energy0,
-        double* u,
+        double_vector* volume,
+        double_vector* density,
+        double_vector* energy0,
+        double_vector* u,
         double* volOut,
         double* massOut,
         double* ieOut,
@@ -29,21 +29,13 @@ void field_summary(
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
-            DOUBLE_VECTOR_START(volume);
-            DOUBLE_VECTOR_START(density);
-            DOUBLE_VECTOR_START(energy0);
-            DOUBLE_VECTOR_START(u);
             const int index = kk + jj*x;
-            double cellVol = DOUBLE_VECTOR_ACCESS(volume, index);
-            double cellMass = cellVol*DOUBLE_VECTOR_ACCESS(density, index);
+            double cellVol = dv_get_value(volume, index);
+            double cellMass = cellVol*dv_get_value(density, index);
             vol += cellVol;
             mass += cellMass;
-            ie += cellMass*DOUBLE_VECTOR_ACCESS(energy0, index);
-            temp += cellMass*DOUBLE_VECTOR_ACCESS(u, index);
-            DOUBLE_VECTOR_ERROR_STATUS(volume);
-            DOUBLE_VECTOR_ERROR_STATUS(density);
-            DOUBLE_VECTOR_ERROR_STATUS(energy0);
-            DOUBLE_VECTOR_ERROR_STATUS(u);
+            ie += cellMass*dv_get_value(energy0, index);
+            temp += cellMass*dv_get_value(u, index);
         }
     }
 

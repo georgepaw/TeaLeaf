@@ -1,19 +1,17 @@
 #include "../../shared.h"
-#include "abft_common.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 // Store original energy state
 void store_energy(
         int x,
         int y,
-        double* energy0,
-        double* energy)
+        double_vector* energy0,
+        double_vector* energy)
 {
 #pragma omp parallel for
     for(int ii = 0; ii < x*y; ++ii)
     {
-        DOUBLE_VECTOR_START(energy0);
-        energy[ii] = DOUBLE_VECTOR_CHECK(energy0, ii);
-        DOUBLE_VECTOR_ERROR_STATUS(energy0);
+        dv_copy_value(energy, energy0, ii, ii);
     }
 }
 

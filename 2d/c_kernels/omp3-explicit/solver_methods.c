@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "../../shared.h"
 #include "../../ABFT/CPU/csr_matrix.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 /*
  *		SHARED SOLVER METHODS
@@ -12,8 +13,8 @@ void copy_u(
         const int x,
         const int y,
         const int halo_depth,
-        double* u0,
-        double* u)
+        double_vector* u0,
+        double_vector* u)
 {
 #pragma omp parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -21,7 +22,7 @@ void copy_u(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            u0[index] = DOUBLE_VECTOR_CHECK(u, index);
+            dv_copy_value(u0, u, index, index);
         }
     }
 }
@@ -31,9 +32,9 @@ void calculate_residual(
         const int x,
         const int y,
         const int halo_depth,
-        double* u,
-        double* u0,
-        double* r,
+        double_vector* u,
+        double_vector* u0,
+        double_vector* r,
         csr_matrix * matrix)
 {
 #pragma omp parallel for
@@ -54,10 +55,10 @@ void calculate_residual(
                 uint32_t col;
                 double val;
                 csr_get_csr_element(matrix, &col, &val, idx);
-                smvp += val * DOUBLE_VECTOR_ACCESS(u, col);
+                smvp += val * dv_get_value(u, col);
             }
 
-            r[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u0, index) - smvp);
+            dv_set_value(r, dv_get_value(u0, index) - smvp, index);
 
         }
     }
@@ -68,7 +69,7 @@ void calculate_2norm(
         const int x,
         const int y,
         const int halo_depth,
-        double* buffer,
+        double_vector* buffer,
         double* norm)
 {
     double norm_temp = 0.0;
@@ -79,8 +80,8 @@ void calculate_2norm(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            double val = DOUBLE_VECTOR_ACCESS(buffer, index);
-            norm_temp += add_ecc_double(val*val);
+            double val = dv_get_value(buffer, index);
+            norm_temp += val*val;
         }
     }
 
@@ -92,9 +93,9 @@ void finalise(
         const int x,
         const int y,
         const int halo_depth,
-        double* energy,
-        double* density,
-        double* u)
+        double_vector* energy,
+        double_vector* density,
+        double_vector* u)
 {
 #pragma omp parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -102,8 +103,8 @@ void finalise(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            energy[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u, index)
-                                          /DOUBLE_VECTOR_ACCESS(density, index));
+            dv_set_value(energy, dv_get_value(u, index)
+                                          /dv_get_value(density, index), index);
         }
     }
 }

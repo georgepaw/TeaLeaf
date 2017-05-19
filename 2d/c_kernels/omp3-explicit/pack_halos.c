@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "../../shared.h"
+#include "../../ABFT/CPU/double_vector.h"
 
 // Packs left data into buffer.
 void pack_left(
@@ -7,7 +8,7 @@ void pack_left(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
 #pragma omp parallel for
@@ -16,7 +17,7 @@ void pack_left(
         for(int kk = halo_depth; kk < halo_depth+depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-halo_depth)*depth;
-            buffer[bufIndex] = field[jj*x+kk];
+            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
 }
@@ -27,7 +28,7 @@ void pack_right(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
 #pragma omp parallel for
@@ -36,7 +37,7 @@ void pack_right(
         for(int kk = x-halo_depth-depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-(x-halo_depth-depth)) + (jj-halo_depth)*depth;
-            buffer[bufIndex] = field[jj*x+kk];
+            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
 }
@@ -47,7 +48,7 @@ void pack_top(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
     const int x_inner = x-2*halo_depth;
@@ -58,7 +59,7 @@ void pack_top(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-(y-halo_depth-depth))*x_inner;
-            buffer[bufIndex] = field[jj*x+kk];
+            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
 }
@@ -69,7 +70,7 @@ void pack_bottom(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
     const int x_inner = x-2*halo_depth;
@@ -80,7 +81,7 @@ void pack_bottom(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-halo_depth)*x_inner;
-            buffer[bufIndex] = field[jj*x+kk];
+            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
 }
@@ -91,7 +92,7 @@ void unpack_left(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
 #pragma omp parallel for
@@ -100,7 +101,7 @@ void unpack_left(
         for(int kk = halo_depth-depth; kk < halo_depth; ++kk)
         {
             int bufIndex = (kk-(halo_depth-depth)) + (jj-halo_depth)*depth;
-            field[jj*x+kk] = buffer[bufIndex];
+            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
 }
@@ -111,7 +112,7 @@ void unpack_right(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
 #pragma omp parallel for
@@ -120,7 +121,7 @@ void unpack_right(
         for(int kk = x-halo_depth; kk < x-halo_depth+depth; ++kk)
         {
             int bufIndex = (kk-(x-halo_depth)) + (jj-halo_depth)*depth;
-            field[jj*x+kk] = buffer[bufIndex];
+            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
 }
@@ -131,7 +132,7 @@ void unpack_top(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
     const int x_inner = x-2*halo_depth;
@@ -142,7 +143,7 @@ void unpack_top(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-(y-halo_depth))*x_inner;
-            field[jj*x+kk] = buffer[bufIndex];
+            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
 }
@@ -153,7 +154,7 @@ void unpack_bottom(
         const int y,
         const int depth,
         const int halo_depth,
-        double* field,
+        double_vector* field,
         double* buffer)
 {
     const int x_inner = x-2*halo_depth;
@@ -164,12 +165,12 @@ void unpack_bottom(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-(halo_depth-depth))*x_inner;
-            field[jj*x+kk] = buffer[bufIndex];
+            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
 }
 
-typedef void (*pack_kernel_f)(int,int,int,int,double*,double*);
+typedef void (*pack_kernel_f)(int,int,int,int,double_vector*,double*);
 
 // Either packs or unpacks data from/to buffers.
 void pack_or_unpack(
@@ -179,7 +180,7 @@ void pack_or_unpack(
         const int halo_depth,
         const int face,
         bool pack,
-        double *field,
+        double_vector* field,
         double* buffer)
 {
     pack_kernel_f kernel = NULL;
