@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "../../shared.h"
-#include "abft_common.h"
+#include "../../ABFT/CPU/csr_matrix.h"
 
 /*
  *		SHARED SOLVER METHODS
@@ -21,9 +21,7 @@ void copy_u(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            DOUBLE_VECTOR_START(u);
             u0[index] = DOUBLE_VECTOR_CHECK(u, index);
-            DOUBLE_VECTOR_ERROR_STATUS(u);
         }
     }
 }
@@ -36,9 +34,7 @@ void calculate_residual(
         double* u,
         double* u0,
         double* r,
-        uint32_t* a_row_index,
-        uint32_t* a_col_index,
-        double* a_non_zeros)
+        csr_matrix * matrix)
 {
 #pragma omp parallel for
     for(int jj = halo_depth; jj < y-halo_depth; ++jj)
@@ -49,28 +45,20 @@ void calculate_residual(
 
             double smvp = 0.0;
 
-            INT_VECTOR_START(a_row_index);
-
-            uint32_t row_begin = INT_VECTOR_ACCESS(a_row_index, index);
-            INT_VECTOR_ERROR_STATUS(a_row_index);
-            uint32_t row_end   = INT_VECTOR_ACCESS(a_row_index, index+1);
-            INT_VECTOR_ERROR_STATUS(a_row_index);
-
-            DOUBLE_VECTOR_START(u0);
-
-            CHECK_CSR_ELEMENT_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_task());
-
+            uint32_t row_begin;
+            csr_get_row_value(matrix, &row_begin, index);
+            uint32_t row_end;
+            csr_get_row_value(matrix, &row_end, index+1);
             for (uint32_t idx = row_begin; idx < row_end; idx++)
             {
-                DOUBLE_VECTOR_START(u);
-                CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_task());
-                smvp += a_non_zeros[idx] * DOUBLE_VECTOR_ACCESS(u, MASK_CSR_ELEMENT_INDEX(a_col_index[idx]));
-                DOUBLE_VECTOR_ERROR_STATUS(u);
+                uint32_t col;
+                double val;
+                csr_get_csr_element(matrix, &col, &val, idx);
+                smvp += val * DOUBLE_VECTOR_ACCESS(u, col);
             }
 
             r[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u0, index) - smvp);
 
-            DOUBLE_VECTOR_ERROR_STATUS(u0);
         }
     }
 }
@@ -91,10 +79,8 @@ void calculate_2norm(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            DOUBLE_VECTOR_START(buffer);
             double val = DOUBLE_VECTOR_ACCESS(buffer, index);
             norm_temp += add_ecc_double(val*val);
-            DOUBLE_VECTOR_ERROR_STATUS(buffer);
         }
     }
 
@@ -116,12 +102,8 @@ void finalise(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             const int index = kk + jj*x;
-            DOUBLE_VECTOR_START(u);
-            DOUBLE_VECTOR_START(density);
             energy[index] = add_ecc_double(DOUBLE_VECTOR_ACCESS(u, index)
                                           /DOUBLE_VECTOR_ACCESS(density, index));
-            DOUBLE_VECTOR_ERROR_STATUS(u);
-            DOUBLE_VECTOR_ERROR_STATUS(density);
         }
     }
 }

@@ -32,8 +32,7 @@ void run_kernel_initialise(Chunk* chunk, Settings* settings)
                     &(chunk->vertex_dx), &(chunk->vertex_dy), &(chunk->vertex_x),
                     &(chunk->vertex_y), &(chunk->cg_alphas), &(chunk->cg_betas),
                     &(chunk->cheby_alphas), &(chunk->cheby_betas),
-                    &(chunk->ext->a_row_index), &(chunk->ext->a_col_index),
-                    &(chunk->ext->a_non_zeros), &(chunk->ext->nnz));
+                    &(chunk->ext->matrix));
 }
 
 void run_kernel_finalise(
@@ -46,7 +45,7 @@ void run_kernel_finalise(
     chunk->y_area, chunk->cell_x, chunk->cell_y, chunk->cell_dx,
     chunk->cell_dy, chunk->vertex_dx, chunk->vertex_dy, chunk->vertex_x,
     chunk->vertex_y, chunk->cg_alphas, chunk->cg_betas,
-    chunk->cheby_alphas, chunk->cheby_betas);
+    chunk->cheby_alphas, chunk->cheby_betas, &(chunk->ext->matrix));
 }
 
 // Solver-wide kernels
@@ -100,9 +99,7 @@ void run_cg_init(
           settings->halo_depth, settings->coefficient, rx, ry,
           rro, chunk->density, chunk->energy, chunk->u,
           chunk->p, chunk->r, chunk->w,
-          chunk->kx, chunk->ky,
-          chunk->ext->a_row_index, chunk->ext->a_col_index,
-          chunk->ext->a_non_zeros);
+          chunk->kx, chunk->ky, &(chunk->ext->matrix));
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -119,22 +116,18 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 #ifdef INJECT_FAULT
   // inject_bitflips_csr_elem(chunk->ext->a_col_index, chunk->ext->a_non_zeros, chunk->ext->iteration);
   // inject_bitflips_double_vector(chunk->p, chunk->ext->iteration);
-  inject_bitflips_int_vector(chunk->ext->a_row_index, chunk->ext->iteration);
+  // inject_bitflips_int_vector(chunk->ext->a_row_index, chunk->ext->iteration);
 #endif
 
   if(do_FT_check)
   {
     cg_calc_w_check(chunk->x, chunk->y,
-              settings->halo_depth, pw, chunk->p, chunk->w,
-              chunk->ext->a_row_index, chunk->ext->a_col_index,
-              chunk->ext->a_non_zeros);
+              settings->halo_depth, pw, chunk->p, chunk->w, &(chunk->ext->matrix));
   }
   else
   {
     cg_calc_w_no_check(chunk->x, chunk->y,
-              settings->halo_depth, pw, chunk->p, chunk->w,
-              chunk->ext->a_row_index, chunk->ext->a_col_index,
-              chunk->ext->a_non_zeros, chunk->ext->nnz);
+              settings->halo_depth, pw, chunk->p, chunk->w, &(chunk->ext->matrix));
   }
   chunk->ext->iteration++;
   STOP_PROFILING(settings->kernel_profile, __func__);
@@ -167,9 +160,7 @@ void run_cheby_init(Chunk* chunk, Settings* settings)
   cheby_init(
     chunk->x, chunk->y, settings->halo_depth,
     chunk->theta, chunk->u, chunk->u0,
-    chunk->p, chunk->r, chunk->w,
-    chunk->ext->a_row_index, chunk->ext->a_col_index,
-    chunk->ext->a_non_zeros);
+    chunk->p, chunk->r, chunk->w, &(chunk->ext->matrix));
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -179,9 +170,7 @@ void run_cheby_iterate(
   START_PROFILING(settings->kernel_profile);
   cheby_iterate(
     chunk->x, chunk->y, settings->halo_depth, alpha, beta,
-    chunk->u, chunk->u0, chunk->p, chunk->r, chunk->w,
-    chunk->ext->a_row_index, chunk->ext->a_col_index,
-    chunk->ext->a_non_zeros);
+    chunk->u, chunk->u0, chunk->p, chunk->r, chunk->w, &(chunk->ext->matrix));
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -223,9 +212,7 @@ void run_ppcg_inner_iteration(
   START_PROFILING(settings->kernel_profile);
   ppcg_inner_iteration(
     chunk->x, chunk->y, settings->halo_depth, alpha, beta, chunk->u,
-    chunk->r, chunk->sd,
-    chunk->ext->a_row_index, chunk->ext->a_col_index,
-    chunk->ext->a_non_zeros);
+    chunk->r, chunk->sd, &(chunk->ext->matrix));
 
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
@@ -243,8 +230,7 @@ void run_calculate_residual(Chunk* chunk, Settings* settings)
 {
   START_PROFILING(settings->kernel_profile);
   calculate_residual(chunk->x, chunk->y, settings->halo_depth, chunk->u,
-                     chunk->u0, chunk->r, chunk->ext->a_row_index,
-                     chunk->ext->a_col_index, chunk->ext->a_non_zeros);
+                     chunk->u0, chunk->r, &(chunk->ext->matrix));
   STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
@@ -270,8 +256,6 @@ void run_matrix_check(
         Chunk* chunk, Settings* settings)
 {
   START_PROFILING(settings->kernel_profile);
-  matrix_check(chunk->x, chunk->y, settings->halo_depth,
-            chunk->ext->a_row_index, chunk->ext->a_col_index,
-            chunk->ext->a_non_zeros);
+  matrix_check(chunk->x, chunk->y, settings->halo_depth, &(chunk->ext->matrix));
   STOP_PROFILING(settings->kernel_profile, __func__);
 }

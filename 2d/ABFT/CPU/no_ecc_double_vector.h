@@ -10,9 +10,9 @@
 
 #define DOUBLE_VECTOR_ERROR_STATUS(array)
 
-static inline double check_ecc_double(double in, uint32_t * flag)
+static inline double check_ecc_double(double * in, uint32_t * flag)
 {
-  return in;
+  return *in;
 }
 
 static inline double add_ecc_double(double in)

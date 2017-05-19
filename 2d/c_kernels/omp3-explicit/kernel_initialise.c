@@ -1,7 +1,7 @@
 #include "../../settings.h"
 #include "../../shared.h"
-#include "abft_common.h"
 #include <stdlib.h>
+#include "../../ABFT/CPU/csr_matrix.h"
 
 // Allocates, and zeroes an individual buffer
 void allocate_buffer(double** a, int x, int y)
@@ -34,8 +34,7 @@ void kernel_initialise(
   double** cell_y, double** cell_dx, double** cell_dy, double** vertex_dx,
   double** vertex_dy, double** vertex_x, double** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
-  double** cheby_betas, uint32_t** a_row_index, uint32_t** a_col_index,
-  double** a_non_zeros, uint32_t* nnz)
+  double** cheby_betas, csr_matrix * matrix)
 {
   print_and_log(settings,
                 "Performing this solve with the OpenMP 3.0 (explicit) %s solver\n",
@@ -71,10 +70,10 @@ void kernel_initialise(
   allocate_buffer(cheby_betas, settings->max_iters, 1);
 
   // Initialise CSR matrix
-  *a_row_index = (uint32_t*)malloc(sizeof(uint32_t)*(x*y+1));
+  csr_set_number_of_rows(matrix, x*y+1);
 
   // Necessarily serialised row index calculation
-  (*a_row_index)[0] = 0;
+  csr_set_row_value(matrix, 0, 0);
   for(int jj = 0; jj < y; ++jj)
   {
     for(int kk = 0; kk < x; ++kk)
@@ -88,14 +87,15 @@ void kernel_initialise(
       {
         row_count = 0;
       }
-
-      (*a_row_index)[index+1] = add_ecc_int((*a_row_index)[index] + row_count);
+      uint32_t prev_row;
+      csr_get_row_value(matrix, &prev_row, index);
+      csr_set_row_value(matrix, prev_row + row_count, index + 1);
     }
   }
 
-  *nnz = (*a_row_index)[x*y];
-  *a_col_index = (uint32_t*)malloc(sizeof(uint32_t)*(*nnz));
-  *a_non_zeros = (double*)malloc(sizeof(double)*(*nnz));
+  uint32_t nnz;
+  csr_get_row_value(matrix, &nnz, x*y);
+  csr_set_nnz(matrix, nnz);
 }
 
 void kernel_finalise(
@@ -106,7 +106,7 @@ void kernel_finalise(
   double* cell_y, double* cell_dx, double* cell_dy, double* vertex_dx,
   double* vertex_dy, double* vertex_x, double* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
-  double* cheby_betas)
+  double* cheby_betas, csr_matrix * matrix)
 {
   free(density0);
   free(density);
@@ -136,4 +136,5 @@ void kernel_finalise(
   free(cg_betas);
   free(cheby_alphas);
   free(cheby_betas);
+  csr_free_matrix(matrix);
 }

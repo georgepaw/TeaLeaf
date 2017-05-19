@@ -2,7 +2,7 @@
 KERNELS   = omp4_clang
 CPROFILER = yes
 DEBUG     = no
-OPTIONS   = -g -Wall -Wno-unused-function -Wno-unused-variable
+OPTIONS   = -g -Wall
 CC        = /localhd/mattmar/trunk/obj/bin/clang
 CPP       = /localhd/mattmar/trunk/obj/bin/clang++
 COMPILER  = CLANG

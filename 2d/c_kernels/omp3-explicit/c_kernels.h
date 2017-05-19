@@ -25,8 +25,7 @@ void kernel_initialise(
   double** cell_y, double** cell_dx, double** cell_dy, double** vertex_dx,
   double** vertex_dy, double** vertex_x, double** vertex_y,
   double** cg_alphas, double** cg_betas, double** cheby_alphas,
-  double** cheby_betas, uint32_t** a_row_index, uint32_t** a_col_index,
-  double** a_non_zeros, uint32_t* nnz);
+  double** cheby_betas, csr_matrix * matrix);
 
 void kernel_finalise(
   double* density0, double* density, double* energy0, double* energy,
@@ -36,7 +35,7 @@ void kernel_finalise(
   double* cell_y, double* cell_dx, double* cell_dy, double* vertex_dx,
   double* vertex_dy, double* vertex_x, double* vertex_y,
   double* cg_alphas, double* cg_betas, double* cheby_alphas,
-  double* cheby_betas);
+  double* cheby_betas, csr_matrix * matrix);
 
 // Solver-wide kernels
 void local_halos(
@@ -63,21 +62,15 @@ void cg_init(
   const int x, const int y, const int halo_depth,
   const int coefficient, double rx, double ry, double* rro,
   double* density, double* energy, double* u, double* p,
-  double* r, double* w, double* kx, double* ky,
-  uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros);
+  double* r, double* w, double* kx, double* ky, csr_matrix * matrix);
 
 void cg_calc_w_check(
   const int x, const int y, const int halo_depth, double* pw,
-  double* p, double* w,
-  uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros);
+  double* p, double* w, csr_matrix * matrix);
 
 void cg_calc_w_no_check(
   const int x, const int y, const int halo_depth, double* pw,
-  double* p, double* w,
-  uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros, uint32_t nnz);
+  double* p, double* w, csr_matrix * matrix);
 
 void cg_calc_ur(
   const int x, const int y, const int halo_depth,
@@ -91,14 +84,10 @@ void cg_calc_p(
 // Chebyshev solver kernels
 void cheby_init(const int x, const int y,
                 const int halo_depth, const double theta, double* u, double* u0,
-                double* p, double* r, double* w,
-                uint32_t* a_row_index, uint32_t* a_col_index,
-                double* a_non_zeros);
+                double* p, double* r, double* w, csr_matrix * matrix);
 void cheby_iterate(const int x, const int y,
                    const int halo_depth, double alpha, double beta, double* u,
-                   double* u0, double* p, double* r, double* w,
-                   uint32_t* a_row_index, uint32_t* a_col_index,
-                   double* a_non_zeros);
+                   double* u0, double* p, double* r, double* w, csr_matrix * matrix);
 
 // Jacobi solver kernels
 void jacobi_init(const int x, const int y,
@@ -114,9 +103,7 @@ void ppcg_init(const int x, const int y, const int halo_depth,
                double theta, double* r, double* sd);
 void ppcg_inner_iteration(const int x, const int y,
                           const int halo_depth, double alpha, double beta, double* u,
-                          double* r, double* sd,
-                          uint32_t* a_row_index, uint32_t* a_col_index,
-                          double* a_non_zeros);
+                          double* r, double* sd, csr_matrix * matrix);
 
 // Shared solver kernels
 void copy_u(
@@ -125,17 +112,14 @@ void copy_u(
 
 void calculate_residual(
   const int x, const int y, const int halo_depth,
-  double* u, double* u0, double* r, uint32_t* a_row_index,
-  uint32_t* a_col_index, double* a_non_zeros);
+  double* u, double* u0, double* r, csr_matrix * matrix);
 
 void calculate_2norm(
   const int x, const int y, const int halo_depth,
   double* buffer, double* norm);
 
 void matrix_check(
-  const int x, const int y, const int halo_depth,
-  uint32_t* a_row_index, uint32_t* a_col_index,
-  double* a_non_zeros);
+  const int x, const int y, const int halo_depth, csr_matrix * matrix);
 
 void finalise(
   const int x, const int y, const int halo_depth,
