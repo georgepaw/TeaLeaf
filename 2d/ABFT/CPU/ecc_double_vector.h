@@ -1,25 +1,14 @@
 #ifndef ECC_DOUBLE_VECTOR_H
 #define ECC_DOUBLE_VECTOR_H
+
+#if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
+# pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include "ecc_64bit.h"
-
-#define DOUBLE_VECTOR_START(array) \
-  uint32_t __vector_ ## array ## _flag = 0;
-
-#define DOUBLE_VECTOR_CHECK(array, index) \
-  check_ecc_double(&array[index], &__vector_ ## array ## _flag)
-
-#define DOUBLE_VECTOR_ACCESS(array, index) \
-  mask_double(check_ecc_double(&array[index], &__vector_ ## array ## _flag))
-
-#define STR(x)   #x
-
-#define DOUBLE_VECTOR_ERROR_STATUS(array)       \
-  if(__vector_ ## array ## _flag) {             \
-    printf("Errors in vector %s (function %s)\n", STR(array), __func__);\
-  } else
 
 static inline int32_t get_fliped_bit_location(uint32_t syndrome)
 {

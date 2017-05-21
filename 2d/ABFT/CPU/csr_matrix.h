@@ -5,6 +5,27 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+#include "../../ABFT/CPU/crc_csr_element.h"
+#define NUM_ELEMENTS 5
+#elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
+#include "../../ABFT/CPU/ecc_csr_element.h"
+#define NUM_ELEMENTS 1
+#else
+#include "../../ABFT/CPU/no_ecc_csr_element.h"
+#define NUM_ELEMENTS 1
+#endif
+
+#if defined(ABFT_METHOD_INT_VECTOR_CRC32C)
+#include "../../ABFT/CPU/.h"
+#elif defined(ABFT_METHOD_INT_VECTOR_SED)
+#include "../../ABFT/CPU/ecc_int_vector.h"
+#elif defined(ABFT_METHOD_INT_VECTOR_SECDED)
+#include "../../ABFT/CPU/ecc_int_vector.h"
+#else
+#include "../../ABFT/CPU/no_ecc_int_vector.h"
+#endif
+
 typedef struct
 {
   uint32_t * row_vector;
@@ -14,24 +35,20 @@ typedef struct
   uint32_t nnz;
 } csr_matrix;
 
-//temp stuff, remove THIS!!
-#include "no_ecc_double_vector.h"
+inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t num_rows);
+inline static void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz);
+inline static void csr_set_row_value(csr_matrix * matrix, const uint32_t row, const uint32_t index);
+inline static void csr_set_csr_element_value(csr_matrix * matrix, const uint32_t col, const double val, const uint32_t index);
+inline static void csr_set_row_values(csr_matrix * matrix, const uint32_t * rows_start, const uint32_t start_index, const uint32_t num_elements);
+inline static void csr_set_csr_element_values(csr_matrix * matrix, const uint32_t * cols_start, const double * vals_start, const uint32_t start_index, const uint32_t num_elements);
+inline static void csr_get_row_value(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index);
+inline static void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index);
+inline static void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements);
+inline static void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start, double * val_dest_start, const uint32_t start_index, const uint32_t num_elements);
+inline static void csr_free_matrix(csr_matrix * matrix);
 
 
-inline void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t num_rows);
-inline void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz);
-inline void csr_set_row_value(csr_matrix * matrix, const uint32_t row, const uint32_t index);
-inline void csr_set_csr_element_value(csr_matrix * matrix, const uint32_t col, const double val, const uint32_t index);
-inline void csr_set_row_values(csr_matrix * matrix, const uint32_t * rows_start, const uint32_t start_index, const uint32_t num_elements);
-inline void csr_set_csr_element_values(csr_matrix * matrix, const uint32_t * cols_start, const double * vals_start, const uint32_t start_index, const uint32_t num_elements);
-inline void csr_get_row_value(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index);
-inline void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index);
-inline void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements);
-inline void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start, double * val_dest_start, const uint32_t start_index, const uint32_t num_elements);
-inline void csr_free_matrix(csr_matrix * matrix);
-
-
-inline void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t num_rows)
+inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t num_rows)
 {
   matrix->num_rows = num_rows;
   matrix->row_vector = (uint32_t*)malloc(sizeof(uint32_t) * num_rows);
@@ -42,7 +59,7 @@ inline void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t num_rows)
   }
 }
 
-inline void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz)
+inline static void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz)
 {
   matrix->nnz = nnz;
   matrix->col_vector = (uint32_t*)malloc(sizeof(uint32_t) * nnz);
@@ -56,18 +73,18 @@ inline void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz)
 }
 
 
-inline void csr_set_row_value(csr_matrix * matrix, const uint32_t row, const uint32_t index)
+inline static void csr_set_row_value(csr_matrix * matrix, const uint32_t row, const uint32_t index)
 {
-  matrix->row_vector[index] = row;
+  matrix->row_vector[index] = add_ecc_int(row);
 }
 
-inline void csr_set_csr_element_value(csr_matrix * matrix, const uint32_t col, const double val, const uint32_t index)
+inline static void csr_set_csr_element_value(csr_matrix * matrix, const uint32_t col, const double val, const uint32_t index)
 {
   matrix->col_vector[index] = col;
   matrix->val_vector[index] = val;
 }
 
-inline void csr_set_row_values(csr_matrix * matrix, const uint32_t * rows_start, const uint32_t start_index, const uint32_t num_elements)
+inline static void csr_set_row_values(csr_matrix * matrix, const uint32_t * rows_start, const uint32_t start_index, const uint32_t num_elements)
 {
   for(uint32_t i = 0; i < num_elements; i++)
   {
@@ -75,7 +92,7 @@ inline void csr_set_row_values(csr_matrix * matrix, const uint32_t * rows_start,
   }
 }
 
-inline void csr_set_csr_element_values(csr_matrix * matrix, const uint32_t * cols_start, const double * vals_start, const uint32_t start_index, const uint32_t num_elements)
+inline static void csr_set_csr_element_values(csr_matrix * matrix, const uint32_t * cols_start, const double * vals_start, const uint32_t start_index, const uint32_t num_elements)
 {
   for(uint32_t i = 0; i < num_elements; i++)
   {
@@ -84,18 +101,21 @@ inline void csr_set_csr_element_values(csr_matrix * matrix, const uint32_t * col
 }
 
 
-inline void csr_get_row_value(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index)
+inline static void csr_get_row_value(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index)
 {
-  *val_dest = matrix->row_vector[index];
+  uint32_t flag = 0;
+  *val_dest = check_ecc_int(&(matrix->row_vector[index]), &flag);
+  if(flag) exit(-1);
+  *val_dest = mask_int(*val_dest);
 }
 
-inline void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index)
+inline static void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index)
 {
   *col_dest = matrix->col_vector[index];
   *val_dest = matrix->val_vector[index];
 }
 
-inline void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
+inline static void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
 {
   for(uint32_t i = 0; i < num_elements; i++)
   {
@@ -103,7 +123,7 @@ inline void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_start, c
   }
 }
 
-inline void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start, double * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
+inline static void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start, double * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
 {
   for(uint32_t i = 0; i < num_elements; i++)
   {
@@ -112,7 +132,7 @@ inline void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start,
 }
 
 
-inline void csr_free_matrix(csr_matrix * matrix)
+inline static void csr_free_matrix(csr_matrix * matrix)
 {
   free(matrix->row_vector);
   free(matrix->col_vector);
