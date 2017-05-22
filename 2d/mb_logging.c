@@ -24,11 +24,11 @@ uintptr_t virtual_to_physical_address(uintptr_t virt_addr) {
   uintptr_t file_offset = 0;
   uintptr_t page_frame_number = 0;
   uintptr_t page_frame_start_address = 0;
-  uintptr_t page_number = 0;
+  // uintptr_t page_number = 0;
   uintptr_t physical_address = 0;
   int i = 0;
   int c = 0;
-  int pid = 0;
+  // int pid = 0;
   int status = 0;
   int virtual_address_page_frame_offset = 0;
   unsigned char c_buf[PAGEMAP_ENTRY];
@@ -100,13 +100,12 @@ char TemperatureFileName[] = "/sys/class/thermal/thermal_zone0/temp";
 int32_t read_temperature()
 {
   int32_t temperature = 0;
-  int scanfStatus = 0;
 
   FILE *f = fopen(TemperatureFileName, "r");
 
   if (f)
   {
-    scanfStatus = fscanf(f, "%d", &temperature);
+    fscanf(f, "%d", &temperature);
     fclose(f);
   }
 

@@ -114,9 +114,8 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 #endif
 
 #ifdef INJECT_FAULT
-  // inject_bitflips_csr_elem(chunk->ext->a_col_index, chunk->ext->a_non_zeros, chunk->ext->iteration);
+  inject_bitflips_csr_matrix(&(chunk->ext->matrix), chunk->ext->iteration);
   // inject_bitflips_double_vector(chunk->p, chunk->ext->iteration);
-  // inject_bitflips_int_vector(chunk->ext->a_row_index, chunk->ext->iteration);
 #endif
 
   if(do_FT_check)

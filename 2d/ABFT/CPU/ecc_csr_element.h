@@ -3,18 +3,6 @@
 
 #include "ecc_96bits.h"
 
-#define CHECK_CSR_ELEMENT_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_function)
-
-#define CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_function)\
-if(1){ \
-  if(!check_correct_ecc_bits_csr_element(a_col_index, a_non_zeros, idx))\
-  {\
-    fail_function;\
-  }\
-} else
-
-#define MASK_CSR_ELEMENT_INDEX(index) (index & 0x00FFFFFF)
-
 // This function will generate/check the 7 parity bits for the given matrix
 // element, with the parity bits stored in the high order bits of the column
 // index.
@@ -25,32 +13,32 @@ if(1){ \
 // To check a matrix element for errors, simply use this function again, and
 // the returned value will be the error 'syndrome' which will be non-zero if
 // an error occured.
-static inline uint32_t ecc_compute_col8_csr_element(uint32_t * a_col_index_addr, uint32_t * a_non_zeros_addr)
+static inline uint32_t ecc_compute_col8_csr_element(const uint32_t * col, const uint32_t * val)
 {
 
   uint32_t result = 0;
 
   uint32_t p;
 
-  p = (a_non_zeros_addr[0] & ECC7_P1_0) ^ (a_non_zeros_addr[1] & ECC7_P1_1) ^ (*a_col_index_addr & ECC7_P1_2);
+  p = (val[0] & ECC7_P1_0) ^ (val[1] & ECC7_P1_1) ^ (*col & ECC7_P1_2);
   result |= __builtin_parity(p) << 31U;
 
-  p = (a_non_zeros_addr[0] & ECC7_P2_0) ^ (a_non_zeros_addr[1] & ECC7_P2_1) ^ (*a_col_index_addr & ECC7_P2_2);
+  p = (val[0] & ECC7_P2_0) ^ (val[1] & ECC7_P2_1) ^ (*col & ECC7_P2_2);
   result |= __builtin_parity(p) << 30U;
 
-  p = (a_non_zeros_addr[0] & ECC7_P3_0) ^ (a_non_zeros_addr[1] & ECC7_P3_1) ^ (*a_col_index_addr & ECC7_P3_2);
+  p = (val[0] & ECC7_P3_0) ^ (val[1] & ECC7_P3_1) ^ (*col & ECC7_P3_2);
   result |= __builtin_parity(p) << 29U;
 
-  p = (a_non_zeros_addr[0] & ECC7_P4_0) ^ (a_non_zeros_addr[1] & ECC7_P4_1) ^ (*a_col_index_addr & ECC7_P4_2);
+  p = (val[0] & ECC7_P4_0) ^ (val[1] & ECC7_P4_1) ^ (*col & ECC7_P4_2);
   result |= __builtin_parity(p) << 28U;
 
-  p = (a_non_zeros_addr[0] & ECC7_P5_0) ^ (a_non_zeros_addr[1] & ECC7_P5_1) ^ (*a_col_index_addr & ECC7_P5_2);
+  p = (val[0] & ECC7_P5_0) ^ (val[1] & ECC7_P5_1) ^ (*col & ECC7_P5_2);
   result |= __builtin_parity(p) << 27U;
 
-  p = (a_non_zeros_addr[0] & ECC7_P6_0) ^ (a_non_zeros_addr[1] & ECC7_P6_1) ^ (*a_col_index_addr & ECC7_P6_2);
+  p = (val[0] & ECC7_P6_0) ^ (val[1] & ECC7_P6_1) ^ (*col & ECC7_P6_2);
   result |= __builtin_parity(p) << 26U;
 
-  p = (a_non_zeros_addr[0] & ECC7_P7_0) ^ (a_non_zeros_addr[1] & ECC7_P7_1) ^ (*a_col_index_addr & ECC7_P7_2);
+  p = (val[0] & ECC7_P7_0) ^ (val[1] & ECC7_P7_1) ^ (*col & ECC7_P7_2);
   result |= __builtin_parity(p) << 25U;
 
   return result;
@@ -62,9 +50,9 @@ static inline int is_power_of_2(uint32_t x)
 }
 
 // Compute the overall parity of a 96-bit matrix element
-static inline uint32_t ecc_compute_overall_parity_csr_element(const uint32_t * a_col_index_addr, const uint32_t * a_non_zeros_addr)
+static inline uint32_t ecc_compute_overall_parity_csr_element(const uint32_t * col, const uint32_t * val)
 {
-  return __builtin_parity(a_non_zeros_addr[0] ^ a_non_zeros_addr[1] ^ *a_col_index_addr);
+  return __builtin_parity(val[0] ^ val[1] ^ *col);
 }
 
 // This function will use the error 'syndrome' generated from a 7-bit parity
@@ -87,32 +75,24 @@ static inline uint32_t ecc_get_flipped_bit_col8_csr_element(uint32_t syndrome)
   return data_bit;
 }
 
-static inline void generate_ecc_bits_csr_element(uint32_t * a_col_index_addr, double * a_non_zeros_addr)
+static inline void check_ecc_csr_element(uint32_t * col_out, double * val_out, uint32_t * col_in, double * val_in, uint32_t * flag)
 {
-#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM)
-  *a_col_index_addr |= ecc_compute_overall_parity_csr_element(a_col_index_addr, (uint32_t*)a_non_zeros_addr) << 31;
-#elif defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-  *a_col_index_addr |= ecc_compute_col8_csr_element(a_col_index_addr, (uint32_t*)a_non_zeros_addr);
-  *a_col_index_addr |= ecc_compute_overall_parity_csr_element(a_col_index_addr, (uint32_t*)a_non_zeros_addr) << 24;
-#endif
-}
-
-static inline uint32_t check_correct_ecc_bits_csr_element(uint32_t * a_col_index, double * a_non_zeros, const uint32_t idx)
-{
+  *col_out = *col_in;
+  *val_out = *val_in;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED)
-  uint32_t paritiy = ecc_compute_overall_parity_csr_element(&a_col_index[idx], (uint32_t*)(&a_non_zeros[idx]));
-  if(paritiy) printf("[ECC] error detected at index %u\n", idx);
-  return paritiy == 0;
+  uint32_t paritiy = ecc_compute_overall_parity_csr_element(col_in, (uint32_t*)val_in);
+  if(paritiy) (*flag)++;
 #elif defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
   /*  Check parity bits */
-  uint32_t overall_parity = ecc_compute_overall_parity_csr_element(&a_col_index[idx], (uint32_t*)(&a_non_zeros[idx]));
-  uint32_t syndrome = ecc_compute_col8_csr_element(&a_col_index[idx], (uint32_t*)(&a_non_zeros[idx]));
-  uint32_t correct = 1;
+  uint32_t overall_parity = ecc_compute_overall_parity_csr_element(col_in, (uint32_t*)val_in);
+  uint32_t syndrome = ecc_compute_col8_csr_element(col_in, (uint32_t*)val_in);
   if(overall_parity)
   {
 #if defined(INTERVAL_CHECKS)
-    printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
-    return 0; //can't correct when using intervals
+    printf("Poop\n");
+    printf("[ECC] Single-bit error detected, however using interval checks so failing\n");
+    (*flag)++;
+    return; //can't correct when using intervals
 #endif
     if(syndrome)
     {
@@ -121,36 +101,52 @@ static inline uint32_t check_correct_ecc_bits_csr_element(uint32_t * a_col_index
       if (bit_index < 64)
       {
         uint64_t temp;
-        memcpy(&temp, &a_non_zeros[idx], sizeof(uint64_t));
+        memcpy(&temp, val_in, sizeof(uint64_t));
         temp ^= 0x1ULL << bit_index;
-        memcpy(&a_non_zeros[idx], &temp, sizeof(uint64_t));
+        *val_out = *val_in;
+        memcpy(val_in, &temp, sizeof(uint64_t));
       }
       else
       {
-        a_col_index[idx] ^= 0x1U << bit_index;
+        *col_in ^= 0x1U << bit_index;
+        *col_out = *col_in;
       }
-      printf("[ECC] corrected bit %u at index %d\n", bit_index, idx);
+      printf("[ECC] corrected bit %u\n", bit_index);
     }
     else
     {
       /* Correct overall parity bit */
-      a_col_index[idx] ^= 0x1U << 24;
-      printf("[ECC] corrected overall parity bit at index %d\n", idx);
+      *col_in ^= 0x1U << 24;
+      *col_out = *col_in;
+      printf("[ECC] corrected overall parity bit\n");
     }
   }
   else
   {
     if(syndrome)
     {
-      /* Overall parity fine but error in syndrom */
-      /* Must be double-bit error - cannot correct this*/
-      printf("[ECC] double-bit error detected at index %d\n", idx);
-      correct = 0;
+      (*flag)++;
+      return;
     }
   }
-  return correct;
 #endif
 }
 
+static inline void add_ecc_csr_element(uint32_t * col_out, double * val_out, const uint32_t * col_in, const double * val_in)
+{
+  *col_out = *col_in;
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM)
+  *col_out |= ecc_compute_overall_parity_csr_element(col_out, (uint32_t*)val_in) << 31;
+#elif defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
+  *col_out |= ecc_compute_col8_csr_element(col_out, (uint32_t*)val_in);
+  *col_out |= ecc_compute_overall_parity_csr_element(col_out, (uint32_t*)val_in) << 24;
+#endif
+  *val_out = *val_in;
+}
+
+static inline void mask_csr_element(uint32_t * col, double * val)
+{
+  *col &= 0x00FFFFFF;
+}
 
 #endif //ECC_CSR_ELEMENT_H

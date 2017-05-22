@@ -21,7 +21,7 @@ binary_double convert_double(double val)
 void print_double_hex(double val)
 {
 	binary_double ret = convert_double(val);
-	printf("0x%08lx%08lx", ret.halves[1], ret.halves[0]);
+	printf("0x%08X%08X", ret.halves[1], ret.halves[0]);
 }
 
 

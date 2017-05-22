@@ -1,10 +1,14 @@
-#ifndef ECC_H
-#define ECC_H
+#ifndef ECC_96BITS_H
+#define ECC_96BITS_H
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
+
+#if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
+# pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
 
 #define ECC7_P1_0 0x56AAAD5B
 #define ECC7_P1_1 0xAB555555
@@ -73,4 +77,4 @@ static uint8_t PARITY_TABLE[256] =
   1, 0, 0, 1, 0, 1, 1, 0,
 };
 
-#endif // ECC_H
+#endif // ECC_96BITS_H

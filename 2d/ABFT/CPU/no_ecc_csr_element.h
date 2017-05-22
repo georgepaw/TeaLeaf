@@ -1,10 +1,20 @@
-#ifndef NO_ECC_H
-#define NO_ECC_H
+#ifndef NO_ECC_CSR_ELEMENT_H
+#define NO_ECC_CSR_ELEMENT_H
 
-#define CHECK_CSR_ELEMENT_CRC32C(a_col_index, a_non_zeros, row_begin, jj, kk, fail_function)
+static inline void check_ecc_csr_element(uint32_t * col_out, double * val_out, uint32_t * col_in, double * val_in, uint32_t * flag)
+{
+  *col_out = *col_in;
+  *val_out = *val_in;
+}
 
-#define CHECK_CSR_ELEMENT_ECC(a_col_index, a_non_zeros, idx, fail_function)
+static inline void add_ecc_csr_element(uint32_t * col_out, double * val_out, const uint32_t * col_in, const double * val_in)
+{
+  *col_out = *col_in;
+  *val_out = *val_in;
+}
 
-#define MASK_CSR_ELEMENT_INDEX(index) index
+static inline void mask_csr_element(uint32_t * col, double * val)
+{
+}
 
-#endif //NO_ECC_H
+#endif //NO_ECC_CSR_ELEMENT_H

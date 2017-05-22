@@ -3,11 +3,11 @@
 
 #include "crc32c.h"
 
-#define CHECK_CSR_ELEMENT_ECC(a_cols, a_non_zeros, idx, fail_function)
-#define CHECK_CSR_ELEMENT_CRC32C(a_col, a_non_zeros, row_begin, jj, kk, fail_function)\
+#define CHECK_CSR_ELEMENT_ECC(cols, vals, idx, fail_function)
+#define CHECK_CSR_ELEMENT_CRC32C(cols, vals, row_begin, jj, kk, fail_function)\
 if(1){ \
   /*CRC32C TeaLeaf Specific*/\
-  if(!check_correct_crc32c_bits_csr_element(a_col, a_non_zeros, row_begin, 5))\
+  if(!check_correct_crc32c_bits_csr_element(cols, vals, row_begin, 5))\
   {\
     fail_function;\
   }\
@@ -15,37 +15,37 @@ if(1){ \
 
 #define MASK_CSR_ELEMENT_INDEX(index) (index & 0x00FFFFFF)
 
-static inline uint32_t generate_crc32c_bits_csr_element(uint32_t * a_cols, double * a_non_zeros, uint32_t num_elements)
+static inline uint32_t generate_crc32c_bits_csr_element(uint32_t * cols, double * vals, uint32_t num_elements)
 {
   uint32_t crc = 0xFFFFFFFF;
   //Assume 5 elements
-  //first do a_cols - 5 elems * 4 bytes each = 20 bytes
+  //first do cols - 5 elems * 4 bytes each = 20 bytes
 #ifdef SOFTWARE_CRC_SPLIT
-  uint32_t * data = a_cols;
+  uint32_t * data = cols;
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_4_INNER(crc, crc, data);
 #elif defined(INTEL_ASM)
   //use Intel assembly code to accelerate crc calculations
-  crc = crc_pcl((const uint8_t*)a_cols, num_elements * sizeof(uint32_t), crc);
+  crc = crc_pcl((const uint8_t*)cols, num_elements * sizeof(uint32_t), crc);
 #else
-  // CRC32CD(crc, crc, ((uint64_t*)a_cols)[0]); <- doesn't seem to work
-  // CRC32CD(crc, crc, ((uint64_t*)a_cols)[1]);
-  CRC32CD(crc, crc, (uint64_t) a_cols[1] << 32 | a_cols[0]);
-  CRC32CD(crc, crc, (uint64_t) a_cols[3] << 32 | a_cols[2]);
-  CRC32CW(crc, crc, a_cols[4]);
+  // CRC32CD(crc, crc, ((uint64_t*)cols)[0]); <- doesn't seem to work
+  // CRC32CD(crc, crc, ((uint64_t*)cols)[1]);
+  CRC32CD(crc, crc, (uint64_t) cols[1] << 32 | cols[0]);
+  CRC32CD(crc, crc, (uint64_t) cols[3] << 32 | cols[2]);
+  CRC32CW(crc, crc, cols[4]);
 #endif
 
-  //then do a_non_zeros - 5 elems * 8 bytes each = 40 bytes
+  //then do vals - 5 elems * 8 bytes each = 40 bytes
 #ifdef SOFTWARE_CRC_SPLIT
-  data = (uint32_t*)a_non_zeros;
+  data = (uint32_t*)vals;
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_8_INNER(crc, crc, data);
 #elif defined(INTEL_ASM)
   //use Intel assembly code to accelerate crc calculations
-  crc = crc_pcl((const uint8_t*)a_non_zeros, num_elements * sizeof(double), crc);
+  crc = crc_pcl((const uint8_t*)vals, num_elements * sizeof(double), crc);
 #else
-  uint64_t * data = (uint64_t*)a_non_zeros;
+  uint64_t * data = (uint64_t*)vals;
   CRC32CD(crc, crc, data[0]);
   CRC32CD(crc, crc, data[1]);
   CRC32CD(crc, crc, data[2]);
@@ -55,7 +55,7 @@ static inline uint32_t generate_crc32c_bits_csr_element(uint32_t * a_cols, doubl
   return crc;
 }
 
-static uint8_t check_correct_crc32c_bits_csr_element(uint32_t * a_cols, double * a_non_zeros, uint32_t idx, uint32_t num_elements)
+static uint8_t check_correct_crc32c_bits_csr_element(uint32_t * cols, double * vals, uint32_t idx, uint32_t num_elements)
 {
   uint32_t masks[4];
   //get the CRC and recalculate to check it's correct
@@ -63,17 +63,17 @@ static uint8_t check_correct_crc32c_bits_csr_element(uint32_t * a_cols, double *
 
   for(int i = 0; i < 4; i++)
   {
-    prev_crc |= (a_cols[idx + i] & 0xFF000000)>>(8*i);
-    masks[i] = a_cols[idx + i] & 0xFF000000;
-    a_cols[idx + i] &= 0x00FFFFFF;
+    prev_crc |= (cols[idx + i] & 0xFF000000)>>(8*i);
+    masks[i] = cols[idx + i] & 0xFF000000;
+    cols[idx + i] &= 0x00FFFFFF;
   }
-  uint32_t current_crc = generate_crc32c_bits_csr_element(&a_cols[idx], &a_non_zeros[idx], num_elements);
+  uint32_t current_crc = generate_crc32c_bits_csr_element(&cols[idx], &vals[idx], num_elements);
   uint8_t correct_crc = prev_crc == current_crc;
 
   //restore masks
   for(int i = 0; i < 4; i++)
   {
-    a_cols[idx + i] += masks[i];
+    cols[idx + i] += masks[i];
   }
 
 #if defined(INTERVAL_CHECKS)
@@ -85,8 +85,8 @@ static uint8_t check_correct_crc32c_bits_csr_element(uint32_t * a_cols, double *
   {
     // for(uint32_t i = 0; i < num_elements; i++)
     // {
-    //   printf("%u ", a_cols[idx+i]);
-    //   printBits(sizeof(uint32_t), &a_cols[idx+i]);
+    //   printf("%u ", cols[idx+i]);
+    //   printBits(sizeof(uint32_t), &cols[idx+i]);
     //   printf("\n");
     // }
     //try to correct one bit of CRC
@@ -158,23 +158,23 @@ static uint8_t check_correct_crc32c_bits_csr_element(uint32_t * a_cols, double *
       if (bit_index < 64)
       {
         uint64_t temp;
-        // printBits(sizeof(double), &a_non_zeros[element_index]);
+        // printBits(sizeof(double), &vals[element_index]);
         // printf("\n");
-        memcpy(&temp, &a_non_zeros[element_index], sizeof(uint64_t));
+        memcpy(&temp, &vals[element_index], sizeof(uint64_t));
         temp ^= 0x1ULL << bit_index;
-        memcpy(&a_non_zeros[element_index], &temp, sizeof(uint64_t));
-        // printBits(sizeof(double), &a_non_zeros[element_index]);
+        memcpy(&vals[element_index], &temp, sizeof(uint64_t));
+        // printBits(sizeof(double), &vals[element_index]);
         // printf("\n");
       }
       else
       {
-        // printBits(sizeof(uint32_t), &a_cols[element_index]);
+        // printBits(sizeof(uint32_t), &cols[element_index]);
         // printf("\n");
         uint32_t temp;
-        memcpy(&temp, &a_cols[element_index], sizeof(uint32_t));
+        memcpy(&temp, &cols[element_index], sizeof(uint32_t));
         temp ^= 0x1U << bit_index;
-        memcpy(&a_cols[element_index], &temp, sizeof(uint32_t));
-        // printBits(sizeof(uint32_t), &a_cols[element_index]);
+        memcpy(&cols[element_index], &temp, sizeof(uint32_t));
+        // printBits(sizeof(uint32_t), &cols[element_index]);
         // printf("\n");
       }
 
@@ -184,8 +184,8 @@ static uint8_t check_correct_crc32c_bits_csr_element(uint32_t * a_cols, double *
     free(test_data);
     // for(uint32_t i = 0; i < num_elements; i++)
     // {
-    //   printf("%u ", a_cols[idx+i]);
-    //   printBits(sizeof(uint32_t), &a_cols[idx+i]);
+    //   printf("%u ", cols[idx+i]);
+    //   printBits(sizeof(uint32_t), &cols[idx+i]);
     //   printf("\n");
     // }
   }
@@ -193,7 +193,7 @@ static uint8_t check_correct_crc32c_bits_csr_element(uint32_t * a_cols, double *
   return correct_crc;
 }
 
-static inline void assign_crc32c_bits_csr_element(uint32_t * a_cols, double * a_non_zeros, uint32_t idx, uint32_t num_elements)
+static inline void assign_crc32c_bits_csr_element(uint32_t * cols, double * vals, uint32_t idx, uint32_t num_elements)
 {
   if(num_elements < 4)
   {
@@ -201,20 +201,20 @@ static inline void assign_crc32c_bits_csr_element(uint32_t * a_cols, double * a_
     return;
   }
   //generate the CRC32C bits and put them in the right places
-  if(   a_cols[idx    ] & 0xFF000000
-     || a_cols[idx + 1] & 0xFF000000
-     || a_cols[idx + 2] & 0xFF000000
-     || a_cols[idx + 3] & 0xFF000000
-     || a_cols[idx + 4] & 0xFF000000)
+  if(   cols[idx    ] & 0xFF000000
+     || cols[idx + 1] & 0xFF000000
+     || cols[idx + 2] & 0xFF000000
+     || cols[idx + 3] & 0xFF000000
+     || cols[idx + 4] & 0xFF000000)
   {
     printf("Index too big to be stored correctly with CRC!\n");
     exit(1);
   }
-  uint32_t crc = generate_crc32c_bits_csr_element(&a_cols[idx], &a_non_zeros[idx], num_elements);
-  a_cols[idx    ] += crc & 0xFF000000;
-  a_cols[idx + 1] += (crc & 0x00FF0000) << 8;
-  a_cols[idx + 2] += (crc & 0x0000FF00) << 16;
-  a_cols[idx + 3] += (crc & 0x000000FF) << 24;
+  uint32_t crc = generate_crc32c_bits_csr_element(&cols[idx], &vals[idx], num_elements);
+  cols[idx    ] += crc & 0xFF000000;
+  cols[idx + 1] += (crc & 0x00FF0000) << 8;
+  cols[idx + 2] += (crc & 0x0000FF00) << 16;
+  cols[idx + 3] += (crc & 0x000000FF) << 24;
 }
 
 #endif //CRC_CSR_ELEMENT_H
