@@ -50,12 +50,23 @@ void calculate_residual(
             csr_get_row_value(matrix, &row_begin, index);
             uint32_t row_end;
             csr_get_row_value(matrix, &row_end, index+1);
-            for (uint32_t idx = row_begin; idx < row_end; idx++)
+
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+            uint32_t cols[CSR_ELEMENT_NUM_ELEMENTS];
+            double vals[CSR_ELEMENT_NUM_ELEMENTS];
+            csr_get_csr_elements(matrix, cols, vals, row_begin, row_end - row_begin);
+#endif
+
+            for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
             {
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+                smvp += vals[i] * dv_get_value(u, cols[i]);
+#else
                 uint32_t col;
                 double val;
                 csr_get_csr_element(matrix, &col, &val, idx);
                 smvp += val * dv_get_value(u, col);
+#endif
             }
 
             dv_set_value(r, dv_get_value(u0, index) - smvp, index);

@@ -55,7 +55,7 @@ static void inject_bitflip_csr_elem(csr_matrix * matrix, const uint32_t index, c
 
   for (int i = 0; i < num_flips; i++)
   {
-    int bit = get_random_number(0, 96);
+    int bit = get_random_number(start, end);
     printf("*** flipping bit %d in csr matrix elements at index %d ***\n", bit, index);
     if (bit < 64) flip_bit_double(matrix->val_vector + index, bit);
     else          flip_bit_int(matrix->col_vector + index, bit - 64);
@@ -64,9 +64,12 @@ static void inject_bitflip_csr_elem(csr_matrix * matrix, const uint32_t index, c
 
 static void inject_bitflip_int_vector(csr_matrix * matrix, const uint32_t index, const int num_flips)
 {
+  int start = 0;
+  int end   = 64;
+
   for (int i = 0; i < num_flips; i++)
   {
-    int bit = get_random_number(0, 64);
+    int bit = get_random_number(start, end);
     printf("*** flipping bit %d in csr matrix row vector at index %d ***\n", bit, index);
     flip_bit_int(matrix->row_vector + index, bit);
   }
@@ -86,7 +89,7 @@ static void inject_bitflips_csr_matrix(csr_matrix * matrix, const uint32_t itera
   uint32_t start_index = 6000;
   uint32_t elemts_to_flip = 1;
   int num_flips_per_elem = 1;
-  int inject_csr_row_vector = 1;
+  int inject_csr_row_vector = 0;
 
   if(iteration == FAULT_INJECTION_ITTERATION)
   {

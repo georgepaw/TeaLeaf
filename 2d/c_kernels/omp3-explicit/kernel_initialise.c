@@ -71,7 +71,7 @@ void kernel_initialise(
   allocate_buffer(cheby_betas, settings->max_iters, 1);
 
   // Initialise CSR matrix
-  csr_set_number_of_rows(matrix, x*y+1);
+  csr_set_number_of_rows(matrix, x, y);
 
   // Necessarily serialised row index calculation
   csr_set_row_value(matrix, 0, 0);

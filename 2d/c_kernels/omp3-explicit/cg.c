@@ -82,7 +82,6 @@ void cg_init(
       const int index = jj*x + kk;
       uint32_t coef_index;
       csr_get_row_value(matrix, &coef_index, index);
-      int offset = coef_index;
       if (jj <    halo_depth || kk <    halo_depth ||
           jj >= y-halo_depth || kk >= x-halo_depth)
       {
@@ -228,15 +227,15 @@ void cg_calc_w_no_check(
       double tmp = 0.0;
 
       uint32_t row_begin;
-      csr_get_row_value(matrix, &row_begin, row);
+      csr_get_row_value_no_check(matrix, &row_begin, row);
       uint32_t row_end;
-      csr_get_row_value(matrix, &row_end, row+1);
+      csr_get_row_value_no_check(matrix, &row_end, row+1);
 
       for (uint32_t idx = row_begin; idx < row_end; idx++)
       {
         uint32_t col;
         double val;
-        csr_get_csr_element(matrix, &col, &val, idx);
+        csr_get_csr_element_no_check(matrix, &col, &val, idx);
         tmp += val * dv_get_value(p, col);
       }
 
