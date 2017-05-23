@@ -109,9 +109,9 @@ void cg_init(
       csr_set_csr_element_values(matrix, cols, vals, coef_index, 5);
     }
   }
+  CSR_MATRIX_FLUSH_WRITES(matrix);
 
   double rro_temp = 0.0;
-
 #pragma omp parallel for reduction(+:rro_temp)
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
   {
@@ -150,7 +150,6 @@ void cg_init(
       rro_temp += dv_get_value(r, index)*dv_get_value(r, index);
     }
   }
-
   *rro += rro_temp;
 }
 

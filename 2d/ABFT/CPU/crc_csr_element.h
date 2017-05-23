@@ -177,11 +177,6 @@ static uint8_t check_crc32c_csr_elements(uint32_t * cols_out, double * vals_out,
 
 static inline void add_crc32c_csr_elements(uint32_t * cols_out, double * vals_out, const uint32_t * cols_in, const double * vals_in, const uint32_t num_elements)
 {
-  if(num_elements < 4)
-  {
-    printf("Row is too small! Has %u elements, should have at least 4.\n", num_elements);
-    return;
-  }
   //generate the CRC32C bits and put them in the right places
   if(   cols_in[0] & 0xFF000000
      || cols_in[1] & 0xFF000000
@@ -192,13 +187,20 @@ static inline void add_crc32c_csr_elements(uint32_t * cols_out, double * vals_ou
     printf("Index too big to be stored correctly with CRC!\n");
     exit(1);
   }
-  uint32_t crc = generate_crc32c_bits_csr_element(cols_in, vals_in, 5);
 
-  cols_out[0] = cols_in[0] + (crc & 0xFF000000);
-  cols_out[1] = cols_in[1] + ((crc & 0x00FF0000) << 8);
-  cols_out[2] = cols_in[2] + ((crc & 0x0000FF00) << 16);
-  cols_out[3] = cols_in[3] + ((crc & 0x000000FF) << 24);
-  cols_out[4] = cols_in[4];
+  for(int i = 0; i < num_elements; i++)
+  {
+    cols_out[i] = cols_in[i];
+    vals_out[i] = vals_in[i];
+  }
+
+  uint32_t crc = generate_crc32c_bits_csr_element(cols_out, vals_out, 5);
+
+  cols_out[0] += (crc & 0xFF000000);
+  cols_out[1] += ((crc & 0x00FF0000) << 8);
+  cols_out[2] += ((crc & 0x0000FF00) << 16);
+  cols_out[3] += ((crc & 0x000000FF) << 24);
+
   for(uint32_t i = 0; i < 5; i++)
   {
     vals_out[i] = vals_in[i];
