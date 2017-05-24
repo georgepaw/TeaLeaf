@@ -39,12 +39,12 @@ typedef struct
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
   //buffers for cached reading and writing
   //each thread needs own copy of buffers
-  uint32_t ** cols_to_write;
-  double ** vals_to_write;
-  int32_t * to_write_start_index;
-  uint32_t * to_write_num_elements;
   uint32_t ** buffered_cols;
+  uint32_t ** cols_to_write;
   double ** buffered_vals;
+  double ** vals_to_write;
+  uint32_t * to_write_num_elements;
+  int32_t * to_write_start_index;
   int32_t * buffer_start_index;
 #endif
 } csr_matrix;
@@ -53,6 +53,16 @@ typedef struct
 if(1) {                                                 \
 _Pragma("omp parallel")                                 \
   csr_flush_csr_elements(matrix, omp_get_thread_num()); \
+} else
+
+#define ROW_CHECK(row, nnz) \
+if(1){ \
+  row = row > nnz ? nnz - 1 : row; \
+} else
+
+#define COLUMN_CHECK(col, x, y) \
+if(1){ \
+  col = col >= x*y ? x*y - 1 : col; \
 } else
 
 inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x, const uint32_t y);
@@ -94,15 +104,16 @@ inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x,
   matrix->buffered_cols = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   matrix->buffered_vals = (double**)malloc(sizeof(double*) * num_threads);
   matrix->buffer_start_index = (int32_t*)malloc(sizeof(int32_t) * num_threads);
-  for(uint32_t i = 0; i < num_threads; i++)
+#pragma omp parallel
   {
-    matrix->cols_to_write[i] = (uint32_t*)malloc(sizeof(uint32_t) * CSR_ELEMENT_NUM_ELEMENTS);
-    matrix->vals_to_write[i] = (double*)malloc(sizeof(double) * CSR_ELEMENT_NUM_ELEMENTS);
-    matrix->buffered_cols[i] = (uint32_t*)malloc(sizeof(uint32_t) * CSR_ELEMENT_NUM_ELEMENTS);
-    matrix->buffered_vals[i] = (double*)malloc(sizeof(double) * CSR_ELEMENT_NUM_ELEMENTS);
-    matrix->to_write_start_index[i] = -1;
-    matrix->to_write_num_elements[i] = 0;
-    matrix->buffer_start_index[i] = -1;
+    uint32_t thread_id = omp_get_thread_num();
+    matrix->cols_to_write[thread_id] = (uint32_t*)malloc(sizeof(uint32_t) * CSR_ELEMENT_NUM_ELEMENTS);
+    matrix->vals_to_write[thread_id] = (double*)malloc(sizeof(double) * CSR_ELEMENT_NUM_ELEMENTS);
+    matrix->buffered_cols[thread_id] = (uint32_t*)malloc(sizeof(uint32_t) * CSR_ELEMENT_NUM_ELEMENTS);
+    matrix->buffered_vals[thread_id] = (double*)malloc(sizeof(double) * CSR_ELEMENT_NUM_ELEMENTS);
+    matrix->to_write_start_index[thread_id] = -1;
+    matrix->to_write_num_elements[thread_id] = 0;
+    // matrix->buffer_start_index[i] = -1;
   }
 #endif
 }
@@ -179,25 +190,27 @@ inline static void csr_get_row_value(csr_matrix * matrix, uint32_t * val_dest, c
   *val_dest = mask_int(*val_dest);
 }
 
+
+inline static void csr_prefetch_csr_elements(csr_matrix * matrix, const uint32_t row_start)
+{
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+  uint32_t thread_id = omp_get_thread_num();
+  uint32_t flag = 0;
+  check_crc32c_csr_elements(matrix->buffered_cols[thread_id],
+                            matrix->buffered_vals[thread_id],
+                            matrix->col_vector + row_start,
+                            matrix->val_vector + row_start,
+                            CSR_ELEMENT_NUM_ELEMENTS,
+                            &flag);
+  if(flag) exit(-1);
+#endif
+}
+
 inline static void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index)
 {
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
   uint32_t thread_id = omp_get_thread_num();
   uint32_t offset = index % CSR_ELEMENT_NUM_ELEMENTS;
-  uint32_t row_start = index - offset;
-
-  if(row_start != matrix->buffer_start_index[thread_id])
-  {
-    uint32_t flag = 0;
-    check_crc32c_csr_elements(matrix->buffered_cols[thread_id],
-                              matrix->buffered_vals[thread_id],
-                              matrix->col_vector + row_start,
-                              matrix->val_vector + row_start,
-                              CSR_ELEMENT_NUM_ELEMENTS,
-                              &flag);
-    if(flag) exit(-1);
-    matrix->buffer_start_index[thread_id] = row_start;
-  }
   *col_dest = matrix->buffered_cols[thread_id][offset];
   *val_dest = matrix->buffered_vals[thread_id][offset];
 
@@ -219,21 +232,21 @@ inline static void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_s
 
 inline static void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start, double * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
 {
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-  uint32_t flag = 0;
-  check_crc32c_csr_elements(col_dest_start,
-                            val_dest_start,
-                            matrix->col_vector + start_index,
-                            matrix->val_vector + start_index,
-                            num_elements,
-                            &flag);
-  if(flag) exit(-1);
-#else
+// #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+//   uint32_t flag = 0;
+//   check_crc32c_csr_elements(col_dest_start,
+//                             val_dest_start,
+//                             matrix->col_vector + start_index,
+//                             matrix->val_vector + start_index,
+//                             num_elements,
+//                             &flag);
+//   if(flag) exit(-1);
+// #else
   for(uint32_t i = 0; i < num_elements; i++)
   {
     csr_get_csr_element(matrix, col_dest_start + i, val_dest_start + i, start_index + i);
   }
-#endif
+// #endif
 }
 
 inline static void csr_get_row_value_no_check(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index)

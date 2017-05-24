@@ -126,22 +126,13 @@ void cg_init(
       uint32_t row_end;
       csr_get_row_value(matrix, &row_end, index+1);
 
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-      uint32_t cols[CSR_ELEMENT_NUM_ELEMENTS];
-      double vals[CSR_ELEMENT_NUM_ELEMENTS];
-      csr_get_csr_elements(matrix, cols, vals, row_begin, row_end - row_begin);
-#endif
-
+      csr_prefetch_csr_elements(matrix, row_begin);
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-        tmp += vals[i] * dv_get_value(u, cols[i]);
-#else
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
         tmp += val * dv_get_value(u, col);
-#endif
       }
 
       dv_set_value(w, tmp, index);
@@ -179,29 +170,19 @@ void cg_calc_w_check(
       uint32_t row_end;
       csr_get_row_value(matrix, &row_end, row+1);
 
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-      uint32_t cols[CSR_ELEMENT_NUM_ELEMENTS];
-      double vals[CSR_ELEMENT_NUM_ELEMENTS];
-      csr_get_csr_elements(matrix, cols, vals, row_begin, 5);
-#endif
-
+      csr_prefetch_csr_elements(matrix, row_begin);
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-        tmp += vals[i] * dv_get_value(p, cols[i]);
-#else
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
         tmp += val * dv_get_value(p, col);
-#endif
       }
 
       dv_set_value(w, tmp, row);
       pw_temp += tmp*dv_get_value(p, row);
     }
   }
-
   *pw += pw_temp;
 }
 
