@@ -175,22 +175,17 @@ static uint8_t check_crc32c_csr_elements(uint32_t * cols_out, double * vals_out,
   return correct_crc;
 }
 
+//generate the CRC32C bits and put them in the right places
 static inline void add_crc32c_csr_elements(uint32_t * cols_out, double * vals_out, const uint32_t * cols_in, const double * vals_in, const uint32_t num_elements)
 {
-  //generate the CRC32C bits and put them in the right places
-  if(   cols_in[0] & 0xFF000000
-     || cols_in[1] & 0xFF000000
-     || cols_in[2] & 0xFF000000
-     || cols_in[3] & 0xFF000000
-     || cols_in[4] & 0xFF000000)
-  {
-    printf("Index too big to be stored correctly with CRC!\n");
-    exit(1);
-  }
-
   for(int i = 0; i < num_elements; i++)
   {
     cols_out[i] = cols_in[i];
+    if(cols_in[i] & 0xFF000000)
+    {
+      printf("Index too big to be stored correctly with CRC!\n");
+      exit(1);
+    }
     vals_out[i] = vals_in[i];
   }
 

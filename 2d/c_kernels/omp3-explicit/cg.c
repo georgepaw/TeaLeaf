@@ -182,7 +182,7 @@ void cg_calc_w_check(
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
       uint32_t cols[CSR_ELEMENT_NUM_ELEMENTS];
       double vals[CSR_ELEMENT_NUM_ELEMENTS];
-      csr_get_csr_elements(matrix, cols, vals, row_begin, row_end - row_begin);
+      csr_get_csr_elements(matrix, cols, vals, row_begin, 5);
 #endif
 
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)

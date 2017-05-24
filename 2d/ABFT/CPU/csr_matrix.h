@@ -189,8 +189,8 @@ inline static void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest,
   if(row_start != matrix->buffer_start_index[thread_id])
   {
     uint32_t flag = 0;
-    check_crc32c_csr_elements(matrix->buffered_cols,
-                              matrix->buffered_vals,
+    check_crc32c_csr_elements(matrix->buffered_cols[thread_id],
+                              matrix->buffered_vals[thread_id],
                               matrix->col_vector + row_start,
                               matrix->val_vector + row_start,
                               CSR_ELEMENT_NUM_ELEMENTS,
@@ -198,8 +198,8 @@ inline static void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest,
     if(flag) exit(-1);
     matrix->buffer_start_index[thread_id] = row_start;
   }
-  *col_dest = matrix->buffered_cols[offset];
-  *val_dest = matrix->buffered_cols[offset];
+  *col_dest = matrix->buffered_cols[thread_id][offset];
+  *val_dest = matrix->buffered_vals[thread_id][offset];
 
 #else
   uint32_t flag = 0;
@@ -252,6 +252,7 @@ inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * 
 
 inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_id)
 {
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
   if(matrix->to_write_num_elements[thread_id] == 0) return;
   //flush
   add_crc32c_csr_elements(matrix->col_vector + matrix->to_write_start_index[thread_id],
@@ -262,6 +263,7 @@ inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_i
   //reset_counters
   matrix->to_write_start_index[thread_id] = -1;
   matrix->to_write_num_elements[thread_id] = 0;
+#endif
 }
 
 inline static void csr_free_matrix(csr_matrix * matrix)
