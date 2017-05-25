@@ -124,7 +124,7 @@ inline static void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz)
     matrix->to_write_num_elements[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     matrix->to_write_num_elements[thread_id][0] = 0;
     matrix->buffer_start_index[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
-    matrix->buffer_start_index[thread_id][0] = matrix->nnz;
+    // matrix->buffer_start_index[thread_id][0] = matrix->nnz;
   }
 #endif
   for(uint32_t i = 0; i < nnz; i++)
@@ -194,7 +194,7 @@ inline static void csr_prefetch_csr_elements(csr_matrix * matrix, const uint32_t
 {
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
   uint32_t thread_id = omp_get_thread_num();
-  matrix->buffer_start_index[thread_id][0] = row_start;
+  // matrix->buffer_start_index[thread_id][0] = row_start;
   uint32_t flag = 0;
   check_crc32c_csr_elements(matrix->buffered_cols[thread_id],
                             matrix->buffered_vals[thread_id],
@@ -212,7 +212,7 @@ inline static void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest,
   uint32_t thread_id = omp_get_thread_num();
   uint32_t offset = index % CSR_ELEMENT_NUM_ELEMENTS;
   uint32_t row_start = index - offset;
-  if(row_start != matrix->buffer_start_index[thread_id][0]) csr_prefetch_csr_elements(matrix, row_start);
+  // if(row_start != matrix->buffer_start_index[thread_id][0]) csr_prefetch_csr_elements(matrix, row_start);
   *col_dest = matrix->buffered_cols[thread_id][offset];
   *val_dest = matrix->buffered_vals[thread_id][offset];
 
@@ -259,14 +259,11 @@ inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_i
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
   if(matrix->to_write_num_elements[thread_id][0] == 0
     || matrix->to_write_start_index[thread_id][0] >= matrix->nnz) return;
-  //flush
   add_crc32c_csr_elements(matrix->col_vector + matrix->to_write_start_index[thread_id][0],
                           matrix->val_vector + matrix->to_write_start_index[thread_id][0],
                           matrix->cols_to_write[thread_id],
                           matrix->vals_to_write[thread_id],
                           matrix->to_write_num_elements[thread_id][0]);
-  //reset_counters
-  matrix->to_write_start_index[thread_id][0] = -1;
   matrix->to_write_num_elements[thread_id][0] = 0;
 #endif
 }
