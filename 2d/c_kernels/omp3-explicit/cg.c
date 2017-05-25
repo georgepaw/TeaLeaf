@@ -126,7 +126,7 @@ void cg_init(
       uint32_t row_end;
       csr_get_row_value(matrix, &row_end, index+1);
 
-      csr_prefetch_csr_elements(matrix, row_begin);
+      // csr_prefetch_csr_elements(matrix, row_begin);
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
         uint32_t col;
@@ -170,7 +170,7 @@ void cg_calc_w_check(
       uint32_t row_end;
       csr_get_row_value(matrix, &row_end, row+1);
 
-      csr_prefetch_csr_elements(matrix, row_begin);
+      // csr_prefetch_csr_elements(matrix, row_begin);
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
         uint32_t col;
