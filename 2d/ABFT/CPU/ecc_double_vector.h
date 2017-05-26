@@ -10,18 +10,6 @@
 #include <inttypes.h>
 #include "ecc_64bit.h"
 
-static inline int32_t get_fliped_bit_location(uint32_t syndrome)
-{
-  for(uint32_t i = 0; i < 64; i++)
-  {
-    if(syndrome == secded64_syndrome_table[i])
-    {
-      return i;
-    }
-  }
-  return -1;
-}
-
 static inline double check_ecc_double(double * in, uint32_t * flag)
 {
   uint64_t all_bits = *((uint64_t*)in);
@@ -47,7 +35,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   {
     if(syndrome)
     {
-      int32_t bit_position = get_fliped_bit_location(syndrome);
+      int32_t bit_position = get_fliped_bit_location_double(syndrome);
       if(bit_position < 0)
       {
         printf("Uncorrectable error with odd number of bitflips\n");
@@ -83,7 +71,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   {
     if(syndrome)
     {
-      int32_t bit_position = get_fliped_bit_location(syndrome);
+      int32_t bit_position = get_fliped_bit_location_double(syndrome);
       if(bit_position < 0)
       {
         printf("Uncorrectable error with odd number of bitflips\n");

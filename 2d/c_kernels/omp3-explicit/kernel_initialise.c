@@ -75,6 +75,7 @@ void kernel_initialise(
 
   // Necessarily serialised row index calculation
   csr_set_row_value(matrix, 0, 0);
+  uint32_t current_row = 0;
   for(int jj = 0; jj < y; ++jj)
   {
     for(int kk = 0; kk < x; ++kk)
@@ -88,11 +89,11 @@ void kernel_initialise(
       {
         row_count = 0;
       }
-      uint32_t prev_row;
-      csr_get_row_value(matrix, &prev_row, index);
-      csr_set_row_value(matrix, prev_row + row_count, index + 1);
+      current_row += row_count;
+      csr_set_row_value(matrix, current_row, index + 1);
     }
   }
+  CSR_MATRIX_FLUSH_WRITES_INT_VECTOR(matrix);
 
   uint32_t nnz;
   csr_get_row_value(matrix, &nnz, x*y);

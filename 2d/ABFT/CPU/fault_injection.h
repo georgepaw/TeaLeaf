@@ -65,7 +65,7 @@ static void inject_bitflip_csr_elem(csr_matrix * matrix, const uint32_t index, c
 static void inject_bitflip_int_vector(csr_matrix * matrix, const uint32_t index, const int num_flips)
 {
   int start = 0;
-  int end   = 64;
+  int end   = 32;
 
   for (int i = 0; i < num_flips; i++)
   {
@@ -89,7 +89,7 @@ static void inject_bitflips_csr_matrix(csr_matrix * matrix, const uint32_t itera
   uint32_t start_index = 6000;
   uint32_t elemts_to_flip = 1;
   int num_flips_per_elem = 1;
-  int inject_csr_row_vector = 0;
+  int inject_csr_row_vector = 1;
 
   if(iteration == FAULT_INJECTION_ITTERATION)
   {

@@ -109,7 +109,7 @@ void cg_init(
       csr_set_csr_element_values(matrix, cols, vals, coef_index, 5);
     }
   }
-  CSR_MATRIX_FLUSH_WRITES(matrix);
+  CSR_MATRIX_FLUSH_WRITES_CSR_ELEMENTS(matrix);
 
   double rro_temp = 0.0;
 #pragma omp parallel for reduction(+:rro_temp)
