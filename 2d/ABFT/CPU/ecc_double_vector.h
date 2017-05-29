@@ -22,14 +22,14 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   uint64_t bits = all_bits & 0xFFFFFFFFFFFFFF00ULL;
 #if defined(HSIAO)
   uint32_t syndrome =
-        __builtin_parityll((S1 & bits) ^ (secded_in & C1))
-      | __builtin_parityll((S2 & bits) ^ (secded_in & C2)) << 1
-      | __builtin_parityll((S3 & bits) ^ (secded_in & C3)) << 2
-      | __builtin_parityll((S4 & bits) ^ (secded_in & C4)) << 3
-      | __builtin_parityll((S5 & bits) ^ (secded_in & C5)) << 4
-      | __builtin_parityll((S6 & bits) ^ (secded_in & C6)) << 5
-      | __builtin_parityll((S7 & bits) ^ (secded_in & C7)) << 6
-      | __builtin_parityll((S8 & bits) ^ (secded_in & C8)) << 7;
+        __builtin_parityll((S1_ECC_64BITS & bits) ^ (secded_in & C1_ECC_64BITS))
+      | __builtin_parityll((S2_ECC_64BITS & bits) ^ (secded_in & C2_ECC_64BITS)) << 1
+      | __builtin_parityll((S3_ECC_64BITS & bits) ^ (secded_in & C3_ECC_64BITS)) << 2
+      | __builtin_parityll((S4_ECC_64BITS & bits) ^ (secded_in & C4_ECC_64BITS)) << 3
+      | __builtin_parityll((S5_ECC_64BITS & bits) ^ (secded_in & C5_ECC_64BITS)) << 4
+      | __builtin_parityll((S6_ECC_64BITS & bits) ^ (secded_in & C6_ECC_64BITS)) << 5
+      | __builtin_parityll((S7_ECC_64BITS & bits) ^ (secded_in & C7_ECC_64BITS)) << 6
+      | __builtin_parityll((S8_ECC_64BITS & bits) ^ (secded_in & C8_ECC_64BITS)) << 7;
 
   if(parity)
   {
@@ -59,13 +59,13 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   }
 #elif defined(HAMMING)
   uint32_t syndrome =
-        __builtin_parityll((S1 & bits) ^ (secded_in & C1))
-      | __builtin_parityll((S2 & bits) ^ (secded_in & C2)) << 1
-      | __builtin_parityll((S3 & bits) ^ (secded_in & C3)) << 2
-      | __builtin_parityll((S4 & bits) ^ (secded_in & C4)) << 3
-      | __builtin_parityll((S5 & bits) ^ (secded_in & C5)) << 4
-      | __builtin_parityll((S6 & bits) ^ (secded_in & C6)) << 5
-      | __builtin_parityll((S7 & bits) ^ (secded_in & C7)) << 6;
+        __builtin_parityll((S1_ECC_64BITS & bits) ^ (secded_in & C1_ECC_64BITS))
+      | __builtin_parityll((S2_ECC_64BITS & bits) ^ (secded_in & C2_ECC_64BITS)) << 1
+      | __builtin_parityll((S3_ECC_64BITS & bits) ^ (secded_in & C3_ECC_64BITS)) << 2
+      | __builtin_parityll((S4_ECC_64BITS & bits) ^ (secded_in & C4_ECC_64BITS)) << 3
+      | __builtin_parityll((S5_ECC_64BITS & bits) ^ (secded_in & C5_ECC_64BITS)) << 4
+      | __builtin_parityll((S6_ECC_64BITS & bits) ^ (secded_in & C6_ECC_64BITS)) << 5
+      | __builtin_parityll((S7_ECC_64BITS & bits) ^ (secded_in & C7_ECC_64BITS)) << 6;
 
   if(parity)
   {
@@ -117,14 +117,14 @@ static inline double add_ecc_double(double in)
 #if defined(HSIAO)
   const int secded_bits[] =
   {
-    __builtin_parityll(S1 & all_bits),
-    __builtin_parityll(S2 & all_bits),
-    __builtin_parityll(S3 & all_bits),
-    __builtin_parityll(S4 & all_bits),
-    __builtin_parityll(S5 & all_bits),
-    __builtin_parityll(S6 & all_bits),
-    __builtin_parityll(S7 & all_bits),
-    __builtin_parityll(S8 & all_bits)
+    __builtin_parityll(S1_ECC_64BITS & all_bits),
+    __builtin_parityll(S2_ECC_64BITS & all_bits),
+    __builtin_parityll(S3_ECC_64BITS & all_bits),
+    __builtin_parityll(S4_ECC_64BITS & all_bits),
+    __builtin_parityll(S5_ECC_64BITS & all_bits),
+    __builtin_parityll(S6_ECC_64BITS & all_bits),
+    __builtin_parityll(S7_ECC_64BITS & all_bits),
+    __builtin_parityll(S8_ECC_64BITS & all_bits)
   };
   all_bits |= (secded_bits[0]
            | secded_bits[1] << 1
@@ -138,13 +138,13 @@ static inline double add_ecc_double(double in)
 #elif defined(HAMMING)
   const int secded_bits[] =
   {
-    __builtin_parityll(S1 & all_bits),
-    __builtin_parityll(S2 & all_bits),
-    __builtin_parityll(S3 & all_bits),
-    __builtin_parityll(S4 & all_bits),
-    __builtin_parityll(S5 & all_bits),
-    __builtin_parityll(S6 & all_bits),
-    __builtin_parityll(S7 & all_bits)
+    __builtin_parityll(S1_ECC_64BITS & all_bits),
+    __builtin_parityll(S2_ECC_64BITS & all_bits),
+    __builtin_parityll(S3_ECC_64BITS & all_bits),
+    __builtin_parityll(S4_ECC_64BITS & all_bits),
+    __builtin_parityll(S5_ECC_64BITS & all_bits),
+    __builtin_parityll(S6_ECC_64BITS & all_bits),
+    __builtin_parityll(S7_ECC_64BITS & all_bits)
   };
   all_bits |= (secded_bits[0]
            | secded_bits[1] << 1
