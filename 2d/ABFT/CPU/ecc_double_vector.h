@@ -35,7 +35,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   {
     if(syndrome)
     {
-      int32_t bit_position = get_fliped_bit_location_double(syndrome);
+      int32_t bit_position = get_fliped_bit_location_double_64bit(syndrome);
       if(bit_position < 0)
       {
         printf("Uncorrectable error with odd number of bitflips\n");
@@ -71,7 +71,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   {
     if(syndrome)
     {
-      int32_t bit_position = get_fliped_bit_location_double(syndrome);
+      int32_t bit_position = get_fliped_bit_location_double_64bit(syndrome);
       if(bit_position < 0)
       {
         printf("Uncorrectable error with odd number of bitflips\n");

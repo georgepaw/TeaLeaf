@@ -81,7 +81,7 @@ static uint8_t secded64_syndrome_table_int_wide[64] =
 };
 #endif
 
-static inline int32_t get_fliped_bit_location_double(uint32_t syndrome)
+static inline int32_t get_fliped_bit_location_double_64bit(uint32_t syndrome)
 {
   for(uint32_t i = 0; i < 64; i++)
   {
@@ -94,7 +94,7 @@ static inline int32_t get_fliped_bit_location_double(uint32_t syndrome)
 }
 
 
-static inline int32_t get_fliped_bit_location_int_wide(uint32_t syndrome)
+static inline int32_t get_fliped_bit_location_int_wide_64bit(uint32_t syndrome)
 {
   for(uint32_t i = 0; i < 64; i++)
   {

@@ -18,10 +18,10 @@
 #endif
 
 #if defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-#include "../../ABFT/CPU/.h"
+#include "../../ABFT/CPU/crc_wide_int_vector.h"
 #elif defined(ABFT_METHOD_INT_VECTOR_SED)
 #include "../../ABFT/CPU/ecc_int_vector.h"
-#elif defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#elif defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
 #include "../../ABFT/CPU/ecc_wide_int_vector.h"
 #else
 #include "../../ABFT/CPU/no_ecc_int_vector.h"
@@ -40,7 +40,7 @@ typedef struct
   uint32_t ** csr_element_to_write_num_elements;
   uint32_t ** csr_element_to_write_start_index;
 #endif
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   uint32_t ** int_vector_buffered_rows;
   uint32_t ** int_vector_rows_to_write;
   uint32_t ** int_vector_buffer_start_index;
@@ -103,12 +103,12 @@ inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x,
   matrix->y = y;
   //make sure the number of rows is a multiple oh how many rows are accessed at the time
   uint32_t num_rows_to_allocate = num_rows;
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   num_rows_to_allocate += num_rows % INT_VECTOR_SECDED_ELEMENTS;
 #endif
   matrix->row_vector = (uint32_t*)malloc(sizeof(uint32_t) * num_rows_to_allocate);
   if(matrix->row_vector == NULL) exit(-1);
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   //allocate all the buffers
   uint32_t num_threads = omp_get_max_threads();
   matrix->int_vector_buffered_rows = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
@@ -178,7 +178,7 @@ inline static void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz)
 
 inline static void csr_set_row_value(csr_matrix * matrix, const uint32_t row, const uint32_t index)
 {
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   //TODO this assumes that items are added in order
   uint32_t thread_id = omp_get_thread_num();
   uint32_t offset = index % INT_VECTOR_SECDED_ELEMENTS;
@@ -240,7 +240,7 @@ inline static void csr_set_csr_element_values(csr_matrix * matrix, const uint32_
 
 inline static void csr_prefetch_rows(csr_matrix * matrix, const uint32_t row_start)
 {
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   uint32_t thread_id = omp_get_thread_num();
   matrix->int_vector_buffer_start_index[thread_id][0] = row_start;
   uint32_t flag = 0;
@@ -254,7 +254,7 @@ inline static void csr_prefetch_rows(csr_matrix * matrix, const uint32_t row_sta
 
 inline static void csr_get_row_value(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index)
 {
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   uint32_t thread_id = omp_get_thread_num();
   uint32_t offset = index % INT_VECTOR_SECDED_ELEMENTS;
   uint32_t row_start = index - offset;
@@ -350,7 +350,7 @@ inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_i
 
 inline static void csr_flush_int_vector(csr_matrix * matrix, uint32_t thread_id)
 {
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128)
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   if(matrix->int_vector_to_write_num_elements[thread_id][0] == 0
     || matrix->int_vector_to_write_start_index[thread_id][0] >= matrix->num_rows) return;
   add_ecc_int(matrix->row_vector + matrix->int_vector_to_write_start_index[thread_id][0],

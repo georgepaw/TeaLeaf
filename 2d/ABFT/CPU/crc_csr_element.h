@@ -195,11 +195,6 @@ static inline void add_crc32c_csr_elements(uint32_t * cols_out, double * vals_ou
   cols_out[1] += ((crc & 0x00FF0000) << 8);
   cols_out[2] += ((crc & 0x0000FF00) << 16);
   cols_out[3] += ((crc & 0x000000FF) << 24);
-
-  for(uint32_t i = 0; i < 5; i++)
-  {
-    vals_out[i] = vals_in[i];
-  }
 }
 
 static inline void mask_csr_element(uint32_t * col, double * val)

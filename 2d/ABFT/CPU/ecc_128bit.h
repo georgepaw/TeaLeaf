@@ -51,7 +51,7 @@ static uint8_t secded128_syndrome_table_int_wide[128] =
   0xE6, 0xAE, 0x3D, 0x3B, 0x37, 0x9E, 0xDC, 0xAD,
 };
 
-static inline int32_t get_fliped_bit_location_int_wide(uint32_t syndrome)
+static inline int32_t get_fliped_bit_location_int_wide_128bit(uint32_t syndrome)
 {
   for(uint32_t i = 0; i < 128; i++)
   {
