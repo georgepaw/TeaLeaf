@@ -13,5 +13,6 @@ void store_energy(
     {
         dv_copy_value(energy, energy0, ii, ii);
     }
+    DV_FLUSH_WRITES(energy);
 }
 

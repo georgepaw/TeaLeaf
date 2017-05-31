@@ -27,6 +27,8 @@ void set_chunk_state(
         dv_set_value(energy0, states[0].energy, ii);
         dv_set_value(density, states[0].density, ii);
     }
+    DV_FLUSH_WRITES(energy0);
+    DV_FLUSH_WRITES(density);
 
     // Apply all of the states in turn
     for(int ss = 1; ss < num_states; ++ss)
@@ -72,6 +74,8 @@ void set_chunk_state(
             }
         }
     }
+    DV_FLUSH_WRITES(energy0);
+    DV_FLUSH_WRITES(density);
 
     // Set an initial state for u
     for(int jj = 1; jj != y-1; ++jj) 
@@ -83,5 +87,6 @@ void set_chunk_state(
                                      *dv_get_value(density, index), index);
         }
     }
+    DV_FLUSH_WRITES(u);
 }
 

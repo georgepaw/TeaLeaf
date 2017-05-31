@@ -48,6 +48,9 @@ void cg_init(
       dv_set_value(u, dv_get_value(energy, index)*dv_get_value(density, index), index);
     }
   }
+  DV_FLUSH_WRITES(p);
+  DV_FLUSH_WRITES(r);
+  DV_FLUSH_WRITES(u);
 
 #pragma omp parallel for
   for(int jj = 1; jj < y-1; ++jj)
@@ -59,6 +62,7 @@ void cg_init(
         ? dv_get_value(density, index) : 1.0/dv_get_value(density, index), index);
     }
   }
+  DV_FLUSH_WRITES(w);
 
 #pragma omp parallel for
   for(int jj = halo_depth; jj < y-1; ++jj)
@@ -72,6 +76,8 @@ void cg_init(
         (2.0*dv_get_value(w, index-x)*dv_get_value(w, index)), index);
     }
   }
+  DV_FLUSH_WRITES(kx);
+  DV_FLUSH_WRITES(ky);
 
 
   // Initialise the CSR sparse coefficient matrix
@@ -136,11 +142,15 @@ void cg_init(
       }
 
       dv_set_value(w, tmp, index);
-      dv_set_value(r, dv_get_value(u, index) - tmp, index);
-      dv_set_value(p, dv_get_value(r, index), index);
-      rro_temp += dv_get_value(r, index)*dv_get_value(r, index);
+      double r_temp = dv_get_value(u, index) - tmp;
+      dv_set_value(r, r_temp, index);
+      dv_set_value(p, r_temp, index);
+      rro_temp += r_temp*r_temp;
     }
   }
+  DV_FLUSH_WRITES(w);
+  DV_FLUSH_WRITES(r);
+  DV_FLUSH_WRITES(p);
   *rro += rro_temp;
 }
 
@@ -183,6 +193,7 @@ void cg_calc_w_check(
       pw_temp += tmp*dv_get_value(p, row);
     }
   }
+  DV_FLUSH_WRITES(w);
   *pw += pw_temp;
 }
 
@@ -223,7 +234,7 @@ void cg_calc_w_no_check(
       pw_temp += tmp*dv_get_value(p, row);
     }
   }
-
+  DV_FLUSH_WRITES(w);
   *pw += pw_temp;
 }
 
@@ -249,10 +260,13 @@ void cg_calc_ur(
       const int index = kk + jj*x;
 
       dv_set_value(u, dv_get_value(u, index) + alpha*dv_get_value(p, index), index);
-      dv_set_value(r, dv_get_value(r, index) - alpha*dv_get_value(w, index), index);
-      rrn_temp += dv_get_value(r, index)*dv_get_value(r, index);
+      double r_temp = dv_get_value(r, index) - alpha*dv_get_value(w, index);
+      dv_set_value(r, r_temp, index);
+      rrn_temp += r_temp*r_temp;
     }
   }
+  DV_FLUSH_WRITES(u);
+  DV_FLUSH_WRITES(r);
 
   *rrn += rrn_temp;
 }
@@ -275,6 +289,7 @@ void cg_calc_p(
       dv_set_value(p, beta*dv_get_value(p, index) + dv_get_value(r, index), index);
     }
   }
+  DV_FLUSH_WRITES(p);
 }
 
 void matrix_check(

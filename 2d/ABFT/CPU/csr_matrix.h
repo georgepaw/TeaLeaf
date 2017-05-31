@@ -129,11 +129,11 @@ inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x,
     matrix->int_vector_to_write_num_elements[thread_id][0] = 0;
     matrix->int_vector_to_write_start_index[thread_id][0] = num_rows;
   }
+#endif
   for(uint32_t i = 0; i < num_rows; i++)
   {
     csr_set_row_value(matrix, 0, i);
   }
-#endif
 }
 
 inline static void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz)

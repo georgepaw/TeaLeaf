@@ -25,6 +25,7 @@ void copy_u(
             dv_copy_value(u0, u, index, index);
         }
     }
+    DV_FLUSH_WRITES(u0);
 }
 
 // Calculates the current value of r
@@ -64,6 +65,7 @@ void calculate_residual(
 
         }
     }
+    DV_FLUSH_WRITES(r);
 }
 
 // Calculates the 2 norm of a given buffer
@@ -109,4 +111,5 @@ void finalise(
                                           /dv_get_value(density, index), index);
         }
     }
+    DV_FLUSH_WRITES(energy);
 }

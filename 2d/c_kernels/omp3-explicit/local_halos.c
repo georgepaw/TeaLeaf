@@ -87,6 +87,7 @@ void update_left(
             dv_copy_value(buffer, buffer, base+(halo_depth-kk-1), base+(halo_depth+kk));
         }
     }
+    DV_FLUSH_WRITES(buffer);
 }
 
 // Update right halo.
@@ -106,6 +107,7 @@ void update_right(
             dv_copy_value(buffer, buffer, base+(x-halo_depth+kk), base+(x-halo_depth-1-kk));
         }
     }
+    DV_FLUSH_WRITES(buffer);
 }
 
 // Update top halo.
@@ -124,6 +126,7 @@ void update_top(
             int base = kk;
             dv_copy_value(buffer, buffer, base+(y-halo_depth+jj)*x, base+(y-halo_depth-1-jj)*x);
         }
+        DV_FLUSH_WRITES(buffer);
     }
 }
 
@@ -143,6 +146,7 @@ void update_bottom(
             int base = kk;
             dv_copy_value(buffer, buffer, base+(halo_depth-jj-1)*x, base+(halo_depth+jj)*x);
         }
+        DV_FLUSH_WRITES(buffer);
     }
 }
 

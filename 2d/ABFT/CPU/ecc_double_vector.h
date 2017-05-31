@@ -16,7 +16,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   uint64_t parity = __builtin_parityll(all_bits);
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
   if(parity) (*flag)++;
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED64)
   uint64_t secded_in = all_bits & 0xFFULL;
 
   uint64_t bits = all_bits & 0xFFFFFFFFFFFFFF00ULL;
@@ -111,7 +111,7 @@ static inline double add_ecc_double(double in)
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
   uint64_t parity = __builtin_parityll(all_bits);
   all_bits ^= parity;
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED64)
   all_bits &= 0xFFFFFFFFFFFFFF00ULL;
 
 #if defined(HSIAO)
@@ -168,7 +168,7 @@ static inline double mask_double(double in)
   //     : "a" (all_bits));
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
   all_bits &= 0xFFFFFFFFFFFFFFFEULL;
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
+#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED64)
   all_bits &= 0xFFFFFFFFFFFFFF00ULL;
 #endif
   return *((double*)&all_bits);

@@ -20,6 +20,7 @@ void pack_left(
             dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 // Packs right data into buffer.
@@ -40,6 +41,7 @@ void pack_right(
             dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 // Packs top data into buffer.
@@ -62,6 +64,7 @@ void pack_top(
             dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 // Packs bottom data into buffer.
@@ -84,6 +87,7 @@ void pack_bottom(
             dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 // Unpacks left data from buffer.
@@ -104,6 +108,7 @@ void unpack_left(
             dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 // Unpacks right data from buffer.
@@ -124,6 +129,7 @@ void unpack_right(
             dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 // Unpacks top data from buffer.
@@ -146,6 +152,7 @@ void unpack_top(
             dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 // Unpacks bottom data from buffer.
@@ -168,6 +175,7 @@ void unpack_bottom(
             dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
         }
     }
+    DV_FLUSH_WRITES(field);
 }
 
 typedef void (*pack_kernel_f)(int,int,int,int,double_vector*,double*);
