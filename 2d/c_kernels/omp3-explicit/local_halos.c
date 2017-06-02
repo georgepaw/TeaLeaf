@@ -83,8 +83,7 @@ void update_left(
     {
         for(int kk = 0; kk < depth; ++kk)
         {
-            int base = jj*x;
-            dv_copy_value(buffer, buffer, base+(halo_depth-kk-1), base+(halo_depth+kk));
+            dv_copy_value(buffer, buffer, halo_depth-kk-1, jj, halo_depth+kk, jj);
         }
     }
     DV_FLUSH_WRITES(buffer);
@@ -103,8 +102,7 @@ void update_right(
     {
         for(int kk = 0; kk < depth; ++kk)
         {
-            int base = jj*x;
-            dv_copy_value(buffer, buffer, base+(x-halo_depth+kk), base+(x-halo_depth-1-kk));
+            dv_copy_value(buffer, buffer, x-halo_depth+kk, jj, x-halo_depth-1-kk, jj);
         }
     }
     DV_FLUSH_WRITES(buffer);
@@ -123,8 +121,7 @@ void update_top(
 #pragma omp parallel for
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
-            int base = kk;
-            dv_copy_value(buffer, buffer, base+(y-halo_depth+jj)*x, base+(y-halo_depth-1-jj)*x);
+            dv_copy_value(buffer, buffer, kk, y-halo_depth+jj, kk, y-halo_depth-1-jj);
         }
         DV_FLUSH_WRITES(buffer);
     }
@@ -143,8 +140,7 @@ void update_bottom(
 #pragma omp parallel for
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
-            int base = kk;
-            dv_copy_value(buffer, buffer, base+(halo_depth-jj-1)*x, base+(halo_depth+jj)*x);
+            dv_copy_value(buffer, buffer, kk, halo_depth-jj-1, kk, halo_depth+jj);
         }
         DV_FLUSH_WRITES(buffer);
     }

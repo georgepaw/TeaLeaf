@@ -17,7 +17,7 @@ void pack_left(
         for(int kk = halo_depth; kk < halo_depth+depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-halo_depth)*depth;
-            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
+            dv_copy_value_to_buffer(buffer, field, bufIndex, kk, jj);
         }
     }
     DV_FLUSH_WRITES(field);
@@ -38,7 +38,7 @@ void pack_right(
         for(int kk = x-halo_depth-depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-(x-halo_depth-depth)) + (jj-halo_depth)*depth;
-            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
+            dv_copy_value_to_buffer(buffer, field, bufIndex, kk, jj);
         }
     }
     DV_FLUSH_WRITES(field);
@@ -61,7 +61,7 @@ void pack_top(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-(y-halo_depth-depth))*x_inner;
-            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
+            dv_copy_value_to_buffer(buffer, field, bufIndex, kk, jj);
         }
     }
     DV_FLUSH_WRITES(field);
@@ -84,7 +84,7 @@ void pack_bottom(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-halo_depth)*x_inner;
-            dv_copy_value_to_buffer(buffer, field, bufIndex, jj*x+kk);
+            dv_copy_value_to_buffer(buffer, field, bufIndex, kk, jj);
         }
     }
     DV_FLUSH_WRITES(field);
@@ -105,7 +105,7 @@ void unpack_left(
         for(int kk = halo_depth-depth; kk < halo_depth; ++kk)
         {
             int bufIndex = (kk-(halo_depth-depth)) + (jj-halo_depth)*depth;
-            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
+            dv_copy_value_from_buffer(field, buffer, kk, jj, bufIndex);
         }
     }
     DV_FLUSH_WRITES(field);
@@ -126,7 +126,7 @@ void unpack_right(
         for(int kk = x-halo_depth; kk < x-halo_depth+depth; ++kk)
         {
             int bufIndex = (kk-(x-halo_depth)) + (jj-halo_depth)*depth;
-            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
+            dv_copy_value_from_buffer(field, buffer, kk, jj, bufIndex);
         }
     }
     DV_FLUSH_WRITES(field);
@@ -149,7 +149,7 @@ void unpack_top(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-(y-halo_depth))*x_inner;
-            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
+            dv_copy_value_from_buffer(field, buffer, kk, jj, bufIndex);
         }
     }
     DV_FLUSH_WRITES(field);
@@ -172,7 +172,7 @@ void unpack_bottom(
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             int bufIndex = (kk-halo_depth) + (jj-(halo_depth-depth))*x_inner;
-            dv_copy_value_from_buffer(field, buffer, jj*x+kk, bufIndex);
+            dv_copy_value_from_buffer(field, buffer, kk, jj, bufIndex);
         }
     }
     DV_FLUSH_WRITES(field);

@@ -22,10 +22,13 @@ void set_chunk_state(
         State* states)
 {
     // Set the initial state
-    for(int ii = 0; ii != x*y; ++ii)
+    for(int jj = 0; jj < y; ++jj)
     {
-        dv_set_value(energy0, states[0].energy, ii);
-        dv_set_value(density, states[0].density, ii);
+        for(int kk = 0; kk < x; ++kk)
+        {
+            dv_set_value(energy0, states[0].energy, kk, jj);
+            dv_set_value(density, states[0].density, kk, jj);
+        }
     }
     DV_FLUSH_WRITES(energy0);
     DV_FLUSH_WRITES(density);
@@ -42,34 +45,33 @@ void set_chunk_state(
                 if(states[ss].geometry == RECTANGULAR)
                 {
                     apply_state = (
-                            dv_get_value(vertex_x, kk+1) >= states[ss].x_min && 
-                            dv_get_value(vertex_x, kk) < states[ss].x_max    &&
-                            dv_get_value(vertex_y, jj+1) >= states[ss].y_min &&
-                            dv_get_value(vertex_y, jj) < states[ss].y_max);
+                            dv_get_value(vertex_x, kk+1, 0) >= states[ss].x_min && 
+                            dv_get_value(vertex_x, kk, 0) < states[ss].x_max    &&
+                            dv_get_value(vertex_y, 0, jj+1) >= states[ss].y_min &&
+                            dv_get_value(vertex_y, 0, jj) < states[ss].y_max);
                 }
                 else if(states[ss].geometry == CIRCULAR)
                 {
                     double radius = sqrt(
-                            (dv_get_value(cell_x, kk)-states[ss].x_min)*
-                            (dv_get_value(cell_x, kk)-states[ss].x_min)+
-                            (dv_get_value(cell_y, jj)-states[ss].y_min)*
-                            (dv_get_value(cell_y, jj)-states[ss].y_min));
+                            (dv_get_value(cell_x, kk, 0)-states[ss].x_min)*
+                            (dv_get_value(cell_x, kk, 0)-states[ss].x_min)+
+                            (dv_get_value(cell_y, 0, jj)-states[ss].y_min)*
+                            (dv_get_value(cell_y, 0, jj)-states[ss].y_min));
 
                     apply_state = (radius <= states[ss].radius);
                 }
                 else if(states[ss].geometry == POINT)
                 {
                     apply_state = (
-                            dv_get_value(vertex_x, kk) == states[ss].x_min &&
-                            dv_get_value(vertex_y, jj) == states[ss].y_min);
+                            dv_get_value(vertex_x, kk, 0) == states[ss].x_min &&
+                            dv_get_value(vertex_y, 0, jj) == states[ss].y_min);
                 }
 
                 // Check if state applies at this vertex, and apply
                 if(apply_state)
                 {
-                    const int index = kk + jj*x;
-                    dv_set_value(energy0, states[ss].energy, index);
-                    dv_set_value(density, states[ss].density, index);
+                    dv_set_value(energy0, states[ss].energy, kk, jj);
+                    dv_set_value(density, states[ss].density, kk, jj);
                 }
             }
         }
@@ -82,9 +84,8 @@ void set_chunk_state(
     {
         for(int kk = 1; kk != x-1; ++kk) 
         {
-            const int index = kk + jj*x;
-            dv_set_value(u, dv_get_value(energy0, index)
-                                     *dv_get_value(density, index), index);
+            dv_set_value(u, dv_get_value(energy0, kk, jj)
+                                     *dv_get_value(density, kk, jj), kk, jj);
         }
     }
     DV_FLUSH_WRITES(u);

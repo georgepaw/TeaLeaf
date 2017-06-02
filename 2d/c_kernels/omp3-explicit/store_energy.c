@@ -9,10 +9,13 @@ void store_energy(
         double_vector* energy)
 {
 #pragma omp parallel for
-    for(int ii = 0; ii < x*y; ++ii)
+  for(int jj = 0; jj < y; ++jj)
+  {
+    for(int kk = 0; kk < x; ++kk)
     {
-        dv_copy_value(energy, energy0, ii, ii);
+        dv_copy_value(energy, energy0, kk, jj, kk, jj);
     }
-    DV_FLUSH_WRITES(energy);
+  }
+  DV_FLUSH_WRITES(energy);
 }
 

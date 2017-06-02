@@ -29,13 +29,12 @@ void field_summary(
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
-            const int index = kk + jj*x;
-            double cellVol = dv_get_value(volume, index);
-            double cellMass = cellVol*dv_get_value(density, index);
+            double cellVol = dv_get_value(volume, kk, jj);
+            double cellMass = cellVol*dv_get_value(density, kk, jj);
             vol += cellVol;
             mass += cellMass;
-            ie += cellMass*dv_get_value(energy0, index);
-            temp += cellMass*dv_get_value(u, index);
+            ie += cellMass*dv_get_value(energy0, kk, jj);
+            temp += cellMass*dv_get_value(u, kk, jj);
         }
     }
 

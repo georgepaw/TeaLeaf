@@ -21,8 +21,7 @@ void copy_u(
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
-            const int index = kk + jj*x;
-            dv_copy_value(u0, u, index, index);
+            dv_copy_value(u0, u, kk, jj, kk, jj);
         }
     }
     DV_FLUSH_WRITES(u0);
@@ -58,10 +57,12 @@ void calculate_residual(
                 uint32_t col;
                 double val;
                 csr_get_csr_element(matrix, &col, &val, idx);
-                smvp += val * dv_get_value(u, col);
+                uint32_t t_x = col % x;
+                uint32_t t_y = col / x;
+                smvp += val * dv_get_value(u, t_x, t_y);
             }
 
-            dv_set_value(r, dv_get_value(u0, index) - smvp, index);
+            dv_set_value(r, dv_get_value(u0, kk, jj) - smvp, kk, jj);
 
         }
     }
@@ -83,8 +84,7 @@ void calculate_2norm(
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
-            const int index = kk + jj*x;
-            double val = dv_get_value(buffer, index);
+            double val = dv_get_value(buffer, kk, jj);
             norm_temp += val*val;
         }
     }
@@ -106,9 +106,8 @@ void finalise(
     {
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
-            const int index = kk + jj*x;
-            dv_set_value(energy, dv_get_value(u, index)
-                                          /dv_get_value(density, index), index);
+            dv_set_value(energy, dv_get_value(u, kk, jj)
+                                          /dv_get_value(density, kk, jj), kk, jj);
         }
     }
     DV_FLUSH_WRITES(energy);

@@ -7,6 +7,10 @@
 #include "ecc_128bit.h"
 #define DOUBLE_VECTOR_SECDED_ELEMENTS 2
 
+#if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
+# pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
+
 static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_t * flag)
 {
   uint64_t * bits_in = (uint64_t*)vals_in;
@@ -59,6 +63,7 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
       (*flag)++;
     }
   }
+  // if(!(*flag)) printf("Passing\n");
   vals_out[0] = vals_in[0];
   vals_out[1] = vals_in[1];
 }

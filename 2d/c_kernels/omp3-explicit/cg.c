@@ -42,10 +42,9 @@ void cg_init(
   {
     for(int kk = 0; kk < x; ++kk)
     {
-      const int index = kk + jj*x;
-      dv_set_value(p, 0.0, index);
-      dv_set_value(r, 0.0, index);
-      dv_set_value(u, dv_get_value(energy, index)*dv_get_value(density, index), index);
+      dv_set_value(p, 0.0, kk, jj);
+      dv_set_value(r, 0.0, kk, jj);
+      dv_set_value(u, dv_get_value(energy, kk, jj)*dv_get_value(density, kk, jj), kk, jj);
     }
   }
   DV_FLUSH_WRITES(p);
@@ -57,9 +56,8 @@ void cg_init(
   {
     for(int kk = 1; kk < x-1; ++kk)
     {
-      const int index = kk + jj*x;
       dv_set_value(w, (coefficient == CONDUCTIVITY)
-        ? dv_get_value(density, index) : 1.0/dv_get_value(density, index), index);
+        ? dv_get_value(density, kk, jj) : 1.0/dv_get_value(density, kk, jj), kk, jj);
     }
   }
   DV_FLUSH_WRITES(w);
@@ -69,11 +67,10 @@ void cg_init(
   {
     for(int kk = halo_depth; kk < x-1; ++kk)
     {
-      const int index = kk + jj*x;
-      dv_set_value(kx, rx*(dv_get_value(w, index-1)+dv_get_value(w, index)) /
-        (2.0*dv_get_value(w, index-1)*dv_get_value(w, index)), index);
-      dv_set_value(ky, ry*(dv_get_value(w, index-x)+dv_get_value(w, index)) /
-        (2.0*dv_get_value(w, index-x)*dv_get_value(w, index)), index);
+      dv_set_value(kx, rx*(dv_get_value(w, kk-1, jj)+dv_get_value(w, kk, jj)) /
+        (2.0*dv_get_value(w, kk-1, jj)*dv_get_value(w, kk, jj)), kk, jj);
+      dv_set_value(ky, ry*(dv_get_value(w, kk, jj-1)+dv_get_value(w, kk, jj)) /
+        (2.0*dv_get_value(w, kk, jj-1)*dv_get_value(w, kk, jj)), kk, jj);
     }
   }
   DV_FLUSH_WRITES(kx);
@@ -95,12 +92,12 @@ void cg_init(
       }
       double vals[] =
       {
-        -dv_get_value(ky, index),
-        -dv_get_value(kx, index),
-        (1.0 + dv_get_value(kx, index+1) + dv_get_value(kx, index) +
-               dv_get_value(ky, index+x) + dv_get_value(ky, index)),
-        -dv_get_value(kx, index+1),
-        -dv_get_value(ky, index+x)
+        -dv_get_value(ky, kk, jj),
+        -dv_get_value(kx, kk, jj),
+        (1.0 + dv_get_value(kx, kk+1, jj) + dv_get_value(kx, kk, jj) +
+               dv_get_value(ky, kk, jj+1) + dv_get_value(ky, kk, jj)),
+        -dv_get_value(kx, kk+1, jj),
+        -dv_get_value(ky, kk, jj+1)
       };
 
       uint32_t cols[] =
@@ -138,13 +135,15 @@ void cg_init(
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
-        tmp += val * dv_get_value(u, col);
+        uint32_t t_x = col % x;
+        uint32_t t_y = col / x;
+        tmp += val * dv_get_value(u, t_x, t_y);
       }
 
-      dv_set_value(w, tmp, index);
-      double r_temp = dv_get_value(u, index) - tmp;
-      dv_set_value(r, r_temp, index);
-      dv_set_value(p, r_temp, index);
+      dv_set_value(w, tmp, kk, jj);
+      double r_temp = dv_get_value(u, kk, jj) - tmp;
+      dv_set_value(r, r_temp, kk, jj);
+      dv_set_value(p, r_temp, kk, jj);
       rro_temp += r_temp*r_temp;
     }
   }
@@ -186,11 +185,13 @@ void cg_calc_w_check(
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
-        tmp += val * dv_get_value(p, col);
+        uint32_t t_x = col % x;
+        uint32_t t_y = col / x;
+        tmp += val * dv_get_value(p, t_x, t_y);
       }
 
-      dv_set_value(w, tmp, row);
-      pw_temp += tmp*dv_get_value(p, row);
+      dv_set_value(w, tmp, kk, jj);
+      pw_temp += tmp*dv_get_value(p, kk, jj);
     }
   }
   DV_FLUSH_WRITES(w);
@@ -227,11 +228,13 @@ void cg_calc_w_no_check(
         uint32_t col;
         double val;
         csr_get_csr_element_no_check(matrix, &col, &val, idx);
-        tmp += val * dv_get_value(p, col);
+        uint32_t t_x = col % x;
+        uint32_t t_y = col / x;
+        tmp += val * dv_get_value(p, t_x, t_y);
       }
 
-      dv_set_value(w, tmp, row);
-      pw_temp += tmp*dv_get_value(p, row);
+      dv_set_value(w, tmp, kk, jj);
+      pw_temp += tmp*dv_get_value(p, kk, jj);
     }
   }
   DV_FLUSH_WRITES(w);
@@ -257,11 +260,9 @@ void cg_calc_ur(
   {
     for(int kk = halo_depth; kk < x-halo_depth; ++kk)
     {
-      const int index = kk + jj*x;
-
-      dv_set_value(u, dv_get_value(u, index) + alpha*dv_get_value(p, index), index);
-      double r_temp = dv_get_value(r, index) - alpha*dv_get_value(w, index);
-      dv_set_value(r, r_temp, index);
+      dv_set_value(u, dv_get_value(u, kk, jj) + alpha*dv_get_value(p, kk, jj), kk, jj);
+      double r_temp = dv_get_value(r, kk, jj) - alpha*dv_get_value(w, kk, jj);
+      dv_set_value(r, r_temp, kk, jj);
       rrn_temp += r_temp*r_temp;
     }
   }
@@ -285,8 +286,7 @@ void cg_calc_p(
   {
     for(int kk = halo_depth; kk < x-halo_depth; ++kk)
     {
-      const int index = kk + jj*x;
-      dv_set_value(p, beta*dv_get_value(p, index) + dv_get_value(r, index), index);
+      dv_set_value(p, beta*dv_get_value(p, kk, jj) + dv_get_value(r, kk, jj), kk, jj);
     }
   }
   DV_FLUSH_WRITES(p);

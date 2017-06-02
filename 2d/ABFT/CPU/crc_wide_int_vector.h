@@ -4,12 +4,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#if defined(ABFT_METHOD_INT_VECTOR_CRC32C)
 #include "crc32c.h"
 #define INT_VECTOR_SECDED_ELEMENTS 8
-#else
-
-#endif
 
 static inline uint32_t generate_crc32c_bits_int(uint32_t * rows_out)
 {
