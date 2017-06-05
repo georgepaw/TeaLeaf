@@ -6,9 +6,9 @@
 
 #include "crc32c.h"
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4)
-#define DOUBLE_VECTOR_SECDED_ELEMENTS 4
+#define WIDE_SIZE_DV 4
 #elif defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
-#define DOUBLE_VECTOR_SECDED_ELEMENTS 8
+#define WIDE_SIZE_DV 8
 #endif
 
 #if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
@@ -29,7 +29,7 @@ static inline uint32_t generate_crc32c_bits_int(double * vals)
 #endif
 #elif defined(INTEL_ASM)
   //use Intel assembly code to accelerate crc calculations
-  crc = crc_pcl((const uint8_t*)vals, DOUBLE_VECTOR_SECDED_ELEMENTS * sizeof(double), crc);
+  crc = crc_pcl((const uint8_t*)vals, WIDE_SIZE_DV * sizeof(double), crc);
 #else
   uint64_t * data = (uint64_t*)vals;
   CRC32CD(crc, crc, data[0]);
@@ -52,7 +52,7 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
   uint64_t * bits_out = (uint64_t*)vals_out;
   uint32_t prev_crc = 0;
 
-  for(int i = 0; i < DOUBLE_VECTOR_SECDED_ELEMENTS; i++)
+  for(int i = 0; i < WIDE_SIZE_DV; i++)
   {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4)
     prev_crc |= (bits_in[i] & 0xFFULL)<<(8*i);
@@ -81,7 +81,7 @@ static inline void add_ecc_double(double * vals_out, const double * vals_in)
 {
   uint64_t * bits_out = (uint64_t*)vals_out;
   uint64_t * bits_in = (uint64_t*)vals_in;
-  for(int i = 0; i < DOUBLE_VECTOR_SECDED_ELEMENTS; i++)
+  for(int i = 0; i < WIDE_SIZE_DV; i++)
   {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4)
     bits_out[i] = bits_in[i] & 0xFFFFFFFFFFFFFF00ULL;

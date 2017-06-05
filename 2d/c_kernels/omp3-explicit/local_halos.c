@@ -116,9 +116,9 @@ void update_top(
         const int depth, 
         double_vector* buffer)
 {
+#pragma omp parallel for
     for(int jj = 0; jj < depth; ++jj)
     {
-#pragma omp parallel for
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             dv_copy_value(buffer, buffer, kk, y-halo_depth+jj, kk, y-halo_depth-1-jj);
@@ -135,9 +135,9 @@ void update_bottom(
         const int depth, 
         double_vector* buffer)
 {
+#pragma omp parallel for
     for(int jj = 0; jj < depth; ++jj)
     {
-#pragma omp parallel for
         for(int kk = halo_depth; kk < x-halo_depth; ++kk)
         {
             dv_copy_value(buffer, buffer, kk, halo_depth-jj-1, kk, halo_depth+jj);

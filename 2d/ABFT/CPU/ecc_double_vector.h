@@ -10,6 +10,8 @@
 #include <inttypes.h>
 #include "ecc_64bit.h"
 
+#define WIDE_SIZE_DV 1
+
 static inline double check_ecc_double(double * in, uint32_t * flag)
 {
   uint64_t all_bits = *((uint64_t*)in);

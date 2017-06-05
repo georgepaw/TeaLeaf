@@ -5,7 +5,7 @@
 #include <inttypes.h>
 
 #include "ecc_128bit.h"
-#define DOUBLE_VECTOR_SECDED_ELEMENTS 2
+#define WIDE_SIZE_DV 2
 
 #if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
 # pragma GCC diagnostic ignored "-Wstrict-aliasing"
