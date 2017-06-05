@@ -199,7 +199,7 @@ void cg_calc_w_check(
       }
 
       dv_set_value(w, tmp, kk, jj);
-      pw_temp += tmp*dv_get_value(p, kk, jj);
+      pw_temp += tmp*dv_get_value_new(p, kk, offset, jj);
     }
     //flush output
     dv_flush_new(w, start, jj);
@@ -234,7 +234,7 @@ void cg_calc_w_check(
         }
 
         dv_set_value(w, tmp, kk, jj);
-        pw_temp += tmp*dv_get_value(p, kk, jj);
+        pw_temp += tmp*dv_get_value_new(p, kk, offset, jj);
       }
       //flush output
       dv_flush_new(w, outer_kk, jj);
