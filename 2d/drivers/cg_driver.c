@@ -48,7 +48,7 @@ void cg_driver(
     cg_main_step_driver(chunks, settings, tt, &rro, error);
 
     halo_update_driver(chunks, settings, 1);
-
+    // if(tt == 0) exit(-1);
     if(sqrt(fabs(*error)) < settings->eps * settings->initial_residual) break;
   }
 
