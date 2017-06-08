@@ -35,7 +35,7 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
   {
     if(syndrome)
     {
-      int32_t bit_position = get_fliped_bit_location_int_wide_128bit_64bit(syndrome);
+      int32_t bit_position = get_fliped_bit_location_int_wide_64bit(syndrome);
       if(bit_position < 0)
       {
         printf("Uncorrectable error with odd number of bitflips\n");
