@@ -30,14 +30,14 @@ typedef struct
   double ** dv_stencil_plus_one;
   double ** dv_stencil_middle;
   double ** dv_stencil_minus_one;
-  uint32_t ** dv_buffer_start_x;
-  uint32_t ** dv_buffer_y;
+  uint32_t ** dv_stencil_x;
+  uint32_t ** dv_stencil_y;
   uint32_t ** dv_to_write_num_elements;
   uint32_t ** dv_to_write_start_x;
   uint32_t ** dv_to_write_y;
   uint32_t ** dv_stencil_offset;
-  uint32_t ** dv_stencil_x;
-  uint32_t ** dv_stencil_y;
+  uint32_t ** dv_buffer_start_x;
+  uint32_t ** dv_buffer_y;
 #endif
   double * vals;
   const uint32_t x;
@@ -113,9 +113,9 @@ static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32
     (*vector)->dv_to_write_num_elements[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_to_write_start_x[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_to_write_y[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
-    (*vector)->dv_stencil_plus_one[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV) + WIDE_SIZE_DV));
-    (*vector)->dv_stencil_middle[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(3, WIDE_SIZE_DV) + WIDE_SIZE_DV));
-    (*vector)->dv_stencil_minus_one[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV) + WIDE_SIZE_DV));
+    (*vector)->dv_stencil_plus_one[thread_id] = (double*)malloc(sizeof(double) * 2 * WIDE_SIZE_DV);
+    (*vector)->dv_stencil_middle[thread_id] = (double*)malloc(sizeof(double) * 3 * WIDE_SIZE_DV);
+    (*vector)->dv_stencil_minus_one[thread_id] = (double*)malloc(sizeof(double) * 2 * WIDE_SIZE_DV);
     (*vector)->dv_stencil_offset[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_stencil_x[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_stencil_y[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
@@ -174,6 +174,104 @@ static inline double dv_access_stencil(double_vector * vector, const uint32_t x,
   return mask_double(val);
 #endif
 }
+
+static inline double dv_access_stencil_manual(double_vector * vector, const uint32_t x, const uint32_t y)
+{
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
+  uint32_t thread_id = omp_get_thread_num();
+
+  const uint32_t x_to_access = x - vector->dv_stencil_x[thread_id][0];
+  if(y == vector->dv_stencil_y[thread_id][0] + 1)
+  {
+    return mask_double(vector->dv_stencil_plus_one[thread_id][x_to_access]);
+  }
+  else if(y == vector->dv_stencil_y[thread_id][0] - 1)
+  {
+    return mask_double(vector->dv_stencil_minus_one[thread_id][x_to_access]);
+  }
+  else if(y == vector->dv_stencil_y[thread_id][0])
+  {
+    return mask_double(vector->dv_stencil_middle[thread_id][x_to_access + WIDE_SIZE_DV]);
+  }
+  return NAN;
+#else
+  uint32_t flag = 0;
+  double val = check_ecc_double(&(vector->vals[vector->x * y + x]), &flag);
+  if(flag) exit(-1);
+  return mask_double(val);
+#endif
+}
+
+static inline void dv_fetch_stencil_first_fetch(double_vector * vector, const uint32_t x, const uint32_t y)
+{
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
+  uint32_t thread_id = omp_get_thread_num();
+  //On the first fetch on a row for:
+  //y-1 and y+1 fetch from 0 to WIDE_SIZE_DV
+  //y fetch from 0 to WIDE_SIZE_DV + 1
+  uint32_t flag = 0;
+
+  check_ecc_double(vector->dv_stencil_plus_one[thread_id],
+             vector->vals + vector->x * (y + 1),
+             &flag);
+  if(flag) exit(-1);
+
+  check_ecc_double(vector->dv_stencil_minus_one[thread_id],
+             vector->vals + vector->x * (y - 1),
+             &flag);
+  if(flag) exit(-1);
+
+  check_ecc_double(vector->dv_stencil_middle[thread_id] + WIDE_SIZE_DV,
+             vector->vals + vector->x * y,
+             &flag);
+  if(flag) exit(-1);
+
+  check_ecc_double(vector->dv_stencil_middle[thread_id] + 2 * WIDE_SIZE_DV,
+             vector->vals + WIDE_SIZE_DV + vector->x * y,
+             &flag);
+  if(flag) exit(-1);
+
+  vector->dv_stencil_x[thread_id][0] = 0;
+  vector->dv_stencil_y[thread_id][0] = y;
+#endif
+}
+
+static inline void dv_fetch_stencil_next_fetch(double_vector * vector, const uint32_t x, const uint32_t y)
+{
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
+  uint32_t thread_id = omp_get_thread_num();
+  //On the first fetch on a row for:
+  //y-1 and y+1 fetch from 0 to WIDE_SIZE_DV
+  //y fetch from 0 to WIDE_SIZE_DV + 1
+  uint32_t flag = 0;
+
+  check_ecc_double(vector->dv_stencil_plus_one[thread_id],
+             vector->vals + x + vector->x * (y + 1),
+             &flag);
+  if(flag) exit(-1);
+
+  check_ecc_double(vector->dv_stencil_minus_one[thread_id],
+             vector->vals + x + vector->x * (y - 1),
+             &flag);
+  if(flag) exit(-1);
+
+  memcpy(vector->dv_stencil_middle[thread_id],
+         vector->dv_stencil_middle[thread_id] + WIDE_SIZE_DV,
+         sizeof(double) * WIDE_SIZE_DV);
+  memcpy(vector->dv_stencil_middle[thread_id] + WIDE_SIZE_DV,
+         vector->dv_stencil_middle[thread_id] + 2 * WIDE_SIZE_DV,
+         sizeof(double) * WIDE_SIZE_DV);
+
+  check_ecc_double(vector->dv_stencil_middle[thread_id] + 2 * WIDE_SIZE_DV,
+             vector->vals + x + WIDE_SIZE_DV + vector->x * y,
+             &flag);
+  if(flag) exit(-1);
+
+  vector->dv_stencil_x[thread_id][0] = x;
+  vector->dv_stencil_y[thread_id][0] = y;
+#endif
+}
+
 static inline void dv_fetch_stencil(double_vector * vector, const uint32_t x, const uint32_t y)
 {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
@@ -241,7 +339,7 @@ static inline void dv_set_value_no_rmw(double_vector * vector, const double valu
 #endif
 }
 
-static inline void dv_fetch_new(double_vector * vector, const uint32_t start_x, const uint32_t y, const uint32_t is_rmw)
+static inline void dv_fetch_manual(double_vector * vector, const uint32_t start_x, const uint32_t y, const uint32_t is_rmw)
 {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   uint32_t thread_id = omp_get_thread_num();
@@ -264,7 +362,7 @@ static inline void dv_fetch_new(double_vector * vector, const uint32_t start_x, 
 #endif
 }
 
-inline static void dv_flush_new(double_vector * vector, const uint32_t x, const uint32_t y)
+inline static void dv_flush_manual(double_vector * vector, const uint32_t x, const uint32_t y)
 {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   uint32_t thread_id = omp_get_thread_num();
@@ -276,7 +374,7 @@ inline static void dv_flush_new(double_vector * vector, const uint32_t x, const 
 #endif
 }
 
-static inline void dv_set_value_new(double_vector * vector, const double value, const uint32_t x, const uint32_t x_offset, const uint32_t y)
+static inline void dv_set_value_manual(double_vector * vector, const double value, const uint32_t x, const uint32_t x_offset, const uint32_t y)
 {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   uint32_t thread_id = omp_get_thread_num();
@@ -288,7 +386,7 @@ static inline void dv_set_value_new(double_vector * vector, const double value, 
 #endif
 }
 
-static inline double dv_get_value_new(double_vector * vector, const uint32_t x, const uint32_t x_offset, const uint32_t y)
+static inline double dv_get_value_manual(double_vector * vector, const uint32_t x, const uint32_t x_offset, const uint32_t y)
 {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   uint32_t thread_id = omp_get_thread_num();

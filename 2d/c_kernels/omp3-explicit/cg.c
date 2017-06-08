@@ -170,9 +170,11 @@ void cg_calc_w_check(
   {
     uint32_t start = halo_depth - (halo_depth % WIDE_SIZE_DV);
     // fetch input vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
-    dv_fetch_new(p, start, jj, 0);
+    dv_fetch_manual(p, start, jj, 0);
     // fetch output vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
-    dv_fetch_new(w, start, jj, 1);
+    dv_fetch_manual(w, start, jj, 1);
+    dv_fetch_stencil_first_fetch(p, halo_depth, jj);
+    // printf("going from halo_depth %u to %u\n", halo_depth - 1, ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV) + 1);
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
       const int row = kk + jj*x;
@@ -185,7 +187,7 @@ void cg_calc_w_check(
       csr_get_row_value(matrix, &row_end, row+1);
 
       csr_prefetch_csr_elements(matrix, row_begin);
-      dv_fetch_stencil(p, kk, jj);
+
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
         uint32_t col;
@@ -193,51 +195,49 @@ void cg_calc_w_check(
         csr_get_csr_element(matrix, &col, &val, idx);
         uint32_t t_x = col % x;
         uint32_t t_y = col / x;
-        double p_val = dv_access_stencil(p, t_x, t_y);
-        // double p_val = dv_get_value(p, t_x, t_y);
-        // printf("%u %u %lf\n", t_x, t_y, p_val);
+        double p_val = dv_access_stencil_manual(p, t_x, t_y);
         tmp += val * p_val;
       }
 
-      dv_set_value(w, tmp, kk, jj);
-      pw_temp += tmp*dv_get_value(p, kk, jj);
+      dv_set_value_manual(w, tmp, kk, offset, jj);
+      pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
     }
-    dv_flush_new(w, start, jj);
+    dv_flush_manual(w, start, jj);
 
     for(int outer_kk = ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); outer_kk < x-halo_depth; outer_kk+=WIDE_SIZE_DV)
     {
-      dv_fetch_new(p, outer_kk, jj, 0);
-      for(int kk = outer_kk, offset = 0; kk < outer_kk + WIDE_SIZE_DV && kk < x-halo_depth; ++kk, ++offset)
+    // printf("going from halo_depth %u to %u\n", outer_kk - 1, outer_kk + WIDE_SIZE_DV);
+      dv_fetch_manual(p, outer_kk, jj, 0);
+      dv_fetch_stencil_next_fetch(p, outer_kk, jj);
+      const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
+      for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {
-        
-      const int row = kk + jj*x;
+        const int row = kk + jj*x;
 
-      double tmp = 0.0;
+        double tmp = 0.0;
 
-      uint32_t row_begin;
-      csr_get_row_value(matrix, &row_begin, row);
-      uint32_t row_end;
-      csr_get_row_value(matrix, &row_end, row+1);
+        uint32_t row_begin;
+        csr_get_row_value(matrix, &row_begin, row);
+        uint32_t row_end;
+        csr_get_row_value(matrix, &row_end, row+1);
 
-      csr_prefetch_csr_elements(matrix, row_begin);
-      dv_fetch_stencil(p, kk, jj);
-      for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
-      {
-        uint32_t col;
-        double val;
-        csr_get_csr_element(matrix, &col, &val, idx);
-        uint32_t t_x = col % x;
-        uint32_t t_y = col / x;
-        double p_val = dv_access_stencil(p, t_x, t_y);
-        // double p_val = dv_get_value(p, t_x, t_y);
-        // printf("%u %u %lf\n", t_x, t_y, p_val);
-        tmp += val * p_val;
+        csr_prefetch_csr_elements(matrix, row_begin);
+        // dv_fetch_stencil(p, kk, jj);
+        for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
+        {
+          uint32_t col;
+          double val;
+          csr_get_csr_element(matrix, &col, &val, idx);
+          uint32_t t_x = col % x;
+          uint32_t t_y = col / x;
+          double p_val = dv_access_stencil_manual(p, t_x, t_y);
+          tmp += val * p_val;
+        }
+
+        dv_set_value_manual(w, tmp, kk, offset, jj);
+        pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
       }
-
-      dv_set_value(w, tmp, kk, jj);
-      pw_temp += tmp*dv_get_value(p, kk, jj);
-      }
-      dv_flush_new(w, outer_kk, jj);
+      dv_flush_manual(w, outer_kk, jj);
     }
   }
   *pw += pw_temp;
@@ -305,42 +305,43 @@ void cg_calc_ur(
   {
     uint32_t start = halo_depth - (halo_depth % WIDE_SIZE_DV);
     //fetch input vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
-    dv_fetch_new(u, start, jj, 0);
-    dv_fetch_new(p, start, jj, 0);
-    dv_fetch_new(r, start, jj, 0);
-    dv_fetch_new(w, start, jj, 0);
+    dv_fetch_manual(u, start, jj, 0);
+    dv_fetch_manual(p, start, jj, 0);
+    dv_fetch_manual(r, start, jj, 0);
+    dv_fetch_manual(w, start, jj, 0);
     //fetch output vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
-    dv_fetch_new(u, start, jj, 1);
-    dv_fetch_new(r, start, jj, 1);
+    dv_fetch_manual(u, start, jj, 1);
+    dv_fetch_manual(r, start, jj, 1);
 
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
-      dv_set_value_new(u, dv_get_value_new(u, kk, offset, jj) + alpha*dv_get_value_new(p, kk, offset, jj), kk, offset, jj);
-      double r_temp = dv_get_value_new(r, kk, offset, jj) - alpha*dv_get_value_new(w, kk, offset, jj);
-      dv_set_value_new(r, r_temp, kk, offset, jj);
+      dv_set_value_manual(u, dv_get_value_manual(u, kk, offset, jj) + alpha*dv_get_value_manual(p, kk, offset, jj), kk, offset, jj);
+      double r_temp = dv_get_value_manual(r, kk, offset, jj) - alpha*dv_get_value_manual(w, kk, offset, jj);
+      dv_set_value_manual(r, r_temp, kk, offset, jj);
       rrn_temp += r_temp*r_temp;
     }
     //flush output
-    dv_flush_new(u, start, jj);
-    dv_flush_new(r, start, jj);
+    dv_flush_manual(u, start, jj);
+    dv_flush_manual(r, start, jj);
     for(int outer_kk = ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); outer_kk < x-halo_depth; outer_kk+=WIDE_SIZE_DV)
     {
       //fetch inputs
-      dv_fetch_new(u, outer_kk, jj, 0);
-      dv_fetch_new(p, outer_kk, jj, 0);
-      dv_fetch_new(r, outer_kk, jj, 0);
-      dv_fetch_new(w, outer_kk, jj, 0);
+      dv_fetch_manual(u, outer_kk, jj, 0);
+      dv_fetch_manual(p, outer_kk, jj, 0);
+      dv_fetch_manual(r, outer_kk, jj, 0);
+      dv_fetch_manual(w, outer_kk, jj, 0);
 
-      for(int kk = outer_kk, offset = 0; kk < outer_kk + WIDE_SIZE_DV && kk < x-halo_depth; ++kk, ++offset)
+      const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
+      for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {
-        dv_set_value_new(u, dv_get_value_new(u, kk, offset, jj) + alpha*dv_get_value_new(p, kk, offset, jj), kk, offset, jj);
-        double r_temp = dv_get_value_new(r, kk, offset, jj) - alpha*dv_get_value_new(w, kk, offset, jj);
-        dv_set_value_new(r, r_temp, kk, offset, jj);
+        dv_set_value_manual(u, dv_get_value_manual(u, kk, offset, jj) + alpha*dv_get_value_manual(p, kk, offset, jj), kk, offset, jj);
+        double r_temp = dv_get_value_manual(r, kk, offset, jj) - alpha*dv_get_value_manual(w, kk, offset, jj);
+        dv_set_value_manual(r, r_temp, kk, offset, jj);
         rrn_temp += r_temp*r_temp;
       }
       //flush output
-      dv_flush_new(u, outer_kk, jj);
-      dv_flush_new(r, outer_kk, jj);
+      dv_flush_manual(u, outer_kk, jj);
+      dv_flush_manual(r, outer_kk, jj);
 
     }
   }
@@ -362,27 +363,28 @@ void cg_calc_p(
   {
     uint32_t start = halo_depth - (halo_depth % WIDE_SIZE_DV);
     // fetch input vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
-    dv_fetch_new(p, start, jj, 0);
-    dv_fetch_new(r, start, jj, 0);
+    dv_fetch_manual(p, start, jj, 0);
+    dv_fetch_manual(r, start, jj, 0);
     // fetch output vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
-    dv_fetch_new(p, start, jj, 1);
+    dv_fetch_manual(p, start, jj, 1);
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
-      double val = beta*dv_get_value_new(p, kk, offset, jj) + dv_get_value_new(r, kk, offset, jj);
-      dv_set_value_new(p, val, kk, offset, jj);
+      double val = beta*dv_get_value_manual(p, kk, offset, jj) + dv_get_value_manual(r, kk, offset, jj);
+      dv_set_value_manual(p, val, kk, offset, jj);
     }
-    dv_flush_new(p, start, jj);
+    dv_flush_manual(p, start, jj);
 
     for(int outer_kk = ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); outer_kk < x-halo_depth; outer_kk+=WIDE_SIZE_DV)
     {
-      dv_fetch_new(p, outer_kk, jj, 0);
-      dv_fetch_new(r, outer_kk, jj, 0);
-      for(int kk = outer_kk, offset = 0; kk < outer_kk + WIDE_SIZE_DV && kk < x-halo_depth; ++kk, ++offset)
+      dv_fetch_manual(p, outer_kk, jj, 0);
+      dv_fetch_manual(r, outer_kk, jj, 0);
+      const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
+      for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {
-        double val = beta*dv_get_value_new(p, kk, offset, jj) + dv_get_value_new(r, kk, offset, jj);
-        dv_set_value_new(p, val, kk, offset, jj);
+        double val = beta*dv_get_value_manual(p, kk, offset, jj) + dv_get_value_manual(r, kk, offset, jj);
+        dv_set_value_manual(p, val, kk, offset, jj);
       }
-      dv_flush_new(p, outer_kk, jj);
+      dv_flush_manual(p, outer_kk, jj);
     }
   }
 }
