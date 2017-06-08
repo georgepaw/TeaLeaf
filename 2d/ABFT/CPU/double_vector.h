@@ -27,15 +27,14 @@ typedef struct
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   double ** dv_buffered_vals;
   double ** dv_vals_to_write;
+  double ** dv_stencil_plus_one;
+  double ** dv_stencil_middle;
+  double ** dv_stencil_minus_one;
   uint32_t ** dv_buffer_start_x;
   uint32_t ** dv_buffer_y;
   uint32_t ** dv_to_write_num_elements;
   uint32_t ** dv_to_write_start_x;
   uint32_t ** dv_to_write_y;
-  double ** dv_stencil_plus_one;
-  double ** dv_stencil_middle;
-  double ** dv_stencil_minus_one;
-  uint32_t ** dv_stencil_offset_middle;
   uint32_t ** dv_stencil_offset;
   uint32_t ** dv_stencil_x;
   uint32_t ** dv_stencil_y;
@@ -101,7 +100,6 @@ static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32
   (*vector)->dv_stencil_plus_one = (double**)malloc(sizeof(double*) * num_threads);
   (*vector)->dv_stencil_middle = (double**)malloc(sizeof(double*) * num_threads);
   (*vector)->dv_stencil_minus_one = (double**)malloc(sizeof(double*) * num_threads);
-  (*vector)->dv_stencil_offset_middle = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   (*vector)->dv_stencil_offset = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   (*vector)->dv_stencil_x = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   (*vector)->dv_stencil_y = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
@@ -115,10 +113,9 @@ static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32
     (*vector)->dv_to_write_num_elements[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_to_write_start_x[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_to_write_y[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
-    (*vector)->dv_stencil_plus_one[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(5, WIDE_SIZE_DV)));
-    (*vector)->dv_stencil_middle[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(7, WIDE_SIZE_DV) + 1));
-    (*vector)->dv_stencil_minus_one[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(5, WIDE_SIZE_DV)));
-    (*vector)->dv_stencil_offset_middle[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
+    (*vector)->dv_stencil_plus_one[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV) + WIDE_SIZE_DV));
+    (*vector)->dv_stencil_middle[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(3, WIDE_SIZE_DV) + WIDE_SIZE_DV));
+    (*vector)->dv_stencil_minus_one[thread_id] = (double*)malloc(sizeof(double) * (ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV) + WIDE_SIZE_DV));
     (*vector)->dv_stencil_offset[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_stencil_x[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     (*vector)->dv_stencil_y[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
@@ -128,7 +125,6 @@ static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32
     (*vector)->dv_to_write_num_elements[thread_id][0] = 0;
     (*vector)->dv_to_write_start_x[thread_id][0] = x;
     (*vector)->dv_to_write_y[thread_id][0] = y;
-    (*vector)->dv_stencil_offset_middle[thread_id][0] = 100;
     (*vector)->dv_stencil_offset[thread_id][0] = 100;
     (*vector)->dv_stencil_x[thread_id][0] = x;
     (*vector)->dv_stencil_y[thread_id][0] = y;
@@ -150,25 +146,27 @@ static inline double dv_access_stencil(double_vector * vector, const uint32_t x,
 {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   uint32_t thread_id = omp_get_thread_num();
+  const uint32_t offset = vector->dv_stencil_offset[thread_id][0];
   if(y == vector->dv_stencil_y[thread_id][0] + 1)
   {
-    uint32_t x_to_access = vector->dv_stencil_offset[thread_id][0]
+    uint32_t x_to_access = offset
                           + x - vector->dv_stencil_x[thread_id][0];
     return mask_double(vector->dv_stencil_plus_one[thread_id][x_to_access]);
   }
   else if(y == vector->dv_stencil_y[thread_id][0] - 1)
   {
-    uint32_t x_to_access = vector->dv_stencil_offset[thread_id][0]
+    uint32_t x_to_access = offset
                           + x - vector->dv_stencil_x[thread_id][0];
     return mask_double(vector->dv_stencil_minus_one[thread_id][x_to_access]);
   }
   else if(y == vector->dv_stencil_y[thread_id][0])
   {
-    uint32_t x_to_access = vector->dv_stencil_offset_middle[thread_id][0]
-                          + x - vector->dv_stencil_x[thread_id][0] + 1;
+    const uint32_t offset_middle = offset > 0 ? offset - 1 : WIDE_SIZE_DV - 1;
+    uint32_t x_to_access = offset_middle
+                          + x + 1 - vector->dv_stencil_x[thread_id][0];
     return mask_double(vector->dv_stencil_middle[thread_id][x_to_access]);
   }
-  return NaN;
+  return NAN;
 #else
   uint32_t flag = 0;
   double val = check_ecc_double(&(vector->vals[vector->x * y + x]), &flag);
@@ -181,51 +179,43 @@ static inline void dv_fetch_stencil(double_vector * vector, const uint32_t x, co
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   uint32_t thread_id = omp_get_thread_num();
 
-  uint32_t offset = x % WIDE_SIZE_DV;
-  uint32_t start_x = x - offset;
-
-  uint32_t offset_middle = x > 0 ? (x - 1) % WIDE_SIZE_DV : WIDE_SIZE_DV - 1;
-  uint32_t start_x_minus_one = (x - 1) - offset_middle;
+  const uint32_t offset = x % WIDE_SIZE_DV;
+  const uint32_t start_x = x - offset;
 
   uint32_t flag = 0;
 
-  //fetch the plus one y row
-  for(uint32_t i = 0; i < 1; i += 1)
+  for(uint32_t read_loc = start_x, write_loc=0; read_loc < x + 1; read_loc+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
   {
-    vector->dv_stencil_plus_one[thread_id][i] = dv_get_value(vector, x + i, y + 1);
-    // check_ecc_double(vector->dv_stencil_plus_one[thread_id] + i,
-    //                  vector->vals + start_x + vector->x * (y + 1) + i,
-    //                  &flag);
-    // if(flag) exit(-1);
-  }
-  //fetch the minus one y row
-  for(uint32_t i = 0; i < 1; i += 1)
-  {
-    vector->dv_stencil_minus_one[thread_id][i] = dv_get_value(vector, x + i, y - 1);
-    // check_ecc_double(vector->dv_stencil_minus_one[thread_id] + i,
-    //                  vector->vals + start_x + vector->x * (y - 1) + i,
-    //                  &flag);
-    // if(flag) exit(-1);
+    check_ecc_double(vector->dv_stencil_plus_one[thread_id] + write_loc,
+               vector->vals + read_loc + vector->x * (y + 1),
+               &flag);
+    if(flag) exit(-1);
   }
 
-  for(uint32_t i = 0; i < 3; i += 1)
+  for(uint32_t read_loc = start_x, write_loc=0; read_loc < x + 1; read_loc+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
   {
-    vector->dv_stencil_middle[thread_id][i] = dv_get_value(vector, x - 1 + i, y);
-  //   check_ecc_double(vector->dv_stencil_middle[thread_id] + i,
-  //                    vector->vals + start_x_minus_one + vector->x * y + i,
-  //                    &flag);
-    // if(flag) exit(-1);
+    check_ecc_double(vector->dv_stencil_minus_one[thread_id] + write_loc,
+               vector->vals + read_loc + vector->x * (y - 1),
+               &flag);
+    if(flag) exit(-1);
   }
-  vector->dv_stencil_offset[thread_id][0] = 0;
-  vector->dv_stencil_offset_middle[thread_id][0] = 0;
+
+
+  const uint32_t offset_middle = offset > 0 ? offset - 1 : WIDE_SIZE_DV - 1;
+  const uint32_t start_x_middle = (x - 1) - offset_middle;
+
+  const uint32_t step = WIDE_SIZE_DV;
+  for(uint32_t i = start_x_middle, write_loc = 0; i < x + 2; i+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
+  {
+    check_ecc_double(vector->dv_stencil_middle[thread_id] + write_loc,
+               vector->vals + i + vector->x * y,
+               &flag);
+    if(flag) exit(-1);
+  }
+
+  vector->dv_stencil_offset[thread_id][0] = offset;
   vector->dv_stencil_x[thread_id][0] = x;
   vector->dv_stencil_y[thread_id][0] = y;
-
-  // printf("%u %u %lf\n", x, y-1, vector->dv_stencil_minus_one[thread_id][0]);
-  // printf("%u %u %lf\n", x-1, y, vector->dv_stencil_middle[thread_id][0]);
-  // printf("%u %u %lf\n", x, y, vector->dv_stencil_middle[thread_id][1]);
-  // printf("%u %u %lf\n", x+1, y, vector->dv_stencil_middle[thread_id][2]);
-  // printf("%u %u %lf\n", x, y+1, vector->dv_stencil_plus_one[thread_id][0]);
 #endif
 }
 
@@ -340,20 +330,6 @@ static inline void dv_set_value(double_vector * vector, const double value, cons
 #endif
 }
 
-// static inline void dv_set_values(double_vector * vector, const double * value_start, const uint32_t start_index, const uint32_t num_elements)
-// {
-//   for(uint32_t i = 0; i < num_elements; i++)
-//   {
-//     dv_set_value(vector, value_start[i], start_index + i);
-//   }
-// }
-
-#include <stdio.h>
-#include <execinfo.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 inline static void dv_prefetch(double_vector * vector, const uint32_t start_x, const uint32_t y)
 {
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
@@ -364,20 +340,7 @@ inline static void dv_prefetch(double_vector * vector, const uint32_t start_x, c
   check_ecc_double(vector->dv_buffered_vals[thread_id],
                    vector->vals + start_x + vector->x * y,
                    &flag);
-  // for(uint32_t i =0 ; i < WIDE_SIZE_DV; i++)
-  //   vector->dv_buffered_vals[thread_id][i] = vector->vals[i + start_x + vector->x * y];
-  if(flag)
-      exit(-1);
-  //   {
-  //     printf("info: %s:%d: x:%u y:%u\n", __FILE__, __LINE__, start_x, y);
-  //     printf("%lf %lf\n", vector->dv_buffered_vals[thread_id][0], vector->dv_buffered_vals[thread_id][1]);
-  //     void *array[10];
-  //     size_t size;
-
-  //     // get void*'s for all entries on the stack
-  //     size = backtrace(array, 10);
-  //     backtrace_symbols_fd(array, size, STDERR_FILENO);
-  //   }
+  if(flag) exit(-1);
 #endif
 }
 
