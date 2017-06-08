@@ -95,6 +95,10 @@ void kernel_initialise(
   }
   CSR_MATRIX_FLUSH_WRITES_INT_VECTOR(matrix);
 
+#ifdef INJECT_FAULT
+    srand(time(NULL));
+#endif
+
   uint32_t nnz;
   csr_get_row_value(matrix, &nnz, x*y);
   csr_set_nnz(matrix, nnz);

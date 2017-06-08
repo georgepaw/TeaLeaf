@@ -71,7 +71,7 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
     // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
     if(!correct_crc)
     {
-      (*flag)++
+      (*flag)++;
       return; //can't correct when using intervals
     }
 #endif

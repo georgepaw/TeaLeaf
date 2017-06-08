@@ -7,13 +7,13 @@
 #include <omp.h>
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#include "../../ABFT/CPU/crc_csr_element.h"
+#include "crc_csr_element.h"
 #define CSR_ELEMENT_NUM_ELEMENTS 5
 #elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-#include "../../ABFT/CPU/ecc_csr_element.h"
+#include "ecc_csr_element.h"
 #define CSR_ELEMENT_NUM_ELEMENTS 1
 #else
-#include "../../ABFT/CPU/no_ecc_csr_element.h"
+#include "no_ecc_csr_element.h"
 #define CSR_ELEMENT_NUM_ELEMENTS 1
 #endif
 

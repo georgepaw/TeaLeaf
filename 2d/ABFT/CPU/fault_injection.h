@@ -112,7 +112,7 @@ static void inject_bitflips_double_vector(double_vector * vector, const uint32_t
   //only inject faults on one rank
   if(mpi_rank != FAULT_INJECTION_RANK) return;
 #endif
-  uint32_t start_index = 9021;
+  uint32_t start_index = 4114;
   uint32_t elemts_to_flip = 1;
   int num_flips_per_elem = 1;
   if(iteration == FAULT_INJECTION_ITTERATION)
