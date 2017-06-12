@@ -29,9 +29,13 @@
 
 typedef struct
 {
-  double * val_vector;
-  uint32_t * row_vector;
-  uint32_t * col_vector;
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
+  uint32_t ** int_vector_buffered_rows;
+  uint32_t ** int_vector_rows_to_write;
+  uint32_t ** int_vector_buffer_start_index;
+  uint32_t ** int_vector_to_write_num_elements;
+  uint32_t ** int_vector_to_write_start_index;
+#endif
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
   //buffers for cached reading and writing
   //each thread needs own copy of buffers
@@ -43,13 +47,9 @@ typedef struct
   uint32_t ** csr_element_to_write_num_elements;
   uint32_t ** csr_element_to_write_start_index;
 #endif
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-  uint32_t ** int_vector_buffered_rows;
-  uint32_t ** int_vector_rows_to_write;
-  uint32_t ** int_vector_buffer_start_index;
-  uint32_t ** int_vector_to_write_num_elements;
-  uint32_t ** int_vector_to_write_start_index;
-#endif
+  double * val_vector;
+  uint32_t * col_vector;
+  uint32_t * row_vector;
   uint32_t num_rows;
   uint32_t nnz;
   uint32_t x;
@@ -73,9 +73,9 @@ if(1){ \
   row = row > nnz ? nnz - 1 : row; \
 } else
 
-#define COLUMN_CHECK(col, x, y) \
+#define COLUMN_CHECK(col, matrix) \
 if(1){ \
-  col = col >= x*y ? x*y - 1 : col; \
+  col = col >= matrix->num_rows ? matrix->num_rows - 2 : col; \
 } else
 
 inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x, const uint32_t y);
@@ -331,7 +331,7 @@ inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * 
   *col_dest = matrix->col_vector[index];
   *val_dest = matrix->val_vector[index];
   mask_csr_element(col_dest, val_dest);
-  COLUMN_CHECK(*col_dest, matrix->x, matrix->y);
+  COLUMN_CHECK(*col_dest, matrix);
 }
 
 inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_id)
