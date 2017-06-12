@@ -5,7 +5,7 @@
 #include <inttypes.h>
 
 #include "crc32c.h"
-#define INT_VECTOR_SECDED_ELEMENTS 8
+#define WIDE_SIZE_INT 8
 
 static inline uint32_t generate_crc32c_bits_int(uint32_t * rows_out)
 {
@@ -17,7 +17,7 @@ static inline uint32_t generate_crc32c_bits_int(uint32_t * rows_out)
   SPLIT_BY_16_INNER(crc, crc, data);
 #elif defined(INTEL_ASM)
   //use Intel assembly code to accelerate crc calculations
-  crc = crc_pcl((const uint8_t*)vals, INT_VECTOR_SECDED_ELEMENTS * sizeof(uint32_t), crc);
+  crc = crc_pcl((const uint8_t*)vals, WIDE_SIZE_INT * sizeof(uint32_t), crc);
 #else
   uint64_t * data = (uint64_t*)rows_out;
   CRC32CD(crc, crc, data[0]);
@@ -32,7 +32,7 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
 {
   uint32_t prev_crc = 0;
 
-  for(int i = 0; i < INT_VECTOR_SECDED_ELEMENTS; i++)
+  for(int i = 0; i < WIDE_SIZE_INT; i++)
   {
     prev_crc |= (rows_in[i] & 0xF0000000U)>>(4*i);
     rows_out[i] = rows_in[i] & 0x0FFFFFFFU;
@@ -54,7 +54,7 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
 
 static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
 {
-  for(int i = 0; i < INT_VECTOR_SECDED_ELEMENTS; i++)
+  for(int i = 0; i < WIDE_SIZE_INT; i++)
   {
     rows_out[i] = rows_in[i];
     if(rows_in[i] & 0xF0000000)

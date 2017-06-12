@@ -174,7 +174,7 @@ void cg_calc_w_check(
     // fetch output vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
     dv_fetch_manual(w, start, jj, 1);
     dv_fetch_stencil_first_fetch(p, halo_depth, jj);
-    csr_fetch_rows(matrix, jj*x, jj*x + WIDE_SIZE_DV + 1);
+    csr_fetch_rows_first(matrix, jj*x + start, jj*x + start + WIDE_SIZE_DV + 1);
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
       const int row = kk + jj*x;
@@ -208,7 +208,7 @@ void cg_calc_w_check(
     {
       dv_fetch_manual(p, outer_kk, jj, 0);
       dv_fetch_stencil_next_fetch(p, outer_kk, jj);
-      csr_fetch_rows(matrix, outer_kk + jj*x, outer_kk + jj*x + WIDE_SIZE_DV + 1);
+      csr_fetch_rows_next(matrix, outer_kk + jj*x);
       const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
       for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {

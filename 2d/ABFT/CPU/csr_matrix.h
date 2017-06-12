@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <omp.h>
+#include "double_vector.h"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
 #include "crc_csr_element.h"
@@ -43,6 +44,7 @@ typedef struct
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   uint32_t ** int_vector_buffered_rows;
   uint32_t ** int_vector_buffered_rows_offset;
+  uint32_t ** int_vector_buffered_rows_num_elements;
   uint32_t ** int_vector_rows_to_write;
   uint32_t ** int_vector_buffer_start_index;
   uint32_t ** int_vector_to_write_num_elements;
@@ -105,7 +107,7 @@ inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x,
   //make sure the number of rows is a multiple oh how many rows are accessed at the time
   uint32_t num_rows_to_allocate = num_rows;
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-  num_rows_to_allocate += num_rows % INT_VECTOR_SECDED_ELEMENTS;
+  num_rows_to_allocate += num_rows % WIDE_SIZE_INT;
 #endif
   matrix->row_vector = (uint32_t*)malloc(sizeof(uint32_t) * num_rows_to_allocate);
   if(matrix->row_vector == NULL) exit(-1);
@@ -114,6 +116,7 @@ inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x,
   uint32_t num_threads = omp_get_max_threads();
   matrix->int_vector_buffered_rows = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   matrix->int_vector_buffered_rows_offset = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
+  matrix->int_vector_buffered_rows_num_elements = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   matrix->int_vector_rows_to_write = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   matrix->int_vector_buffer_start_index = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
   matrix->int_vector_to_write_num_elements = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
@@ -123,7 +126,8 @@ inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x,
     uint32_t thread_id = omp_get_thread_num();
     matrix->int_vector_buffered_rows[thread_id] = (uint32_t*)malloc(sizeof(uint32_t) * 16);
     matrix->int_vector_buffered_rows_offset[thread_id] = (uint32_t*)malloc(sizeof(uint32_t) * 1);
-    matrix->int_vector_rows_to_write[thread_id] = (uint32_t*)malloc(sizeof(uint32_t) * INT_VECTOR_SECDED_ELEMENTS);
+    matrix->int_vector_buffered_rows_num_elements[thread_id] = (uint32_t*)malloc(sizeof(uint32_t) * 1);
+    matrix->int_vector_rows_to_write[thread_id] = (uint32_t*)malloc(sizeof(uint32_t) * WIDE_SIZE_INT);
     matrix->int_vector_buffer_start_index[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     matrix->int_vector_to_write_num_elements[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
     matrix->int_vector_to_write_start_index[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
@@ -184,7 +188,7 @@ inline static void csr_set_row_value(csr_matrix * matrix, const uint32_t row, co
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   //TODO this assumes that items are added in order
   uint32_t thread_id = omp_get_thread_num();
-  uint32_t offset = index % INT_VECTOR_SECDED_ELEMENTS;
+  uint32_t offset = index % WIDE_SIZE_INT;
   uint32_t row_start = index - offset;
 
   if(row_start != matrix->int_vector_to_write_start_index[thread_id][0])
@@ -241,21 +245,71 @@ inline static void csr_set_csr_element_values(csr_matrix * matrix, const uint32_
   }
 }
 
-inline static void csr_fetch_rows(csr_matrix * matrix, const uint32_t from, const uint32_t to)
+inline static void csr_fetch_rows_first(csr_matrix * matrix, const uint32_t from, const uint32_t to)
 {
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   uint32_t thread_id = omp_get_thread_num();
-  uint32_t offset = from % INT_VECTOR_SECDED_ELEMENTS;
+  uint32_t offset = from % WIDE_SIZE_INT;
   uint32_t row_start = from - offset;
   uint32_t flag = 0;
-  for(uint32_t read_loc = row_start, write_loc=0; read_loc < to + 1; read_loc+=INT_VECTOR_SECDED_ELEMENTS, write_loc+=INT_VECTOR_SECDED_ELEMENTS)
+  uint32_t num_elements = 0;
+  for(uint32_t read_loc = row_start, write_loc = 0; read_loc < to + 1; read_loc+=WIDE_SIZE_INT, write_loc+=WIDE_SIZE_INT)
   {
     check_ecc_int(matrix->int_vector_buffered_rows[thread_id] + write_loc,
                   matrix->row_vector + read_loc,
                   &flag);
     if(flag) exit(-1);
+    num_elements++;
   }
   matrix->int_vector_buffered_rows_offset[thread_id][0] = offset;
+  matrix->int_vector_buffered_rows_num_elements[thread_id][0] = num_elements;
+#endif
+}
+
+inline static void csr_fetch_rows_next(csr_matrix * matrix, const uint32_t from)
+{
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
+  uint32_t thread_id = omp_get_thread_num();
+  uint32_t offset = from % WIDE_SIZE_INT;
+  uint32_t row_start = from - offset;
+  uint32_t flag = 0;
+#if WIDE_SIZE_INT > WIDE_SIZE_DV
+  // uint32_t position = matrix->int_vector_buffered_rows_offset[thread_id][0] + WIDE_SIZE_DV;
+  // if(position != offset) printf("Intersting %u %u\n", offset, position);
+  if(offset == WIDE_SIZE_INT - WIDE_SIZE_DV)
+  {
+    // printf("Fetch from %u offset %u\n", from, offset);
+
+    check_ecc_int(matrix->int_vector_buffered_rows[thread_id] + WIDE_SIZE_INT,
+                  matrix->row_vector + row_start + WIDE_SIZE_INT,
+                  &flag);
+    if(flag) exit(-1);
+    matrix->int_vector_buffered_rows_num_elements[thread_id][0] = 2;
+  }
+  else if(offset == 0)
+  {
+    memcpy(matrix->int_vector_buffered_rows[thread_id],
+         matrix->int_vector_buffered_rows[thread_id] + (matrix->int_vector_buffered_rows_num_elements[thread_id][0] - 1) * WIDE_SIZE_INT,
+         sizeof(uint32_t) * WIDE_SIZE_INT);
+    matrix->int_vector_buffered_rows_num_elements[thread_id][0] = 1;
+  }
+  matrix->int_vector_buffered_rows_offset[thread_id][0] = offset;
+#else
+  memcpy(matrix->int_vector_buffered_rows[thread_id],
+         matrix->int_vector_buffered_rows[thread_id] + (matrix->int_vector_buffered_rows_num_elements[thread_id][0] - 1) * WIDE_SIZE_INT,
+         sizeof(uint32_t) * WIDE_SIZE_INT);
+  uint32_t num_elements = 1;
+  for(uint32_t read_loc = row_start + WIDE_SIZE_INT, write_loc = WIDE_SIZE_INT; read_loc < from + WIDE_SIZE_DV + 1; read_loc+=WIDE_SIZE_INT, write_loc+=WIDE_SIZE_INT)
+  {
+    check_ecc_int(matrix->int_vector_buffered_rows[thread_id] + write_loc,
+                  matrix->row_vector + read_loc,
+                  &flag);
+    if(flag) exit(-1);
+    num_elements++;
+  }
+  matrix->int_vector_buffered_rows_offset[thread_id][0] = offset;
+  matrix->int_vector_buffered_rows_num_elements[thread_id][0] = num_elements;
+#endif
 #endif
 }
 
@@ -290,7 +344,7 @@ inline static void csr_get_row_value(csr_matrix * matrix, uint32_t * val_dest, c
 {
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   uint32_t thread_id = omp_get_thread_num();
-  uint32_t offset = index % INT_VECTOR_SECDED_ELEMENTS;
+  uint32_t offset = index % WIDE_SIZE_INT;
   uint32_t row_start = index - offset;
   if(row_start != matrix->int_vector_buffer_start_index[thread_id][0]) csr_prefetch_rows(matrix, row_start);
   *val_dest = mask_int(matrix->int_vector_buffered_rows[thread_id][offset]);

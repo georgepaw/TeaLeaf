@@ -6,10 +6,10 @@
 
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64)
 #include "ecc_64bit.h"
-#define INT_VECTOR_SECDED_ELEMENTS 2
+#define WIDE_SIZE_INT 2
 #elif defined(ABFT_METHOD_INT_VECTOR_SECDED128)
 #include "ecc_128bit.h"
-#define INT_VECTOR_SECDED_ELEMENTS 4
+#define WIDE_SIZE_INT 4
 #else
 
 #endif
