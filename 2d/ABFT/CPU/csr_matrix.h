@@ -29,13 +29,16 @@
 
 typedef struct
 {
+  double * val_vector;
+  uint32_t * row_vector;
+  uint32_t * col_vector;
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
   //buffers for cached reading and writing
   //each thread needs own copy of buffers
-  uint32_t ** csr_element_buffered_cols;
-  uint32_t ** csr_element_cols_to_write;
   double ** csr_element_buffered_vals;
   double ** csr_element_vals_to_write;
+  uint32_t ** csr_element_buffered_cols;
+  uint32_t ** csr_element_cols_to_write;
   uint32_t ** csr_element_buffer_start_index;
   uint32_t ** csr_element_to_write_num_elements;
   uint32_t ** csr_element_to_write_start_index;
@@ -47,9 +50,6 @@ typedef struct
   uint32_t ** int_vector_to_write_num_elements;
   uint32_t ** int_vector_to_write_start_index;
 #endif
-  uint32_t * row_vector;
-  uint32_t * col_vector;
-  double * val_vector;
   uint32_t num_rows;
   uint32_t nnz;
   uint32_t x;

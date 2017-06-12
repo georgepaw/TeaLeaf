@@ -15,7 +15,7 @@
 # pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 
-static inline uint32_t generate_crc32c_bits_int(double * vals)
+static inline uint32_t generate_crc32c_bits_double(double * vals)
 {
   uint32_t crc = 0xFFFFFFFF;
   //there are 4/8 elements
@@ -63,18 +63,18 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
 #endif
   }
 
-  uint32_t current_crc = generate_crc32c_bits_int(vals_out);
+  uint32_t current_crc = generate_crc32c_bits_double(vals_out);
   uint8_t correct_crc = prev_crc == current_crc;
   if(!correct_crc) (*flag)++;
 
-#if defined(INTERVAL_CHECKS)
-    // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
-    if(!correct_crc)
-    {
-      (*flag)++;
-      return; //can't correct when using intervals
-    }
-#endif
+// #if defined(INTERVAL_CHECKS)
+//     // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
+//     if(!correct_crc)
+//     {
+//       (*flag)++;
+//       return; //can't correct when using intervals
+//     }
+// #endif
 }
 
 static inline void add_ecc_double(double * vals_out, const double * vals_in)
@@ -90,7 +90,7 @@ static inline void add_ecc_double(double * vals_out, const double * vals_in)
 #endif
   }
 
-  uint32_t crc = generate_crc32c_bits_int(vals_out);
+  uint32_t crc = generate_crc32c_bits_double(vals_out);
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4)
   bits_out[0] |= (uint64_t)(crc & 0xFFU);
   bits_out[1] |= (uint64_t)((crc & 0xFF00U) >> 8);

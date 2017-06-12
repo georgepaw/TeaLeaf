@@ -122,14 +122,15 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
   {
     cg_calc_w_check(chunk->x, chunk->y,
               settings->halo_depth, pw, chunk->p, chunk->w, &(chunk->ext->matrix));
+    STOP_PROFILING(settings->kernel_profile, "cg_calc_w_check");
   }
   else
   {
     cg_calc_w_no_check(chunk->x, chunk->y,
               settings->halo_depth, pw, chunk->p, chunk->w, &(chunk->ext->matrix));
+    STOP_PROFILING(settings->kernel_profile, "cg_calc_w_no_check");
   }
   chunk->ext->iteration++;
-  STOP_PROFILING(settings->kernel_profile, __func__);
 }
 
 void run_cg_calc_ur(

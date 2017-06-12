@@ -42,14 +42,14 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
   uint8_t correct_crc = prev_crc == current_crc;
   if(!correct_crc) (*flag)++;
 
-#if defined(INTERVAL_CHECKS)
-    // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
-    if(!correct_crc)
-    {
-      (*flag)++
-      return; //can't correct when using intervals
-    }
-#endif
+// #if defined(INTERVAL_CHECKS)
+//     // printf("[ECC] Single-bit error detected at index %d, however using interval checks so failing\n", idx);
+//     if(!correct_crc)
+//     {
+//       (*flag)++;
+//       return; //can't correct when using intervals
+//     }
+// #endif
 }
 
 static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
