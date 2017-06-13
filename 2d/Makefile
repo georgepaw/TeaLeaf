@@ -2,7 +2,7 @@
 KERNELS   = omp4_clang
 CPROFILER = yes
 DEBUG     = no
-OPTIONS   = -g -Wall
+OPTIONS   = -g
 CC        = /localhd/mattmar/trunk/obj/bin/clang
 CPP       = /localhd/mattmar/trunk/obj/bin/clang++
 COMPILER  = CLANG

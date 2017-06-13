@@ -269,10 +269,11 @@ void cg_calc_w_no_check(
       double tmp = 0.0;
 
       uint32_t row_begin;
-      csr_get_row_value_no_check(matrix, &row_begin, row);
+      csr_get_row_value(matrix, &row_begin, row);
       uint32_t row_end;
-      csr_get_row_value_no_check(matrix, &row_end, row+1);
+      csr_get_row_value(matrix, &row_end, row+1);
 
+      // csr_prefetch_csr_elements(matrix, row_begin);
 
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
@@ -302,10 +303,11 @@ void cg_calc_w_no_check(
         double tmp = 0.0;
 
         uint32_t row_begin;
-        csr_get_row_value_no_check(matrix, &row_begin, row);
+        csr_get_row_value(matrix, &row_begin, row);
         uint32_t row_end;
-        csr_get_row_value_no_check(matrix, &row_end, row+1);
+        csr_get_row_value(matrix, &row_end, row+1);
 
+        // csr_prefetch_csr_elements(matrix, row_begin);
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
         {
           uint32_t col;

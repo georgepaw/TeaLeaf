@@ -18,17 +18,20 @@
 #endif
 
 #if defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-#include "../../ABFT/CPU/crc_wide_int_vector.h"
+#include "crc_wide_int_vector.h"
 #elif defined(ABFT_METHOD_INT_VECTOR_SED)
-#include "../../ABFT/CPU/ecc_int_vector.h"
+#include "ecc_int_vector.h"
 #elif defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-#include "../../ABFT/CPU/ecc_wide_int_vector.h"
+#include "ecc_wide_int_vector.h"
 #else
-#include "../../ABFT/CPU/no_ecc_int_vector.h"
+#include "no_ecc_int_vector.h"
 #endif
 
 typedef struct
 {
+  double * val_vector;
+  uint32_t * col_vector;
+  uint32_t * row_vector;
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
   uint32_t ** int_vector_buffered_rows;
   uint32_t ** int_vector_rows_to_write;
@@ -47,13 +50,10 @@ typedef struct
   uint32_t ** csr_element_to_write_num_elements;
   uint32_t ** csr_element_to_write_start_index;
 #endif
-  double * val_vector;
-  uint32_t * col_vector;
-  uint32_t * row_vector;
-  uint32_t num_rows;
-  uint32_t nnz;
-  uint32_t x;
-  uint32_t y;
+  const uint32_t num_rows;
+  const uint32_t nnz;
+  const uint32_t x;
+  const uint32_t y;
 } csr_matrix;
 
 #define CSR_MATRIX_FLUSH_WRITES_CSR_ELEMENTS(matrix)    \
@@ -68,15 +68,17 @@ _Pragma("omp parallel")                                 \
   csr_flush_int_vector(matrix, omp_get_thread_num()); \
 } else
 
-#define ROW_CHECK(row, nnz) \
-if(1){ \
-  row = row > nnz ? nnz - 1 : row; \
-} else
+#if defined(ABFT_METHOD_INT_VECTOR_SED) || defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
+#define ROW_CHECK(row_in, matrix) MIN(row_in, matrix->nnz)
+#else
+#define ROW_CHECK(row_in, matrix) row_in
+#endif
 
-#define COLUMN_CHECK(col, matrix) \
-if(1){ \
-  col = col >= matrix->num_rows ? matrix->num_rows - 2 : col; \
-} else
+#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED) || defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+#define COLUMN_CHECK(col_in, matrix) MIN(col_in, matrix->num_rows - 2)
+#else
+#define COLUMN_CHECK(col_in, matrix) col_in
+#endif
 
 inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x, const uint32_t y);
 inline static void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz);
@@ -98,9 +100,9 @@ inline static void csr_free_matrix(csr_matrix * matrix);
 inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x, const uint32_t y)
 {
   uint32_t num_rows = x * y + 1;
-  matrix->num_rows = num_rows;
-  matrix->x = x;
-  matrix->y = y;
+  *(uint32_t*)&matrix->num_rows = num_rows;
+  *(uint32_t*)&matrix->x = x;
+  *(uint32_t*)&matrix->y = y;
   //make sure the number of rows is a multiple oh how many rows are accessed at the time
   uint32_t num_rows_to_allocate = num_rows;
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
@@ -138,7 +140,7 @@ inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x,
 
 inline static void csr_set_nnz(csr_matrix * matrix, const uint32_t nnz)
 {
-  matrix->nnz = nnz;
+  *(uint32_t*)&matrix->nnz = nnz;
   matrix->col_vector = (uint32_t*)malloc(sizeof(uint32_t) * nnz);
   if(matrix->col_vector == NULL) exit(-1);
   matrix->val_vector = (double*)malloc(sizeof(double) * nnz);
@@ -320,10 +322,30 @@ inline static void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest
   }
 }
 
+inline static void csr_prefetch_rows_no_check(csr_matrix * matrix, const uint32_t row_start)
+{
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
+  uint32_t thread_id = omp_get_thread_num();
+  matrix->int_vector_buffer_start_index[thread_id][0] = row_start;
+  for(uint32_t i = 0; i < INT_VECTOR_SECDED_ELEMENTS; i++)
+  {
+    matrix->int_vector_buffered_rows[thread_id][i] = ROW_CHECK(mask_int(matrix->row_vector[row_start + i]),
+                                                               matrix);
+  }
+#endif
+}
+
 inline static void csr_get_row_value_no_check(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index)
 {
-  *val_dest = mask_int(matrix->row_vector[index]);
-  ROW_CHECK(*val_dest, matrix->nnz);
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
+  uint32_t thread_id = omp_get_thread_num();
+  uint32_t offset = index % INT_VECTOR_SECDED_ELEMENTS;
+  uint32_t row_start = index - offset;
+  if(row_start != matrix->int_vector_buffer_start_index[thread_id][0]) csr_prefetch_rows_no_check(matrix, row_start);
+  *val_dest = matrix->int_vector_buffered_rows[thread_id][offset];
+#else
+  *val_dest = ROW_CHECK(mask_int(matrix->row_vector[index]), matrix);
+#endif
 }
 
 inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index)
@@ -331,7 +353,7 @@ inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * 
   *col_dest = matrix->col_vector[index];
   *val_dest = matrix->val_vector[index];
   mask_csr_element(col_dest, val_dest);
-  COLUMN_CHECK(*col_dest, matrix);
+  *col_dest = COLUMN_CHECK(*col_dest, matrix);
 }
 
 inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_id)

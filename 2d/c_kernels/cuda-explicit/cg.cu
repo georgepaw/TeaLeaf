@@ -14,6 +14,16 @@
 #define NUM_ELEMENTS 1
 #endif
 
+#define ROW_CHECK(row, nnz) \
+if(1){ \
+  row = row > nnz ? nnz - 1 : row; \
+} else
+
+#define COLUMN_CHECK(col, x, y) \
+if(1){ \
+  col = col >= x*y ? x*y - 1 : col; \
+} else
+
 __global__ void inject_bitflip(
   const uint32_t bit,
   const uint32_t index,
@@ -281,7 +291,7 @@ __global__ void cg_calc_w_no_check(
         {
             uint32_t col = MASK_INDEX(col_index[idx]);
             double val = non_zeros[idx];
-            COLUMN_CHECK(col, x, y, idx);
+            COLUMN_CHECK(col, x, y);
             smvp += val * p[col];
         }
 
