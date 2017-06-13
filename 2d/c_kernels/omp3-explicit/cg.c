@@ -251,7 +251,7 @@ void cg_calc_w_no_check(
   csr_matrix * matrix)
 {
   double pw_temp = 0.0;
-
+  const uint32_t max_col = matrix->num_rows - 2;
 #pragma omp parallel for reduction(+:pw_temp)
   for(int jj = halo_depth; jj < y-halo_depth; ++jj)
   {
@@ -279,7 +279,7 @@ void cg_calc_w_no_check(
       {
         uint32_t col;
         double val;
-        csr_get_csr_element_no_check(matrix, &col, &val, idx);
+        csr_get_csr_element_no_check(matrix, &col, &val, idx, max_col);
         uint32_t t_x = col % x;
         uint32_t t_y = col / x;
         double p_val = dv_access_stencil_manual(p, t_x, t_y);
@@ -312,7 +312,7 @@ void cg_calc_w_no_check(
         {
           uint32_t col;
           double val;
-          csr_get_csr_element_no_check(matrix, &col, &val, idx);
+          csr_get_csr_element_no_check(matrix, &col, &val, idx, max_col);
           uint32_t t_x = col % x;
           uint32_t t_y = col / x;
           double p_val = dv_access_stencil_manual(p, t_x, t_y);
@@ -440,26 +440,19 @@ void matrix_check(
   {
     for(int kk = halo_depth; kk < x-halo_depth; ++kk)
     {
-const int row = kk + jj*x;
+      const int row = kk + jj*x;
 
       uint32_t row_begin;
       csr_get_row_value(matrix, &row_begin, row);
       uint32_t row_end;
       csr_get_row_value(matrix, &row_end, row+1);
 
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-      uint32_t cols[CSR_ELEMENT_NUM_ELEMENTS];
-      double vals[CSR_ELEMENT_NUM_ELEMENTS];
-      csr_get_csr_elements(matrix, cols, vals, row_begin, row_end - row_begin);
-#endif
-
+      csr_prefetch_csr_elements(matrix, row_begin);
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
-#if !defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
         uint32_t col;
         double val;
         csr_get_csr_element(matrix, &col, &val, idx);
-#endif
       }
     }
   }
