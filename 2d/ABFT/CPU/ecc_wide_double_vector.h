@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include "branch_helper.h"
 
 #include "ecc_128bit.h"
 #define WIDE_SIZE_DV 2
@@ -33,7 +34,7 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
     | (__builtin_parityll((S7_ECC_128BITS_lower & bits[0]) ^ (S7_ECC_128BITS_upper & bits[1]) ^ (secded_in & C7_ECC_128BITS)) << 6)
     | (__builtin_parityll((S8_ECC_128BITS_lower & bits[0]) ^ (S8_ECC_128BITS_upper & bits[1]) ^ (secded_in & C8_ECC_128BITS)) << 7);
 
-  if(parity)
+  if(unlikely_true(parity))
   {
     if(syndrome)
     {
@@ -57,7 +58,7 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
   }
   else
   {
-    if(syndrome)
+    if(unlikely_true(syndrome))
     {
       printf("Uncorrectable error with even number of bitflips\n");
       (*flag)++;

@@ -89,7 +89,7 @@ static void inject_bitflips_csr_matrix(csr_matrix * matrix, const uint32_t itera
   uint32_t start_index = 6000;
   uint32_t elemts_to_flip = 1;
   int num_flips_per_elem = 1;
-  int inject_csr_row_vector = 1;
+  int inject_csr_row_vector = 0;
 
   if(iteration == FAULT_INJECTION_ITTERATION)
   {

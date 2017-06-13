@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "ecc_64bit.h"
+#include "branch_helper.h"
 
 #define WIDE_SIZE_DV 1
 
@@ -33,7 +34,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
       | __builtin_parityll((S7_ECC_64BITS & bits) ^ (secded_in & C7_ECC_64BITS)) << 6
       | __builtin_parityll((S8_ECC_64BITS & bits) ^ (secded_in & C8_ECC_64BITS)) << 7;
 
-  if(parity)
+  if(unlikely_true(parity))
   {
     if(syndrome)
     {
@@ -53,7 +54,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   }
   else
   {
-    if(syndrome)
+    if(unlikely_true(syndrome))
     {
       printf("Uncorrectable error with even number of bitflips\n");
       (*flag)++;
@@ -69,7 +70,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
       | __builtin_parityll((S6_ECC_64BITS & bits) ^ (secded_in & C6_ECC_64BITS)) << 5
       | __builtin_parityll((S7_ECC_64BITS & bits) ^ (secded_in & C7_ECC_64BITS)) << 6;
 
-  if(parity)
+  if(unlikely_true(parity))
   {
     if(syndrome)
     {
@@ -95,7 +96,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   }
   else
   {
-    if(syndrome)
+    if(unlikely_true(syndrome))
     {
       printf("Uncorrectable error with even number of bitflips\n");
       (*flag)++;

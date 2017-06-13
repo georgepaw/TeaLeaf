@@ -2,6 +2,7 @@
 #define ECC_CSR_ELEMENT_H
 
 #include "ecc_96bits.h"
+#include "branch_helper.h"
 
 // This function will generate/check the 7 parity bits for the given matrix
 // element, with the parity bits stored in the high order bits of the column
@@ -86,10 +87,9 @@ static inline void check_ecc_csr_element(uint32_t * col_out, double * val_out, u
   /*  Check parity bits */
   uint32_t overall_parity = ecc_compute_overall_parity_csr_element(col_in, (uint32_t*)val_in);
   uint32_t syndrome = ecc_compute_col8_csr_element(col_in, (uint32_t*)val_in);
-  if(overall_parity)
+  if(unlikely_true(overall_parity))
   {
 #if defined(INTERVAL_CHECKS)
-    printf("Poop\n");
     printf("[ECC] Single-bit error detected, however using interval checks so failing\n");
     (*flag)++;
     return; //can't correct when using intervals
@@ -123,7 +123,7 @@ static inline void check_ecc_csr_element(uint32_t * col_out, double * val_out, u
   }
   else
   {
-    if(syndrome)
+    if(unlikely_true(syndrome))
     {
       (*flag)++;
       return;

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <omp.h>
+#include "branch_helper.h"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
 #include "crc_csr_element.h"
@@ -69,15 +70,29 @@ _Pragma("omp parallel")                                 \
 } else
 
 #if defined(ABFT_METHOD_INT_VECTOR_SED) || defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-#define ROW_CHECK(row_in, max) MIN(row_in, max)
+#define ROW_CHECK(row_out, row_in, max)     \
+if(1){                                      \
+  if(likely_true((row_in) < max)) {         \
+    row_out = (row_in);                     \
+  } else {                                  \
+    row_out = (max) - 1;                    \
+  }                                         \
+} else
 #else
-#define ROW_CHECK(row_in, max) row_in
+#define ROW_CHECK(row_out, row_in, max) row_out = (row_in)
 #endif
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED) || defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#define COLUMN_CHECK(col_in, max) MIN(col_in, max)
+#define COLUMN_CHECK(col_out, col_in, max)  \
+if(1){                                      \
+  if(likely_true((col_in) < max)) {         \
+    col_out = (col_in);                     \
+  } else {                                  \
+    col_out = (max) - 1;                    \
+  }                                         \
+} else
 #else
-#define COLUMN_CHECK(col_in, max) col_in
+#define COLUMN_CHECK(col_out, col_in, max) col_out = (col_in)
 #endif
 
 inline static void csr_set_number_of_rows(csr_matrix * matrix, const uint32_t x, const uint32_t y);
@@ -91,7 +106,7 @@ inline static void csr_get_csr_element(csr_matrix * matrix, uint32_t * col_dest,
 inline static void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements);
 inline static void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start, double * val_dest_start, const uint32_t start_index, const uint32_t num_elements);
 inline static void csr_get_row_value_no_check(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index);
-inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index, const uint32_t bound);
+inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index);
 inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_id);
 inline static void csr_flush_int_vector(csr_matrix * matrix, uint32_t thread_id);
 inline static void csr_free_matrix(csr_matrix * matrix);
@@ -322,38 +337,17 @@ inline static void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest
   }
 }
 
-inline static void csr_prefetch_rows_no_check(csr_matrix * matrix, const uint32_t row_start)
-{
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-  uint32_t thread_id = omp_get_thread_num();
-  matrix->int_vector_buffer_start_index[thread_id][0] = row_start;
-  for(uint32_t i = 0; i < INT_VECTOR_SECDED_ELEMENTS; i++)
-  {
-    matrix->int_vector_buffered_rows[thread_id][i] = ROW_CHECK(mask_int(matrix->row_vector[row_start + i]),
-                                                               matrix->nnz - 1);
-  }
-#endif
-}
-
 inline static void csr_get_row_value_no_check(csr_matrix * matrix, uint32_t * val_dest, const uint32_t index)
 {
-#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-  uint32_t thread_id = omp_get_thread_num();
-  uint32_t offset = index % INT_VECTOR_SECDED_ELEMENTS;
-  uint32_t row_start = index - offset;
-  if(row_start != matrix->int_vector_buffer_start_index[thread_id][0]) csr_prefetch_rows_no_check(matrix, row_start);
-  *val_dest = matrix->int_vector_buffered_rows[thread_id][offset];
-#else
-  *val_dest = ROW_CHECK(mask_int(matrix->row_vector[index]), matrix->nnz - 1);
-#endif
+  ROW_CHECK(*val_dest, mask_int(matrix->row_vector[index]), matrix->nnz);
 }
 
-inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index, const uint32_t bound)
+inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index)
 {
   *col_dest = matrix->col_vector[index];
   *val_dest = matrix->val_vector[index];
   mask_csr_element(col_dest, val_dest);
-  *col_dest = COLUMN_CHECK(*col_dest, bound);
+  COLUMN_CHECK(*col_dest, *col_dest, matrix->num_rows - 1);
 }
 
 inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_id)

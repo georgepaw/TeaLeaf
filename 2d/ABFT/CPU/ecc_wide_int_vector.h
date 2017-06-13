@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include "branch_helper.h"
 
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64)
 #include "ecc_64bit.h"
@@ -31,7 +32,7 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
       | __builtin_parityll((S6_ECC_64BITS & bits) ^ (secded_in & C6_ECC_64BITS)) << 5
       | __builtin_parityll((S7_ECC_64BITS & bits) ^ (secded_in & C7_ECC_64BITS)) << 6;
 
-  if(parity)
+  if(unlikely_true(parity))
   {
     if(syndrome)
     {
@@ -57,7 +58,7 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
   }
   else
   {
-    if(syndrome)
+    if(unlikely_true(syndrome))
     {
       printf("Uncorrectable error with even number of bitflips\n");
       (*flag)++;
