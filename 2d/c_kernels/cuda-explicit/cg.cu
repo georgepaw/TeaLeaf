@@ -241,9 +241,9 @@ __global__ void cg_calc_w_no_check(
 
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
         {
-            uint32_t col = 0;//MASK_INDEX(col_index[idx]);
-            double val = non_zeros[idx];
-            // COLUMN_CHECK(col, x, y);
+            uint32_t col;
+            double val;
+            csr_get_csr_element_no_check(col_index, non_zeros, &col, &val, idx, x * y);
             smvp += val * p[col];
         }
 

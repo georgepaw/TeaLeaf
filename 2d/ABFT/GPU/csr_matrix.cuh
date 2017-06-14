@@ -80,29 +80,21 @@
 // } else
 
 #if defined(ABFT_METHOD_INT_VECTOR_SED) || defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-#define ROW_CHECK(row_out, row_in, max)     \
-if(1){                                      \
-  if(likely_true((row_in) < max)) {         \
-    row_out = (row_in);                     \
-  } else {                                  \
-    row_out = (max) - 1;                    \
-  }                                         \
+#define ROW_CHECK(row_out, row_in, max)                 \
+if(1){                                                  \
+    row_out = ((row_in) < max) ? (row_in) : (max) - 1;  \
 } else
 #else
-#define ROW_CHECK(row_out, row_in, max) row_out = (row_in)
+#define ROW_CHECK(row_out, row_in, max)
 #endif
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED) || defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#define COLUMN_CHECK(col_out, col_in, max)  \
-if(1){                                      \
-  if(likely_true((col_in) < max)) {         \
-    col_out = (col_in);                     \
-  } else {                                  \
-    col_out = (max) - 1;                    \
-  }                                         \
+#define COLUMN_CHECK(col_out, col_in, max)              \
+if(1){                                                  \
+    col_out = ((col_in) < max) ? (col_in) : (max) - 1;  \
 } else
 #else
-#define COLUMN_CHECK(col_out, col_in, max) col_out = (col_in)
+#define COLUMN_CHECK(col_out, col_in, max)
 #endif
 
 
@@ -341,13 +333,13 @@ __device__ inline static void _csr_get_csr_element(uint32_t * col_vector, double
 //   ROW_CHECK(*val_dest, mask_int(matrix->row_vector[index]), matrix->nnz);
 // }
 
-// inline static void csr_get_csr_element_no_check(csr_matrix * matrix, uint32_t * col_dest, double * val_dest, const uint32_t index)
-// {
-//   *col_dest = matrix->col_vector[index];
-//   *val_dest = matrix->val_vector[index];
-//   mask_csr_element(col_dest, val_dest);
-//   COLUMN_CHECK(*col_dest, *col_dest, matrix->num_rows - 1);
-// }
+__device__ inline static void csr_get_csr_element_no_check(uint32_t * col_vector, double * val_vector, uint32_t * col_dest, double * val_dest, const uint32_t index, const uint32_t bound)
+{
+  *col_dest = col_vector[index];
+  *val_dest = val_vector[index];
+  mask_csr_element(col_dest, val_dest);
+  COLUMN_CHECK(*col_dest, *col_dest, bound);
+}
 
 // inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_id)
 // {
