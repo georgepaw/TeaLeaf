@@ -2,6 +2,7 @@
 #include "cuknl_shared.h"
 #include "../../shared.h"
 #include <stdlib.h>
+#include "../../ABFT/GPU/csr_matrix.cuh"
 
 // Allocates, and zeroes and individual buffer
 void allocate_device_buffer(double** a, int x, int y)
@@ -112,42 +113,26 @@ void kernel_initialise(
     allocate_host_buffer(cheby_betas, settings->max_iters, 1);
 
     // Initialise CSR matrix
-    uint32_t* h_row_index = (uint32_t*)malloc(sizeof(uint32_t)*(x*y+1));
+    const uint32_t num_rows = x*y+1;
+    uint32_t num_rows_to_allocate = num_rows;
+#if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
+    num_rows_to_allocate += num_rows % INT_VECTOR_SECDED_ELEMENTS;
+#endif
 
-    // Necessarily serialised row index calculation
-    h_row_index[0] = 0;
-    for(int jj = 0; jj < y; ++jj)
-    {
-        for(int kk = 0; kk < x; ++kk)
-        {
-            int index = kk + jj*x;
-
-            // Calculate position dependent row count
-            int row_count = 5;
-            if (jj <    settings->halo_depth || kk <    settings->halo_depth ||
-                jj >= y-settings->halo_depth || kk >= x-settings->halo_depth)
-            {
-                row_count = 0;
-            }
-
-            h_row_index[index+1] = h_row_index[index] + row_count;
-        }
-    }
-    *nnz = h_row_index[x*y];
-
-    cudaMalloc((void**)d_row_index, sizeof(uint32_t)*(x*y+1));
+    cudaMalloc((void**)d_row_index, sizeof(uint32_t)*(num_rows_to_allocate));
     check_errors(__LINE__, __FILE__);
-    cudaMemcpy(*d_row_index, h_row_index, sizeof(uint32_t)*(x*y+1), cudaMemcpyHostToDevice);
+    csr_init_rows<<<1,1>>>(x, y, settings->halo_depth, *d_row_index);
+    check_errors(__LINE__, __FILE__);
+    cudaMemcpy(nnz, &((*d_row_index)[x * y]), sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    check_errors(__LINE__, __FILE__);
+    *nnz &= 0x0FFFFFFFU;
+
+    cudaMalloc((void**)d_col_index, sizeof(uint32_t)*(*nnz));
+    check_errors(__LINE__, __FILE__);
+    cudaMalloc((void**)d_non_zeros, sizeof(double)*(*nnz));
     check_errors(__LINE__, __FILE__);
 
-    int num_non_zeros = h_row_index[x*y];
-
-    cudaMalloc((void**)d_col_index, sizeof(uint32_t)*num_non_zeros);
-    check_errors(__LINE__, __FILE__);
-    cudaMalloc((void**)d_non_zeros, sizeof(double)*num_non_zeros);
-    check_errors(__LINE__, __FILE__);
-
-    free(h_row_index);
+    // free(h_row_index);
     *iteration = (uint32_t*)malloc(sizeof(uint32_t));
 }
 

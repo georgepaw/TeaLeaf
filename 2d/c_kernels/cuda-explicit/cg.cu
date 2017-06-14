@@ -3,7 +3,7 @@
 #include "cuknl_shared.h"
 #include "../../ABFT/GPU/csr_matrix.cuh"
 
-__global__ void inject_bitflip(
+__global__ void inject_bitflip_csr_element(
   const uint32_t bit,
   const uint32_t index,
         uint32_t* col_index,
@@ -21,6 +21,47 @@ __global__ void inject_bitflip(
       col_index[index] ^= 0x1U << (bit - 64);
     }
     // printf("Element is: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val: %lf\n", col_index[index] & 0xFF000000 >> 24, col_index[index] & 0x00FFFFFF, non_zeros[index]);
+}
+
+__global__ void inject_bitflip_row_vector(
+  const uint32_t bit,
+  const uint32_t index,
+        uint32_t* row_vector)
+{
+    row_vector[index] ^= 0x1U << bit;
+}
+
+
+
+__global__ void csr_init_rows(
+        const int x,
+        const int y,
+        const int halo_depth,
+        uint32_t* rows)
+{
+    // Necessarily serialised row index calculation
+    const uint32_t num_rows = x * y + 1;
+    INIT_CSR_INT_VECTOR_SETUP();
+    csr_set_row_value(rows, 0, 0, num_rows);
+    uint32_t current_row = 0;
+    for(int jj = 0; jj < y; ++jj)
+    {
+        for(int kk = 0; kk < x; ++kk)
+        {
+            int index = kk + jj*x;
+            // Calculate position dependent row count
+            int row_count = 5;
+            if (jj <    halo_depth || kk <    halo_depth ||
+                jj >= y-halo_depth || kk >= x-halo_depth)
+            {
+              row_count = 0;
+            }
+            current_row += row_count;
+            // rows[index + 1] = current_row;
+            csr_set_row_value(rows, current_row, index + 1, num_rows);
+        }
+    }
+    CSR_MATRIX_FLUSH_WRITES_INT_VECTOR(rows, num_rows);
 }
 
 __global__ void cg_init_u(
@@ -80,6 +121,7 @@ __global__ void cg_init_csr(
         uint32_t* col_index,
         double* non_zeros)
 {
+    INIT_CSR_INT_VECTOR();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -89,7 +131,8 @@ __global__ void cg_init_csr(
     const int row = gid / x_inner;
     const int off0 = 0;
     const int index = off0 + col + row*x;
-    const int coef_index = row_index[index];
+    uint32_t coef_index;
+    csr_get_row_value(row_index, &coef_index, index);
 
     if (row <    halo_depth || col <    halo_depth ||
         row >= y-halo_depth || col >= x-halo_depth) return;
@@ -129,6 +172,7 @@ __global__ void cg_init_others(
 		double* rro)
 {
     INIT_CSR_ELEMENTS();
+    INIT_CSR_INT_VECTOR();
 	const int gid = threadIdx.x + blockIdx.x*blockDim.x;
 	__shared__ double rro_shared[BLOCK_SIZE];
 	rro_shared[threadIdx.x] = 0.0;
@@ -143,8 +187,10 @@ __global__ void cg_init_others(
 
         double smvp = 0.0;
 
-        uint32_t row_begin = row_index[index];
-        uint32_t row_end   = row_index[index+1];
+        uint32_t row_begin;
+        csr_get_row_value(row_index, &row_begin, index);
+        uint32_t row_end;
+        csr_get_row_value(row_index, &row_end, index+1);
 
         csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
@@ -177,6 +223,7 @@ __global__ void cg_calc_w_check(
         double* pw)
 {
     INIT_CSR_ELEMENTS();
+    INIT_CSR_INT_VECTOR();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];
     pw_shared[threadIdx.x] = 0.0;
@@ -191,8 +238,10 @@ __global__ void cg_calc_w_check(
 
         double smvp = 0.0;
 
-        const uint32_t row_begin = row_index[index];
-        const uint32_t row_end   = row_index[index+1];
+        uint32_t row_begin;
+        csr_get_row_value(row_index, &row_begin, index);
+        uint32_t row_end;
+        csr_get_row_value(row_index, &row_end, index+1);
 
         csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
@@ -214,6 +263,7 @@ __global__ void cg_calc_w_no_check(
         const int x_inner,
         const int y_inner,
         const int halo_depth,
+        const uint32_t nnz,
         const double* p,
         uint32_t* row_index,
         uint32_t* col_index,
@@ -236,8 +286,10 @@ __global__ void cg_calc_w_no_check(
 
         double smvp = 0.0;
 
-        const uint32_t row_begin = row_index[index];
-        const uint32_t row_end   = row_index[index+1];
+        uint32_t row_begin;
+        csr_get_row_value_no_check(row_index, &row_begin, index, nnz);
+        uint32_t row_end;
+        csr_get_row_value_no_check(row_index, &row_end, index+1, nnz);
 
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
         {
@@ -313,6 +365,7 @@ __global__ void matrix_check(
         uint32_t* col_index,
         double* non_zeros)
 {
+    INIT_CSR_INT_VECTOR();
     INIT_CSR_ELEMENTS();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 
@@ -324,8 +377,10 @@ __global__ void matrix_check(
         const int off0 = halo_depth*(x + 1);
         const int index = off0 + col + row*x;
 
-        const uint32_t row_begin = row_index[index];
-        const uint32_t row_end   = row_index[index+1];
+        uint32_t row_begin;
+        csr_get_row_value(row_index, &row_begin, index);
+        uint32_t row_end;
+        csr_get_row_value(row_index, &row_end, index+1);
 
         csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)

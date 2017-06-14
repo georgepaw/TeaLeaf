@@ -51,6 +51,7 @@ __global__ void calculate_residual(
         double* r)
 {
     INIT_CSR_ELEMENTS();
+    INIT_CSR_INT_VECTOR();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -60,8 +61,10 @@ __global__ void calculate_residual(
     const int off0 = halo_depth*(x + 1);
     const int index = off0 + col + row*x;
 
-    const uint32_t row_begin = row_index[index];
-    const uint32_t row_end   = row_index[index+1];
+    uint32_t row_begin;
+    csr_get_row_value(row_index, &row_begin, index);
+    uint32_t row_end;
+    csr_get_row_value(row_index, &row_end, index+1);
 
     double smvp = 0.0;
 

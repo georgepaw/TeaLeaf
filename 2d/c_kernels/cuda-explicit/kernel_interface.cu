@@ -157,6 +157,7 @@ void run_cg_init(
             chunk->x, chunk->y, settings->coefficient,
             chunk->density, chunk->energy, chunk->u,
             chunk->p, chunk->r, chunk->w);
+    check_errors_kernel(__LINE__, __FILE__, CG_INIT);
 
     int x_inner = chunk->x - (2*settings->halo_depth-1);
     int y_inner = chunk->y - (2*settings->halo_depth-1);
@@ -165,6 +166,7 @@ void run_cg_init(
     cg_init_k<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, settings->halo_depth,
             chunk->w, chunk->kx, chunk->ky, rx, ry);
+    check_errors_kernel(__LINE__, __FILE__, CG_INIT);
 
     num_blocks = ceil((double)(chunk->x*chunk->y) / (double)BLOCK_SIZE);
 
@@ -172,6 +174,7 @@ void run_cg_init(
             chunk->x, chunk->y, settings->halo_depth,
             chunk->kx, chunk->ky, chunk->ext->d_row_index,
             chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+    check_errors_kernel(__LINE__, __FILE__, CG_INIT);
 
     x_inner = chunk->x - 2*settings->halo_depth;
     y_inner = chunk->y - 2*settings->halo_depth;
@@ -193,15 +196,15 @@ void run_cg_init(
 void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 {
     KERNELS_START(2*settings->halo_depth);
-
+    (*chunk->ext->iteration)++;
 #ifdef INTERVAL_CHECKS
-    const uint32_t do_FT_check = ((*chunk->ext->iteration)++ % INTERVAL_CHECKS) == 0;
+    const uint32_t do_FT_check = (*chunk->ext->iteration % INTERVAL_CHECKS) == 0;
 #else
     const uint32_t do_FT_check = 1;
 #endif
 
 #ifdef INJECT_FAULT
-    inject_bitflips(chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+    inject_bitflips_csr_matrix(chunk->ext->d_row_index, chunk->ext->d_col_index, chunk->ext->d_non_zeros, *(chunk->ext->iteration));
 #endif
 
     if(do_FT_check)
@@ -215,12 +218,12 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
     else
     {
         cg_calc_w_no_check<<<num_blocks, BLOCK_SIZE>>>(
-                x_inner, y_inner, settings->halo_depth,
+                x_inner, y_inner, settings->halo_depth, chunk->ext->nnz,
                 chunk->p, chunk->ext->d_row_index,
                 chunk->ext->d_col_index, chunk->ext->d_non_zeros,
                 chunk->w, chunk->ext->d_reduce_buffer);
+        check_errors_kernel(__LINE__, __FILE__, CG_CALC_W);
     }
-    check_errors_kernel(__LINE__, __FILE__, CG_CALC_W);
 
     sum_reduce_buffer(chunk->ext->d_reduce_buffer, pw, num_blocks);
 
@@ -405,7 +408,7 @@ void run_matrix_check(
     KERNELS_START(2*settings->halo_depth);
 
 #ifdef INJECT_FAULT
-    inject_bitflips(chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+    inject_bitflips_csr_matrix(chunk->ext->d_row_index, chunk->ext->d_col_index, chunk->ext->d_non_zeros, *(chunk->ext->iteration));
 #endif
 
     matrix_check<<<num_blocks, BLOCK_SIZE>>>(

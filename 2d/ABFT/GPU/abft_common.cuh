@@ -1,6 +1,8 @@
 #ifndef ABFT_COMMON_CUH
 #define ABFT_COMMON_CUH
 
+#include <stdint.h>
+
 enum CUDA_KERNEL {
   CG_INIT,
   CG_CALC_W,
@@ -42,6 +44,17 @@ inline const char* abft_error_code(CUDA_KERNEL error_code)
     case UNKNOWN: return "UNKNOWN";
   }
   return "";
+}
+
+
+__device__ static inline uint32_t __parity(uint32_t in)
+{
+  return __popc(in) & 1;
+}
+
+__device__ static inline uint32_t __parityll(uint64_t in)
+{
+  return __popcll(in) & 1;
 }
 
 #endif //ABFT_COMMON_CUH

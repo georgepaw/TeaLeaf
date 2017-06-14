@@ -4,27 +4,17 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "crc32c.h"
+#include "abft_common.cuh"
+#include "crc32c.cuh"
 #define INT_VECTOR_SECDED_ELEMENTS 8
 
 __device__ static inline uint32_t generate_crc32c_bits_int(uint32_t * rows_out)
 {
   uint32_t crc = 0xFFFFFFFF;
   //there are 8 elements
-#ifdef SOFTWARE_CRC_SPLIT
-  data = (uint32_t*)rows_out;
+  uint32_t * data = (uint32_t*)rows_out;
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_16_INNER(crc, crc, data);
-#elif defined(INTEL_ASM)
-  //use Intel assembly code to accelerate crc calculations
-  crc = crc_pcl((const uint8_t*)vals, INT_VECTOR_SECDED_ELEMENTS * sizeof(uint32_t), crc);
-#else
-  uint64_t * data = (uint64_t*)rows_out;
-  CRC32CD(crc, crc, data[0]);
-  CRC32CD(crc, crc, data[1]);
-  CRC32CD(crc, crc, data[2]);
-  CRC32CD(crc, crc, data[3]);
-#endif
   return crc;
 }
 
@@ -59,8 +49,7 @@ __device__ static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * 
     rows_out[i] = rows_in[i];
     if(rows_in[i] & 0xF0000000)
     {
-      printf("Index too big to be stored correctly with CRC!\n");
-      exit(1);
+      cuda_terminate();
     }
   }
 
