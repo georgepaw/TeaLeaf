@@ -65,7 +65,7 @@ if(1){                                                  \
     row_out = ((row_in) < max) ? (row_in) : (max) - 1;  \
 } else
 #else
-#define ROW_CHECK(row_out, row_in, max)
+#define ROW_CHECK(row_out, row_in, max) row_out = (row_in)
 #endif
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED) || defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
@@ -74,7 +74,7 @@ if(1){                                                  \
     col_out = ((col_in) < max) ? (col_in) : (max) - 1;  \
 } else
 #else
-#define COLUMN_CHECK(col_out, col_in, max)
+#define COLUMN_CHECK(col_out, col_in, max) col_out = (col_in)
 #endif
 
 
