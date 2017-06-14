@@ -66,12 +66,12 @@ __device__ static inline void check_ecc_csr_element(uint32_t * col_out, double *
   *col_out = *col_in;
   *val_out = *val_in;
 #if defined(ABFT_METHOD_CSR_ELEMENT_SED)
-  uint32_t paritiy = ecc_compute_overall_parity_csr_element(col_in, (uint32_t*)val_in);
+  uint32_t paritiy = ecc_compute_overall_parity_csr_element(col_out, (uint32_t*)val_out);
   if(paritiy) (*flag)++;
 #elif defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
   /*  Check parity bits */
-  uint32_t overall_parity = ecc_compute_overall_parity_csr_element(col_in, (uint32_t*)val_in);
-  uint32_t syndrome = ecc_compute_col8_csr_element(col_in, (uint32_t*)val_in);
+  uint32_t overall_parity = ecc_compute_overall_parity_csr_element(col_out, (uint32_t*)val_out);
+  uint32_t syndrome = ecc_compute_col8_csr_element(col_out, (uint32_t*)val_out);
   if(unlikely_true(overall_parity))
   {
 #if defined(INTERVAL_CHECKS)
@@ -85,23 +85,23 @@ __device__ static inline void check_ecc_csr_element(uint32_t * col_out, double *
       uint32_t bit_index = ecc_get_flipped_bit_col8_csr_element(syndrome);
       if (bit_index < 64)
       {
-        uint64_t temp = *((uint64_t*)val_in);
+        uint64_t temp = *((uint64_t*)val_out);
         temp ^= 0x1ULL << bit_index;
-        *val_in = *((double*)&temp);
-        *val_out = *val_in;
+        *val_out = *((double*)&temp);
+        *val_in = *val_out;
       }
       else
       {
-        *col_in ^= 0x1U << (bit_index - 64);
-        *col_out = *col_in;
+        *col_out ^= 0x1U << (bit_index - 64);
+        *col_in = *col_out;
       }
       // printf("[ECC] corrected bit %u\n", bit_index);
     }
     else
     {
       /* Correct overall parity bit */
-      *col_in ^= 0x1U << 24;
-      *col_out = *col_in;
+      *col_out ^= 0x1U << 24;
+      *col_in = *col_out;
       // printf("[ECC] corrected overall parity bit\n");
     }
   }
