@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "c_kernels.h"
 #include "cuknl_shared.h"
-#include "abft_common.cuh"
+#include "../../ABFT/GPU/abft_common.cuh"
 
 #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
 #include "../../ABFT/GPU/crc.cuh"

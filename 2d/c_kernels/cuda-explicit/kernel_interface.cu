@@ -5,7 +5,7 @@
 
 #include "../../ABFT/GPU/fault_injection.cuh"
 
-#include "abft_common.cuh"
+#include "../../ABFT/GPU/abft_common.cuh"
 
 #define KERNELS_START(pad) \
     START_PROFILING(settings->kernel_profile); \

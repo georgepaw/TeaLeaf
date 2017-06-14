@@ -1,18 +1,9 @@
 #include <stdint.h>
 #include "cuknl_shared.h"
 #include "../../shared.h"
-#include "abft_common.cuh"
+#include "../../ABFT/GPU/abft_common.cuh"
 
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#include "../../ABFT/GPU/crc.cuh"
-#define NUM_ELEMENTS 5
-#elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-#include "../../ABFT/GPU/ecc.cuh"
-#define NUM_ELEMENTS 1
-#else
-#include "../../ABFT/GPU/no_ecc.cuh"
-#define NUM_ELEMENTS 1
-#endif
+#include "../../ABFT/GPU/csr_matrix.cuh"
 
 __global__ void sum_reduce(
         const int n, double* buffer);
@@ -61,6 +52,7 @@ __global__ void calculate_residual(
         double* non_zeros,
         double* r)
 {
+    INIT_CSR_ELEMENTS();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -75,24 +67,13 @@ __global__ void calculate_residual(
 
     double smvp = 0.0;
 
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-    uint32_t cols[NUM_ELEMENTS];
-    double vals[NUM_ELEMENTS];
-
-    CHECK_CRC32C(cols, vals, col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
-#endif
-
+    csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
     for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
     {
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-        uint32_t col = cols[i];
-        double val = vals[i];
-#else
-        uint32_t col = col_index[idx];
-        double val = non_zeros[idx];
-        CHECK_ECC(col, val, col_index, non_zeros, idx, cuda_terminate());
-#endif
-        smvp += val * u[MASK_INDEX(col)];
+        uint32_t col;
+        double val;
+        csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
+        smvp += val * u[col];
     }
     r[index] = u0[index] - smvp;
 }
