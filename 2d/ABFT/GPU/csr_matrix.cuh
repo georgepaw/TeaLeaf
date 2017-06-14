@@ -53,12 +53,6 @@
 #define CSR_MATRIX_FLUSH_WRITES_INT_VECTOR(row_vector, num_rows)
 #endif
 
-// #define CSR_MATRIX_FLUSH_WRITES_INT_VECTOR(matrix)      \
-// if(1) {                                                 \
-// _Pragma("omp parallel")                                 \
-//   csr_flush_int_vector(matrix, omp_get_thread_num()); \
-// } else
-
 #if defined(ABFT_METHOD_INT_VECTOR_SED) || defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
 #define ROW_CHECK(row_out, row_in, max)                 \
 if(1){                                                  \
@@ -142,16 +136,6 @@ __device__ inline static void csr_set_csr_element_values(uint32_t * col_vector, 
 #endif
 }
 
-
-
-// inline static void csr_set_row_values(csr_matrix * matrix, const uint32_t * rows_start, const uint32_t start_index, const uint32_t num_elements)
-// {
-//   for(uint32_t i = 0; i < num_elements; i++)
-//   {
-//     csr_set_row_value(matrix, rows_start[i], start_index + i);
-//   }
-// }
-
 __device__ inline static void csr_prefetch_rows(uint32_t * row_vector, const uint32_t row_start, uint32_t * _csr_int_vector_buffered_rows, uint32_t * _csr_int_vector_buffer_start_index)
 {
 #if INT_VECTOR_SECDED_ELEMENTS > 1
@@ -160,7 +144,6 @@ __device__ inline static void csr_prefetch_rows(uint32_t * row_vector, const uin
   check_ecc_int(_csr_int_vector_buffered_rows,
                 row_vector + row_start,
                 &flag);
-  // printf("Fetched %u %u\n", matrix->int_vector_buffered_rows[thread_id][0], matrix->int_vector_buffered_rows[thread_id][1]);
   if(flag) cuda_terminate();
 #endif
 }
@@ -180,8 +163,6 @@ __device__ inline static void _csr_get_row_value(uint32_t * row_vector, uint32_t
   uint32_t row_start = index - offset;
   if(row_start != *_csr_int_vector_buffer_start_index) csr_prefetch_rows(row_vector, row_start, _csr_int_vector_buffered_rows, _csr_int_vector_buffer_start_index);
   *val_dest = mask_int(_csr_int_vector_buffered_rows[offset]);
-  // *val_dest = mask_int(row_vector[index]);
-  // printf("%u\n", *val_dest);
 #else
   uint32_t flag = 0;
   *val_dest = check_ecc_int(row_vector + index, &flag);
@@ -235,22 +216,6 @@ __device__ inline static void _csr_get_csr_element(uint32_t * col_vector, double
 #endif
 }
 
-// inline static void csr_get_row_values(csr_matrix * matrix, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
-// {
-//   for(uint32_t i = 0; i < num_elements; i++)
-//   {
-//     csr_get_row_value(matrix, val_dest_start + i, start_index + i);
-//   }
-// }
-
-// inline static void csr_get_csr_elements(csr_matrix * matrix, uint32_t * col_dest_start, double * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
-// {
-//   for(uint32_t i = 0; i < num_elements; i++)
-//   {
-//     csr_get_csr_element(matrix, col_dest_start + i, val_dest_start + i, start_index + i);
-//   }
-// }
-
 __device__ inline static void csr_get_row_value_no_check(uint32_t * row_vector, uint32_t * val_dest, const uint32_t index, const uint32_t bound)
 {
   ROW_CHECK(*val_dest, mask_int(row_vector[index]), bound);
@@ -263,37 +228,5 @@ __device__ inline static void csr_get_csr_element_no_check(uint32_t * col_vector
   mask_csr_element(col_dest, val_dest);
   COLUMN_CHECK(*col_dest, *col_dest, bound);
 }
-
-// inline static void csr_flush_csr_elements(csr_matrix * matrix, uint32_t thread_id)
-// {
-// #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-//   if(matrix->csr_element_to_write_num_elements[thread_id][0] == 0
-//     || matrix->csr_element_to_write_start_index[thread_id][0] >= matrix->nnz) return;
-//   add_crc32c_csr_elements(matrix->col_vector + matrix->csr_element_to_write_start_index[thread_id][0],
-//                           matrix->val_vector + matrix->csr_element_to_write_start_index[thread_id][0],
-//                           matrix->csr_element_cols_to_write[thread_id],
-//                           matrix->csr_element_vals_to_write[thread_id],
-//                           matrix->csr_element_to_write_num_elements[thread_id][0]);
-//   matrix->csr_element_to_write_num_elements[thread_id][0] = 0;
-// #endif
-// }
-
-// inline static void csr_flush_int_vector(csr_matrix * matrix, uint32_t thread_id)
-// {
-// #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
-//   if(matrix->int_vector_to_write_num_elements[thread_id][0] == 0
-//     || matrix->int_vector_to_write_start_index[thread_id][0] >= matrix->num_rows) return;
-//   add_ecc_int(matrix->row_vector + matrix->int_vector_to_write_start_index[thread_id][0],
-//               matrix->int_vector_rows_to_write[thread_id]);
-//   matrix->int_vector_to_write_num_elements[thread_id][0] = 0;
-// #endif
-// }
-
-// inline static void csr_free_matrix(csr_matrix * matrix)
-// {
-//   free(matrix->row_vector);
-//   free(matrix->col_vector);
-//   free(matrix->val_vector);
-// }
 
 #endif //CSR_MATRIX_CUH
