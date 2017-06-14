@@ -103,12 +103,12 @@ static inline void check_ecc_csr_element(uint32_t * col_out, double * val_out, u
         uint64_t temp;
         memcpy(&temp, val_in, sizeof(uint64_t));
         temp ^= 0x1ULL << bit_index;
-        *val_out = *val_in;
         memcpy(val_in, &temp, sizeof(uint64_t));
+        *val_out = *val_in;
       }
       else
       {
-        *col_in ^= 0x1U << bit_index;
+        *col_in ^= 0x1U << (bit_index - 64);
         *col_out = *col_in;
       }
       printf("[ECC] corrected bit %u\n", bit_index);

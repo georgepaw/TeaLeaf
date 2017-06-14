@@ -12,7 +12,7 @@
 # pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 
-static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_t * flag)
+__device__ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_t * flag)
 {
   uint64_t * bits_in = (uint64_t*)vals_in;
   uint64_t parity = __builtin_parityll(bits_in[0]) ^ __builtin_parityll(bits_in[1]);
@@ -69,7 +69,7 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
   vals_out[1] = vals_in[1];
 }
 
-static inline void add_ecc_double(double * vals_out, const double * vals_in)
+__device__ static inline void add_ecc_double(double * vals_out, const double * vals_in)
 {
   uint64_t * bits_in = (uint64_t*)vals_in;
   uint64_t bits_in_masked[2] =
@@ -103,7 +103,7 @@ static inline void add_ecc_double(double * vals_out, const double * vals_in)
   bits_out[0] |= (__builtin_parityll(bits_out[0]) ^ __builtin_parityll(bits_out[1])) << 4;
 }
 
-static inline double mask_double(double in)
+__device__ static inline double mask_double(double in)
 {
   uint64_t bits_in = *((uint64_t*)&in);
   bits_in &= 0xFFFFFFFFFFFFFFE0ULL;

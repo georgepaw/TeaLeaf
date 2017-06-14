@@ -15,7 +15,7 @@
 # pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 
-static inline uint32_t generate_crc32c_bits_double(double * vals)
+__device__ static inline uint32_t generate_crc32c_bits_double(double * vals)
 {
   uint32_t crc = 0xFFFFFFFF;
   //there are 4/8 elements
@@ -46,7 +46,7 @@ static inline uint32_t generate_crc32c_bits_double(double * vals)
   return crc;
 }
 
-static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_t * flag)
+__device__ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_t * flag)
 {
   uint64_t * bits_in = (uint64_t*)vals_in;
   uint64_t * bits_out = (uint64_t*)vals_out;
@@ -77,7 +77,7 @@ static inline void check_ecc_double(double * vals_out, double * vals_in, uint32_
 // #endif
 }
 
-static inline void add_ecc_double(double * vals_out, const double * vals_in)
+__device__ static inline void add_ecc_double(double * vals_out, const double * vals_in)
 {
   uint64_t * bits_out = (uint64_t*)vals_out;
   uint64_t * bits_in = (uint64_t*)vals_in;
@@ -108,7 +108,7 @@ static inline void add_ecc_double(double * vals_out, const double * vals_in)
 #endif
 }
 
-static inline double mask_double(double in)
+__device__ static inline double mask_double(double in)
 {
   uint64_t bits_in = *((uint64_t*)&in);
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4)

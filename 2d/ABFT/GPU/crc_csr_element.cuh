@@ -1,6 +1,7 @@
 #ifndef CRC_CSR_ELEMENT_CUH
 #define CRC_CSR_ELEMENT_CUH
 
+#include "abft_common.cuh"
 #include "crc32c.cuh"
 
 __device__ static inline uint32_t generate_crc32c_bits_csr_element(const uint32_t * cols, const double * vals, const uint32_t num_elements)
@@ -160,8 +161,7 @@ __device__ static inline void add_crc32c_csr_elements(uint32_t * cols_out, doubl
     cols_out[i] = cols_in[i];
     if(cols_in[i] & 0xFF000000)
     {
-      printf("Index too big to be stored correctly with CRC!\n");
-      exit(1);
+      cuda_terminate();
     }
     vals_out[i] = vals_in[i];
   }

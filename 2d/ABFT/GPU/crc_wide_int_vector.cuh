@@ -7,7 +7,7 @@
 #include "crc32c.h"
 #define INT_VECTOR_SECDED_ELEMENTS 8
 
-static inline uint32_t generate_crc32c_bits_int(uint32_t * rows_out)
+__device__ static inline uint32_t generate_crc32c_bits_int(uint32_t * rows_out)
 {
   uint32_t crc = 0xFFFFFFFF;
   //there are 8 elements
@@ -28,7 +28,7 @@ static inline uint32_t generate_crc32c_bits_int(uint32_t * rows_out)
   return crc;
 }
 
-static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32_t * flag)
+__device__ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32_t * flag)
 {
   uint32_t prev_crc = 0;
 
@@ -52,7 +52,7 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
 // #endif
 }
 
-static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
+__device__ static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
 {
   for(int i = 0; i < INT_VECTOR_SECDED_ELEMENTS; i++)
   {
@@ -76,7 +76,7 @@ static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
   rows_out[7] += ((crc & 0x0000000F) << 28);
 }
 
-static inline uint32_t mask_int(uint32_t in)
+__device__ static inline uint32_t mask_int(uint32_t in)
 {
   return in & 0x0FFFFFFF;
 }

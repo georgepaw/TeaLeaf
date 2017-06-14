@@ -447,12 +447,12 @@ void matrix_check(
       uint32_t row_end;
       csr_get_row_value(matrix, &row_end, row+1);
 
-      // csr_prefetch_csr_elements(matrix, row_begin);
+      csr_prefetch_csr_elements(matrix, row_begin);
       for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
       {
         uint32_t col;
         double val;
-        // csr_get_csr_element(matrix, &col, &val, idx);
+        csr_get_csr_element(matrix, &col, &val, idx);
       }
     }
   }

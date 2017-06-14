@@ -1,28 +1,7 @@
 #include <stdint.h>
 #include "c_kernels.h"
 #include "cuknl_shared.h"
-#include "../../ABFT/GPU/abft_common.cuh"
-
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-#include "../../ABFT/GPU/crc.cuh"
-#define NUM_ELEMENTS 5
-#elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-#include "../../ABFT/GPU/ecc.cuh"
-#define NUM_ELEMENTS 1
-#else
-#include "../../ABFT/GPU/no_ecc.cuh"
-#define NUM_ELEMENTS 1
-#endif
-
-#define ROW_CHECK(row, nnz) \
-if(1){ \
-  row = row > nnz ? nnz - 1 : row; \
-} else
-
-#define COLUMN_CHECK(col, x, y) \
-if(1){ \
-  col = col >= x*y ? x*y - 1 : col; \
-} else
+#include "../../ABFT/GPU/csr_matrix.cuh"
 
 __global__ void inject_bitflip(
   const uint32_t bit,
@@ -111,51 +90,28 @@ __global__ void cg_init_csr(
     const int off0 = 0;
     const int index = off0 + col + row*x;
     const int coef_index = row_index[index];
-    int offset = coef_index;
 
     if (row <    halo_depth || col <    halo_depth ||
         row >= y-halo_depth || col >= x-halo_depth) return;
-
-    non_zeros[offset] = -ky[index];
-    col_index[offset] = index-x;
-#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-    generate_ecc_bits(&col_index[offset], &non_zeros[offset]);
-#endif
-    offset++;
-
-    non_zeros[offset] = -kx[index];
-    col_index[offset] = index-1;
-#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-    generate_ecc_bits(&col_index[offset], &non_zeros[offset]);
-#endif
-    offset++;
-
-    non_zeros[offset] = (1.0 +
-                            kx[index+1] + kx[index] +
-                            ky[index+x] + ky[index]);
-    col_index[offset] = index;
-#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-    generate_ecc_bits(&col_index[offset], &non_zeros[offset]);
-#endif
-    offset++;
-
-    non_zeros[offset] = -kx[index+1];
-    col_index[offset] = index+1;
-#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-    generate_ecc_bits(&col_index[offset], &non_zeros[offset]);
-#endif
-    offset++;
-
-    non_zeros[offset] = -ky[index+x];
-    col_index[offset] = index+x;
-#if defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-    generate_ecc_bits(&col_index[offset], &non_zeros[offset]);
-#endif
-    offset++;
-
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-    assign_crc32c_bits(col_index, non_zeros, coef_index, 5);
-#endif
+    double vals[5] =
+    {
+        -ky[index],
+        -kx[index],
+        (1.0 +
+            kx[index+1] + kx[index] +
+            ky[index+x] + ky[index]),
+        -kx[index+1],
+        -ky[index+x]
+    };
+    uint32_t cols[5] =
+    {
+        index-x,
+        index-1,
+        index,
+        index+1,
+        index+x
+    };
+    csr_set_csr_element_values(col_index, non_zeros, cols, vals, coef_index, 5);
 }
 
 __global__ void cg_init_others(
@@ -172,6 +128,7 @@ __global__ void cg_init_others(
 		double* mi,
 		double* rro)
 {
+    INIT_CSR_ELEMENTS();
 	const int gid = threadIdx.x + blockIdx.x*blockDim.x;
 	__shared__ double rro_shared[BLOCK_SIZE];
 	rro_shared[threadIdx.x] = 0.0;
@@ -189,9 +146,13 @@ __global__ void cg_init_others(
         uint32_t row_begin = row_index[index];
         uint32_t row_end   = row_index[index+1];
 
-        for (uint32_t idx = row_begin; idx < row_end; idx++)
+        csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
+        for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
         {
-            smvp += non_zeros[idx] * u[MASK_INDEX(col_index[idx])];
+            uint32_t col;
+            double val;
+            csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
+            smvp += val * u[col];
         }
 
         w[index] = smvp;
@@ -215,6 +176,7 @@ __global__ void cg_calc_w_check(
         double* w,
         double* pw)
 {
+    INIT_CSR_ELEMENTS();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];
     pw_shared[threadIdx.x] = 0.0;
@@ -231,24 +193,14 @@ __global__ void cg_calc_w_check(
 
         const uint32_t row_begin = row_index[index];
         const uint32_t row_end   = row_index[index+1];
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-        uint32_t cols[NUM_ELEMENTS];
-        double vals[NUM_ELEMENTS];
 
-        CHECK_CRC32C(cols, vals, col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
-#endif
-
+        csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
         {
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-            uint32_t col = cols[i];
-            double val = vals[i];
-#else
-            uint32_t col = col_index[idx];
-            double val = non_zeros[idx];
-            CHECK_ECC(col, val, col_index, non_zeros, idx, cuda_terminate());
-#endif
-            smvp += val * p[MASK_INDEX(col)];
+            uint32_t col;
+            double val;
+            csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
+            smvp += val * p[col];
         }
 
         w[index] = smvp;
@@ -289,9 +241,9 @@ __global__ void cg_calc_w_no_check(
 
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
         {
-            uint32_t col = MASK_INDEX(col_index[idx]);
+            uint32_t col = 0;//MASK_INDEX(col_index[idx]);
             double val = non_zeros[idx];
-            COLUMN_CHECK(col, x, y);
+            // COLUMN_CHECK(col, x, y);
             smvp += val * p[col];
         }
 
@@ -361,6 +313,7 @@ __global__ void matrix_check(
         uint32_t* col_index,
         double* non_zeros)
 {
+    INIT_CSR_ELEMENTS();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 
     if(gid < x_inner*y_inner)
@@ -372,22 +325,15 @@ __global__ void matrix_check(
         const int index = off0 + col + row*x;
 
         const uint32_t row_begin = row_index[index];
-
-#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-        uint32_t cols[NUM_ELEMENTS];
-        double vals[NUM_ELEMENTS];
-
-        CHECK_CRC32C(cols, vals, col_index, non_zeros, row_begin, jj, kk, cuda_terminate());
-#elif defined(ABFT_METHOD_CSR_ELEMENT_SED) || defined(ABFT_METHOD_CSR_ELEMENT_SED_ASM) || defined(ABFT_METHOD_CSR_ELEMENT_SECDED)
-
         const uint32_t row_end   = row_index[index+1];
+
+        csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
         for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
         {
-            uint32_t col = col_index[idx];
-            double val = non_zeros[idx];
-            CHECK_ECC(col, val, col_index, non_zeros, idx, cuda_terminate());
+            uint32_t col;
+            double val;
+            csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
         }
-#endif
     }
 }
 

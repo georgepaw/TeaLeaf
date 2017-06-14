@@ -26,7 +26,7 @@
 #define C7_ECC_64BITS 0x40
 #define C8_ECC_64BITS 0x80
 
-static uint8_t secded64_syndrome_table_double[64] =
+__device__ static uint8_t secded64_syndrome_table_double[64] =
 {
   0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
   0x16, 0x26, 0x46, 0x86, 0x13, 0x23, 0x43, 0x83,
@@ -56,7 +56,7 @@ static uint8_t secded64_syndrome_table_double[64] =
 #define C6_ECC_64BITS 0x20
 #define C7_ECC_64BITS 0x40
 
-static uint8_t secded64_syndrome_table_double[64] =
+__device__ static uint8_t secded64_syndrome_table_double[64] =
 {
   0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x08,
   0x0D, 0x0E, 0x0F, 0x11, 0x12, 0x13, 0x14, 0x15,
@@ -68,7 +68,7 @@ static uint8_t secded64_syndrome_table_double[64] =
   0x3F, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47
 };
 
-static uint8_t secded64_syndrome_table_int_wide[64] =
+__device__ static uint8_t secded64_syndrome_table_int_wide[64] =
 {
   0x03, 0x05, 0x06, 0x07, 0x09, 0x0A, 0x0B, 0x0C,
   0x0D, 0x0E, 0x0F, 0x11, 0x12, 0x13, 0x14, 0x15,
@@ -81,7 +81,7 @@ static uint8_t secded64_syndrome_table_int_wide[64] =
 };
 #endif
 
-static inline int32_t get_fliped_bit_location_double_64bit(uint32_t syndrome)
+__device__ static inline int32_t get_fliped_bit_location_double_64bit(uint32_t syndrome)
 {
   for(uint32_t i = 0; i < 64; i++)
   {
@@ -94,7 +94,7 @@ static inline int32_t get_fliped_bit_location_double_64bit(uint32_t syndrome)
 }
 
 
-static inline int32_t get_fliped_bit_location_int_wide_64bit(uint32_t syndrome)
+__device__ static inline int32_t get_fliped_bit_location_int_wide_64bit(uint32_t syndrome)
 {
   for(uint32_t i = 0; i < 64; i++)
   {

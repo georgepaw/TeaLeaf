@@ -13,7 +13,7 @@
 
 #define WIDE_SIZE_DV 1
 
-static inline double check_ecc_double(double * in, uint32_t * flag)
+__device__ static inline double check_ecc_double(double * in, uint32_t * flag)
 {
   uint64_t all_bits = *((uint64_t*)in);
   uint64_t parity = __builtin_parityll(all_bits);
@@ -108,7 +108,7 @@ static inline double check_ecc_double(double * in, uint32_t * flag)
   return *((double*)&all_bits);
 }
 
-static inline double add_ecc_double(double in)
+__device__ static inline double add_ecc_double(double in)
 {
   uint64_t all_bits = *((uint64_t*)&in);
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
@@ -163,7 +163,7 @@ static inline double add_ecc_double(double in)
   return *((double*)&all_bits);
 }
 
-static inline double mask_double(double in)
+__device__ static inline double mask_double(double in)
 {
   uint64_t all_bits = *((uint64_t*)&in);
   // asm(  "and $0xfffffffffffffffe,%0\n"

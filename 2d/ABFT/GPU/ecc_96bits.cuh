@@ -38,7 +38,7 @@
 #define ECC7_P7_1 0xFE000000
 #define ECC7_P7_2 0x02FFFFFF
 
-static uint8_t PARITY_TABLE[256] =
+__device__ static uint8_t PARITY_TABLE[256] =
 {
   0, 1, 1, 0, 1, 0, 0, 1,
   1, 0, 0, 1, 0, 1, 1, 0,

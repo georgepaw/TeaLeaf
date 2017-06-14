@@ -38,11 +38,11 @@
 
 #endif
 
-typedef struct
-{
-  double * val_vector;
-  uint32_t * col_vector;
-  uint32_t * row_vector;
+// typedef struct
+// {
+//   double * val_vector;
+//   uint32_t * col_vector;
+//   uint32_t * row_vector;
 // #if defined(ABFT_METHOD_INT_VECTOR_SECDED64) || defined(ABFT_METHOD_INT_VECTOR_SECDED128) || defined(ABFT_METHOD_INT_VECTOR_CRC32C)
 //   uint32_t ** int_vector_buffered_rows;
 //   uint32_t ** int_vector_rows_to_write;
@@ -61,11 +61,11 @@ typedef struct
 //   uint32_t ** csr_element_to_write_num_elements;
 //   uint32_t ** csr_element_to_write_start_index;
 // #endif
-  const uint32_t num_rows;
-  const uint32_t nnz;
-  const uint32_t x;
-  const uint32_t y;
-} csr_matrix;
+//   const uint32_t num_rows;
+//   const uint32_t nnz;
+//   const uint32_t x;
+//   const uint32_t y;
+// } csr_matrix;
 
 // #define CSR_MATRIX_FLUSH_WRITES_CSR_ELEMENTS(matrix)    \
 // if(1) {                                                 \
@@ -210,42 +210,37 @@ if(1){                                      \
 // }
 
 
-// inline static void csr_set_csr_element_value(csr_matrix * matrix, const uint32_t col, const double val, const uint32_t index)
-// {
-// #if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
-//   //TODO this assumes that items are added in order
-//   uint32_t thread_id = omp_get_thread_num();
-//   uint32_t offset = index % CSR_ELEMENT_NUM_ELEMENTS;
-//   uint32_t row_start = index - offset;
+__device__ inline static void csr_set_csr_element_value(uint32_t * col_vector, double * val_vector, const uint32_t col, const double val, const uint32_t index)
+{
+#if !defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+  add_ecc_csr_element(col_vector + index, val_vector + index, &col, &val);
+#endif
+}
 
-//   if(row_start != matrix->csr_element_to_write_start_index[thread_id][0])
-//   {
-//     csr_flush_csr_elements(matrix, thread_id);
-//     matrix->csr_element_to_write_start_index[thread_id][0] = row_start;
-//   }
+__device__ inline static void csr_set_csr_element_values(uint32_t * col_vector, double * val_vector, const uint32_t * cols_start, const double * vals_start, const uint32_t start_index, const uint32_t num_elements)
+{
+#if defined(ABFT_METHOD_CSR_ELEMENT_CRC32C)
+  //TODO this only works for tealeaf
+  add_crc32c_csr_elements(col_vector + start_index,
+                        val_vector + start_index,
+                        cols_start,
+                        vals_start,
+                        num_elements);
+#else
+  for(uint32_t i = 0; i < num_elements; i++)
+  {
+    csr_set_csr_element_value(col_vector, val_vector, cols_start[i], vals_start[i], start_index + i);
+  }
+#endif
+}
 
-//   uint32_t next_index = matrix->csr_element_to_write_num_elements[thread_id][0];
-//   matrix->csr_element_cols_to_write[thread_id][next_index] = col;
-//   matrix->csr_element_vals_to_write[thread_id][next_index] = val;
-//   matrix->csr_element_to_write_num_elements[thread_id][0]++;
-// #else
-//   add_ecc_csr_element(matrix->col_vector + index, matrix->val_vector + index, &col, &val);
-// #endif
-// }
+
 
 // inline static void csr_set_row_values(csr_matrix * matrix, const uint32_t * rows_start, const uint32_t start_index, const uint32_t num_elements)
 // {
 //   for(uint32_t i = 0; i < num_elements; i++)
 //   {
 //     csr_set_row_value(matrix, rows_start[i], start_index + i);
-//   }
-// }
-
-// inline static void csr_set_csr_element_values(csr_matrix * matrix, const uint32_t * cols_start, const double * vals_start, const uint32_t start_index, const uint32_t num_elements)
-// {
-//   for(uint32_t i = 0; i < num_elements; i++)
-//   {
-//     csr_set_csr_element_value(matrix, cols_start[i], vals_start[i], start_index + i);
 //   }
 // }
 

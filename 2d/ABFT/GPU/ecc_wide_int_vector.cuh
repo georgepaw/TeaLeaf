@@ -15,7 +15,7 @@
 
 #endif
 
-static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32_t * flag)
+__device__ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32_t * flag)
 {
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64)
   uint64_t all_bits = *((uint64_t*)rows_in);
@@ -123,7 +123,7 @@ static inline void check_ecc_int(uint32_t * rows_out, uint32_t * rows_in, uint32
 #endif
 }
 
-static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
+__device__ static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
 {
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64)
   uint64_t all_bits = *((uint64_t*)rows_in);
@@ -183,7 +183,7 @@ static inline void add_ecc_int(uint32_t * rows_out, const uint32_t * rows_in)
 #endif
 }
 
-static inline uint32_t mask_int(uint32_t in)
+__device__ static inline uint32_t mask_int(uint32_t in)
 {
   return in & 0x0FFFFFFF;
 }

@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include "cuknl_shared.h"
 #include "../../shared.h"
-#include "../../ABFT/GPU/abft_common.cuh"
-
 #include "../../ABFT/GPU/csr_matrix.cuh"
 
 __global__ void sum_reduce(
