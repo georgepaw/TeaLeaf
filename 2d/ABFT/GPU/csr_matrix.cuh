@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <omp.h>
 #include "branch_helper.cuh"
 #include "abft_common.cuh"
 

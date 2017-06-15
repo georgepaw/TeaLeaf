@@ -1,16 +1,9 @@
+#include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void set_chunk_data_vertices( 
-        int x,
-        int y,
-        int halo_depth,
-        double dx,
-        double dy,
-        double x_min,
-        double y_min,
-		double* vertex_x,
-		double* vertex_y,
-		double* vertex_dx,
-		double* vertex_dy)
+        int x, int y, int halo_depth, double dx, double dy, double x_min,
+        double y_min, double_vector vertex_x, double_vector vertex_y,
+        double_vector vertex_dx, double_vector vertex_dy)
 {
 	const int gid = blockIdx.x*blockDim.x+threadIdx.x;
 
@@ -29,19 +22,9 @@ __global__ void set_chunk_data_vertices(
 
 // Extended kernel for the chunk initialisation
 __global__ void set_chunk_data( 
-        int x,
-        int y,
-        double dx,
-        double dy,
- 	    double* cell_x,
-		double* cell_y,
- 	    double* cell_dx,
-		double* cell_dy,
-		double* vertex_x,
-		double* vertex_y,
-		double* volume,
-		double* x_area,
-		double* y_area)
+        int x, int y, double dx, double dy, double_vector cell_x, double_vector cell_y,
+ 	    double_vector cell_dx, double_vector cell_dy, double_vector vertex_x, double_vector vertex_y,
+		double_vector volume, double_vector x_area, double_vector y_area)
 {
 	const int gid = blockIdx.x*blockDim.x+threadIdx.x;
 

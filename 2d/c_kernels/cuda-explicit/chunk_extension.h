@@ -1,8 +1,9 @@
 #pragma once
 #ifndef __CHUNKEXTENSIONH
 #define __CHUNKEXTENSIONH
+#include "../../ABFT/GPU/double_vector_definition.h"
 
-typedef double* FieldBufferType;
+typedef double_vector FieldBufferType;
 
 // Empty extension point
 typedef struct ChunkExtension

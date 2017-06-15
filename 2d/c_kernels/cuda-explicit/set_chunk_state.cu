@@ -1,12 +1,9 @@
 #include "../../settings.h"
+#include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void set_chunk_initial_state(
-        const int x,
-        const int y,
-		const double default_energy, 
-		const double default_density, 
-		double* energy0,
-	   	double* density)
+        const int x, const int y, const double default_energy, 
+        const double default_density, double_vector energy0, double_vector density)
 {
 	const int gid = threadIdx.x+blockDim.x*blockIdx.x;
 	if(gid >= x*y) return;
@@ -16,16 +13,9 @@ __global__ void set_chunk_initial_state(
 }	
 
 __global__ void set_chunk_state(
-        const int x,
-        const int y,
-        const double* vertex_x,
-        const double* vertex_y,
-        const double* cell_x,
-        const double* cell_y,
-        double* density,
-        double* energy0,
-        double* u,
-        State state)
+        const int x, const int y, double_vector vertex_x, double_vector vertex_y,
+        double_vector cell_x, double_vector cell_y, double_vector density, double_vector energy0,
+        double_vector u, State state)
 {
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
     const int x_loc = gid % x;

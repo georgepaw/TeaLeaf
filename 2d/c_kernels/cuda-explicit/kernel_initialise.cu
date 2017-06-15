@@ -15,6 +15,16 @@ void allocate_device_buffer(double** a, int x, int y)
     check_errors(__LINE__, __FILE__);
 }
 
+void allocate_dv_buffer(double_vector* a, int x, int y)
+{
+    cudaMalloc((void**)a, x*y*sizeof(double));
+    check_errors(__LINE__, __FILE__);
+
+    int num_blocks = ceil((double)(x*y)/(double)BLOCK_SIZE);
+    zero_dv_buffer<<<num_blocks, BLOCK_SIZE>>>(x, y, *a);
+    check_errors(__LINE__, __FILE__);
+}
+
 void allocate_host_buffer(double** a, int x, int y)
 {
     *a = (double*)malloc(sizeof(double)*x*y);
@@ -37,13 +47,13 @@ void allocate_host_buffer(double** a, int x, int y)
 
 // Allocates all of the field buffers
 void kernel_initialise(
-        Settings* settings, int x, int y, double** density0, 
-        double** density, double** energy0, double** energy, double** u, 
-        double** u0, double** p, double** r, double** mi, 
-        double** w, double** kx, double** ky, double** sd, 
-        double** volume, double** x_area, double** y_area, double** cell_x, 
-        double** cell_y, double** cell_dx, double** cell_dy, double** vertex_dx, 
-        double** vertex_dy, double** vertex_x, double** vertex_y,
+        Settings* settings, int x, int y, double_vector* density0, 
+        double_vector* density, double_vector* energy0, double_vector* energy, double_vector* u, 
+        double_vector* u0, double_vector* p, double_vector* r, double_vector* mi, 
+        double_vector* w, double_vector* kx, double_vector* ky, double_vector* sd, 
+        double_vector* volume, double_vector* x_area, double_vector* y_area, double_vector* cell_x, 
+        double_vector* cell_y, double_vector* cell_dx, double_vector* cell_dy, double_vector* vertex_dx, 
+        double_vector* vertex_dy, double_vector* vertex_x, double_vector* vertex_y,
         double** cg_alphas, double** cg_betas, double** cheby_alphas,
         double** cheby_betas, double** d_comm_buffer, double** d_reduce_buffer, 
         double** d_reduce_buffer2, double** d_reduce_buffer3, double** d_reduce_buffer4,
@@ -77,30 +87,30 @@ void kernel_initialise(
     const int x_inner = x - 2*settings->halo_depth;
     const int y_inner = y - 2*settings->halo_depth;
 
-    allocate_device_buffer(density0, x, y);
-    allocate_device_buffer(density, x, y);
-    allocate_device_buffer(energy0, x, y);
-    allocate_device_buffer(energy, x, y);
-    allocate_device_buffer(u, x, y);
-    allocate_device_buffer(u0, x, y);
-    allocate_device_buffer(p, x, y);
-    allocate_device_buffer(r, x, y);
-    allocate_device_buffer(mi, x, y);
-    allocate_device_buffer(w, x, y);
-    allocate_device_buffer(kx, x, y);
-    allocate_device_buffer(ky, x, y);
-    allocate_device_buffer(sd, x, y);
-    allocate_device_buffer(volume, x, y);
-    allocate_device_buffer(x_area, x+1, y);
-    allocate_device_buffer(y_area, x, y+1);
-    allocate_device_buffer(cell_x, x, 1);
-    allocate_device_buffer(cell_y, 1, y);
-    allocate_device_buffer(cell_dx, x, 1);
-    allocate_device_buffer(cell_dy, 1, y);
-    allocate_device_buffer(vertex_dx, x+1, 1);
-    allocate_device_buffer(vertex_dy, 1, y+1);
-    allocate_device_buffer(vertex_x, x+1, 1);
-    allocate_device_buffer(vertex_y, 1, y+1);
+    allocate_dv_buffer(density0, x, y);
+    allocate_dv_buffer(density, x, y);
+    allocate_dv_buffer(energy0, x, y);
+    allocate_dv_buffer(energy, x, y);
+    allocate_dv_buffer(u, x, y);
+    allocate_dv_buffer(u0, x, y);
+    allocate_dv_buffer(p, x, y);
+    allocate_dv_buffer(r, x, y);
+    allocate_dv_buffer(mi, x, y);
+    allocate_dv_buffer(w, x, y);
+    allocate_dv_buffer(kx, x, y);
+    allocate_dv_buffer(ky, x, y);
+    allocate_dv_buffer(sd, x, y);
+    allocate_dv_buffer(volume, x, y);
+    allocate_dv_buffer(x_area, x+1, y);
+    allocate_dv_buffer(y_area, x, y+1);
+    allocate_dv_buffer(cell_x, x, 1);
+    allocate_dv_buffer(cell_y, 1, y);
+    allocate_dv_buffer(cell_dx, x, 1);
+    allocate_dv_buffer(cell_dy, 1, y);
+    allocate_dv_buffer(vertex_dx, x+1, 1);
+    allocate_dv_buffer(vertex_dy, 1, y+1);
+    allocate_dv_buffer(vertex_x, x+1, 1);
+    allocate_dv_buffer(vertex_y, 1, y+1);
     allocate_device_buffer(d_comm_buffer, settings->halo_depth, max(x_inner, y_inner));
     allocate_device_buffer(d_reduce_buffer, x, y);
     allocate_device_buffer(d_reduce_buffer2, x, y);

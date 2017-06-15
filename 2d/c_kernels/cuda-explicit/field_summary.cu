@@ -1,17 +1,11 @@
 #include "cuknl_shared.h"
+#include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void field_summary(
-		const int x_inner,
-		const int y_inner,
-        const int halo_depth,
-		const double* volume,
-		const double* density,
-		const double* energy0,
-		const double* u,
-		double* vol_out,
-		double* mass_out,
-		double* ie_out,
-		double* temp_out)
+        const int x_inner, const int y_inner, const int halo_depth,
+        double_vector volume, double_vector density, double_vector energy0,
+        double_vector u, double* vol_out, double* mass_out,
+        double* ie_out, double* temp_out)
 {
 	const int gid = threadIdx.x+blockDim.x*blockIdx.x;
 	const int lid = threadIdx.x;

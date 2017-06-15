@@ -2,6 +2,7 @@
 #include "cuknl_shared.h"
 #include "../../shared.h"
 #include "../../ABFT/GPU/csr_matrix.cuh"
+#include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void sum_reduce(
         const int n, double* buffer);
@@ -21,11 +22,8 @@ void sum_reduce_buffer(
 }
 
 __global__ void copy_u(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double* src,
-        double* dest)
+		const int x_inner, const int y_inner, const int halo_depth,
+		double_vector src, double_vector dest)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
@@ -40,15 +38,9 @@ __global__ void copy_u(
 }
 
 __global__ void calculate_residual(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double* u,
-        const double* u0,
-        uint32_t* row_index,
-        uint32_t* col_index,
-        double* non_zeros,
-        double* r)
+		const int x_inner, const int y_inner, const int halo_depth,
+		double_vector u, double_vector u0, uint32_t* row_index, uint32_t* col_index,
+    double* non_zeros, double_vector r)
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
@@ -80,11 +72,8 @@ __global__ void calculate_residual(
 }
 
 __global__ void calculate_2norm(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double* src,
-        double* norm)
+		const int x_inner, const int y_inner, const int halo_depth,
+		double_vector src, double* norm)
 {
     __shared__ double norm_shared[BLOCK_SIZE];
     norm_shared[threadIdx.x] = 0.0;
@@ -105,12 +94,8 @@ __global__ void calculate_2norm(
 }
 
 __global__ void finalise(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double* density,
-        const double* u,
-        double* energy)
+        const int x_inner, const int y_inner, const int halo_depth,
+        double_vector density, double_vector u, double_vector energy)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
@@ -140,6 +125,17 @@ __global__ void zero_buffer(
         const int x,
         const int y,
         double* buffer)
+{
+    const int gid = threadIdx.x+blockIdx.x*blockDim.x;
+
+    if(gid < x*y)
+    {
+        buffer[gid] = 0.0;
+    }
+}
+
+__global__ void zero_dv_buffer(
+        const int x, const int y, double_vector buffer)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 

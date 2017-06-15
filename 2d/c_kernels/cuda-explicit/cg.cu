@@ -65,15 +65,9 @@ __global__ void csr_init_rows(
 }
 
 __global__ void cg_init_u(
-		const int x,
-		const int y,
-		const int coefficient,
-		const double* density,
-		const double* energy1,
-		double* u,
-		double* p,
-		double* r,
-		double* w)
+        const int x, const int y, const int coefficient,
+        double_vector density, double_vector energy1, double_vector u,
+        double_vector p, double_vector r, double_vector w)
 {
 	const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 	if(gid >= x*y) return;
@@ -87,14 +81,8 @@ __global__ void cg_init_u(
 }
 
 __global__ void cg_init_k(
-		const int x_inner,
-		const int y_inner,
-        const int halo_depth,
-		const double* w,
-		double* kx,
-		double* ky,
-		double rx,
-		double ry)
+        const int x_inner, const int y_inner, const int halo_depth,
+        double_vector w, double_vector kx, double_vector ky, double rx, double ry)
 {
 	const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 	if(gid >= x_inner*y_inner) return;
@@ -112,14 +100,9 @@ __global__ void cg_init_k(
 }
 
 __global__ void cg_init_csr(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double* kx,
-        const double* ky,
-        uint32_t* row_index,
-        uint32_t* col_index,
-        double* non_zeros)
+        const int x_inner, const int y_inner, const int halo_depth,
+        double_vector kx, double_vector ky, uint32_t* row_index,
+        uint32_t* col_index, double* non_zeros)
 {
     INIT_CSR_INT_VECTOR();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
@@ -158,18 +141,10 @@ __global__ void cg_init_csr(
 }
 
 __global__ void cg_init_others(
-		const int x_inner,
-		const int y_inner,
-        const int halo_depth,
-		const double* u,
-        uint32_t* row_index,
-        uint32_t* col_index,
-        double* non_zeros,
-		double* p,
-		double* r,
-		double* w,
-		double* mi,
-		double* rro)
+        const int x_inner, const int y_inner, const int halo_depth,
+        double_vector u, uint32_t* row_index, uint32_t* col_index,
+        double* non_zeros, double_vector p, double_vector r, double_vector w, double_vector mi,
+        double* rro)
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
@@ -212,15 +187,9 @@ __global__ void cg_init_others(
 }
 
 __global__ void cg_calc_w_check(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double* p,
-        uint32_t* row_index,
-        uint32_t* col_index,
-        double* non_zeros,
-        double* w,
-        double* pw)
+        const int x_inner, const int y_inner, const int halo_depth,
+        double_vector p, uint32_t* row_index, uint32_t* col_index,
+        double* non_zeros, double_vector w, double* pw)
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
@@ -260,16 +229,9 @@ __global__ void cg_calc_w_check(
 }
 
 __global__ void cg_calc_w_no_check(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const uint32_t nnz,
-        const double* p,
-        uint32_t* row_index,
-        uint32_t* col_index,
-        double* non_zeros,
-        double* w,
-        double* pw)
+        const int x_inner, const int y_inner, const int halo_depth,
+        const uint32_t nnz, double_vector p, uint32_t* row_index,
+        uint32_t* col_index, double* non_zeros, double_vector w, double* pw)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -307,15 +269,9 @@ __global__ void cg_calc_w_no_check(
 }
 
 __global__ void cg_calc_ur(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double alpha,
-        const double* p,
-        const double* w,
-        double* u,
-        double* r,
-        double* rrn)
+        const int x_inner, const int y_inner, const int halo_depth,
+        const double alpha, double_vector p, double_vector w,
+        double_vector u, double_vector r, double* rrn)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double rrn_shared[BLOCK_SIZE];
@@ -338,12 +294,8 @@ __global__ void cg_calc_ur(
 }
 
 __global__ void cg_calc_p(
-        const int x_inner,
-        const int y_inner,
-        const int halo_depth,
-        const double beta,
-        const double* r,
-        double* p)
+        const int x_inner, const int y_inner, const int halo_depth,
+        const double beta, double_vector r, double_vector p)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;

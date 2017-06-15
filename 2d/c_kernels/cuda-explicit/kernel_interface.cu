@@ -101,8 +101,8 @@ void run_local_halos(
 }
 
 void run_pack_or_unpack(
-        Chunk* chunk, Settings* settings, int depth,
-        int face, bool pack, double* field, double* buffer)
+  Chunk* chunk, Settings* settings, int depth,
+  int face, bool pack, double_vector field, double* buffer)
 {
     START_PROFILING(settings->kernel_profile);
 
@@ -262,11 +262,11 @@ void run_cheby_init(Chunk* chunk, Settings* settings)
 {
     KERNELS_START(2*settings->halo_depth);
 
-    cheby_init<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->u,
-            chunk->u0, chunk->kx, chunk->ky, chunk->theta,
-            chunk->p, chunk->r, chunk->w, chunk->ext->d_row_index,
-            chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+    // cheby_init<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, chunk->u,
+    //         chunk->u0, chunk->kx, chunk->ky, chunk->theta,
+    //         chunk->p, chunk->r, chunk->w, chunk->ext->d_row_index,
+    //         chunk->ext->d_col_index, chunk->ext->d_non_zeros);
 
     KERNELS_END();
 }
@@ -276,14 +276,14 @@ void run_cheby_iterate(
 {
     KERNELS_START(2*settings->halo_depth);
 
-    cheby_calc_p<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->u, chunk->u0,
-            chunk->kx, chunk->ky, alpha, beta, chunk->p, chunk->r,
-            chunk->w, chunk->ext->d_row_index,
-            chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+    // cheby_calc_p<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, chunk->u, chunk->u0,
+    //         chunk->kx, chunk->ky, alpha, beta, chunk->p, chunk->r,
+    //         chunk->w, chunk->ext->d_row_index,
+    //         chunk->ext->d_col_index, chunk->ext->d_non_zeros);
 
-    cheby_calc_u<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->p, chunk->u);
+    // cheby_calc_u<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, chunk->p, chunk->u);
 
     KERNELS_END();
 }
@@ -294,10 +294,10 @@ void run_jacobi_init(
 {
     KERNELS_START(2*settings->halo_depth);
 
-    jacobi_init<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->density, chunk->energy,
-            rx, ry, chunk->kx, chunk->ky, chunk->u0, chunk->u,
-            settings->coefficient);
+    // jacobi_init<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, chunk->density, chunk->energy,
+    //         rx, ry, chunk->kx, chunk->ky, chunk->u0, chunk->u,
+    //         settings->coefficient);
 
     KERNELS_END();
 }
@@ -307,12 +307,12 @@ void run_jacobi_iterate(
 {
     KERNELS_START(2*settings->halo_depth);
 
-    jacobi_iterate<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->kx, chunk->ky,
-            chunk->u0, chunk->r, chunk->u,
-            chunk->ext->d_reduce_buffer);
+    // jacobi_iterate<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, chunk->kx, chunk->ky,
+    //         chunk->u0, chunk->r, chunk->u,
+    //         chunk->ext->d_reduce_buffer);
 
-    sum_reduce_buffer(chunk->ext->d_reduce_buffer, error, num_blocks);
+    // sum_reduce_buffer(chunk->ext->d_reduce_buffer, error, num_blocks);
 
     KERNELS_END();
 }
@@ -322,9 +322,9 @@ void run_ppcg_init(Chunk* chunk, Settings* settings)
 {
     KERNELS_START(2*settings->halo_depth);
 
-    ppcg_init<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->theta, chunk->r,
-            chunk->sd);
+    // ppcg_init<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, chunk->theta, chunk->r,
+    //         chunk->sd);
 
     KERNELS_END();
 }
@@ -334,14 +334,14 @@ void run_ppcg_inner_iteration(
 {
     KERNELS_START(2*settings->halo_depth);
 
-    ppcg_calc_ur<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->kx, chunk->ky,
-            chunk->sd, chunk->u, chunk->r, chunk->ext->d_row_index,
-            chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+    // ppcg_calc_ur<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, chunk->kx, chunk->ky,
+    //         chunk->sd, chunk->u, chunk->r, chunk->ext->d_row_index,
+    //         chunk->ext->d_col_index, chunk->ext->d_non_zeros);
 
-    ppcg_calc_sd<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, alpha, beta, chunk->r,
-            chunk->sd);
+    // ppcg_calc_sd<<<num_blocks, BLOCK_SIZE>>>(
+    //         x_inner, y_inner, settings->halo_depth, alpha, beta, chunk->r,
+    //         chunk->sd);
 
     KERNELS_END();
 }
@@ -370,7 +370,7 @@ void run_calculate_residual(Chunk* chunk, Settings* settings)
 }
 
 void run_calculate_2norm(
-        Chunk* chunk, Settings* settings, double* buffer, double* norm)
+        Chunk* chunk, Settings* settings, double_vector buffer, double* norm)
 {
     KERNELS_START(2*settings->halo_depth);
 

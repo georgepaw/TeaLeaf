@@ -4,38 +4,38 @@
 #include "cuknl_shared.h"
 
 typedef void (*pack_kernel_f)( 
-		const int x, const int y, const int halo_depth, double* field,
+		const int x, const int y, const int halo_depth, double_vector field,
 		double* buffer, const int depth);
 
 __global__ void pack_left(
-		const int x, const int y, const int halo_depth, double* field,
+		const int x, const int y, const int halo_depth, double_vector field,
 		double* buffer, const int depth);
 __global__ void pack_right(
-		const int x, const int y, const int halo_depth, double* field,
+		const int x, const int y, const int halo_depth, double_vector field,
 		double* buffer, const int depth);
 __global__ void pack_top(
-		const int x, const int y, const int halo_depth, double* field,
+		const int x, const int y, const int halo_depth, double_vector field,
 		double* buffer, const int depth);
 __global__ void pack_bottom(
-		const int x, const int y, const int halo_depth, double* field,
+		const int x, const int y, const int halo_depth, double_vector field,
 		double* buffer, const int depth);
 __global__ void unpack_left(
-		const int x, const int y, const int halo_depth, double* field,
+		const int x, const int y, const int halo_depth, double_vector field,
 		double* buffer, const int depth);
 __global__ void unpack_right(
-		const int x, const int y, const int halo_depth, double* field,
+		const int x, const int y, const int halo_depth, double_vector field,
 		double* buffer, const int depth);
 __global__ void unpack_top( 
-        const int x, const int y, const int halo_depth, double* field, 
+        const int x, const int y, const int halo_depth, double_vector field, 
         double* buffer, const int depth);
 __global__ void unpack_bottom( 
-        const int x, const int y, const int halo_depth, double* field, 
+        const int x, const int y, const int halo_depth, double_vector field, 
         double* buffer, const int depth);
 
 // Either packs or unpacks data from/to buffers.
 void pack_or_unpack(
         Chunk* chunk, Settings* settings, int depth, int face, 
-        bool pack, double* field, double* buffer)
+        bool pack, double_vector field, double* buffer)
 {
     pack_kernel_f kernel = NULL;
 
@@ -93,7 +93,7 @@ __global__ void pack_left(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {
@@ -111,7 +111,7 @@ __global__ void pack_right(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {
@@ -129,7 +129,7 @@ __global__ void unpack_left(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {
@@ -147,7 +147,7 @@ __global__ void unpack_right(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {
@@ -165,7 +165,7 @@ __global__ void pack_top(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {
@@ -183,7 +183,7 @@ __global__ void pack_bottom(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {
@@ -201,7 +201,7 @@ __global__ void unpack_top(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {
@@ -219,7 +219,7 @@ __global__ void unpack_bottom(
         const int x,
         const int y,
         const int halo_depth,
-        double* field,
+        double_vector field,
         double* buffer,
         const int depth)
 {

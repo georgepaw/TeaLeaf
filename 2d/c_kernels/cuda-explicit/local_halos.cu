@@ -1,40 +1,33 @@
 #include <stdlib.h>
 #include "../../shared.h"
 #include "cuknl_shared.h"
+#include "../../ABFT/GPU/double_vector.cuh"
 
 /*
  * 		LOCAL HALOS KERNEL
  */	
 __global__ void update_bottom(
 		const int x, const int y, const int halo_depth, 
-        const int depth, double* buffer);
+        const int depth, double_vector buffer);
 __global__ void update_top(
 		const int x, const int y, const int halo_depth, 
-        const int depth, double* buffer);
+        const int depth, double_vector buffer);
 __global__ void update_left(
 		const int x, const int y, const int halo_depth, 
-        const int depth, double* buffer);
+        const int depth, double_vector buffer);
 __global__ void update_right(
 		const int x, const int y, const int halo_depth, 
-        const int depth, double* buffer);
+        const int depth, double_vector buffer);
 
 void update_face(const int x, const int y, const int halo_depth,
-        const int* chunk_neighbours, const int depth, double* buffer);
+        const int* chunk_neighbours, const int depth, double_vector buffer);
 
 // The kernel for updating halos locally
 void local_halos(
-        const int x,
-        const int y,
-        const int halo_depth,
-        const int depth,
-        const int* chunk_neighbours,
-        const bool* fields_to_exchange,
-        double* density,
-        double* energy0,
-        double* energy,
-        double* u,
-        double* p,
-        double* sd)
+        const int x, const int y, const int halo_depth,
+        const int depth, const int* chunk_neighbours,
+        const bool* fields_to_exchange, double_vector density, double_vector energy0,
+        double_vector energy, double_vector u, double_vector p, double_vector sd)
 {
 #define LAUNCH_UPDATE(index, buffer)\
     if(fields_to_exchange[index])\
@@ -58,7 +51,7 @@ void update_face(
         const int halo_depth,
         const int* chunk_neighbours,
         const int depth,
-        double* buffer)
+        double_vector buffer)
 {
 #define UPDATE_FACE(face, update_kernel) \
     if(chunk_neighbours[face] == EXTERNAL_FACE) \
@@ -82,7 +75,7 @@ __global__ void update_bottom(
         const int y,
         const int halo_depth,
         const int depth,
-        double* buffer)
+        double_vector buffer)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x*depth) return;
@@ -99,7 +92,7 @@ __global__ void update_top(
         const int y,
         const int halo_depth,
         const int depth,
-        double* buffer)
+        double_vector buffer)
 {
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x*depth) return;
@@ -116,7 +109,7 @@ __global__ void update_left(
         const int y,
         const int halo_depth,
         const int depth,
-        double* buffer)
+        double_vector buffer)
 {
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
     if(gid >= y*depth) return;
@@ -135,7 +128,7 @@ __global__ void update_right(
         const int y,
         const int halo_depth,
         const int depth,
-        double* buffer)
+        double_vector buffer)
 {
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
     if(gid >= y*depth) return;
