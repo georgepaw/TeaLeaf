@@ -15,6 +15,7 @@ __device__ static inline void add_ecc_csr_element(uint32_t * col_out, double * v
 
 __device__ static inline void mask_csr_element(uint32_t * col, double * val)
 {
+  asm("and.b32 %0, %1, 0xFFFFFFFF;" : "=r" (*col) : "r" (*col));
 }
 
 #endif //NO_ECC_CSR_ELEMENT_CUH
