@@ -7,6 +7,10 @@ __global__ void field_summary(
         double_vector u, double* vol_out, double* mass_out,
         double* ie_out, double* temp_out)
 {
+    INIT_DV_READ(volume);
+    INIT_DV_READ(density);
+    INIT_DV_READ(energy0);
+    INIT_DV_READ(u);
 	const int gid = threadIdx.x+blockDim.x*blockIdx.x;
 	const int lid = threadIdx.x;
 
@@ -28,12 +32,12 @@ __global__ void field_summary(
         const int off0 = halo_depth*(x + 1);
         const int index = off0 + col + row*x;
 
-        double cell_vol = volume[index];
-        double cell_mass = cell_vol*density[index];
+        double cell_vol = dv_get_value(volume, index);
+        double cell_mass = cell_vol*dv_get_value(density, index);
         vol_shared[lid] = cell_vol;
         mass_shared[lid] = cell_mass;
-        ie_shared[lid] = cell_mass*energy0[index];
-        temp_shared[lid] = cell_mass*u[index];
+        ie_shared[lid] = cell_mass*dv_get_value(energy0, index);
+        temp_shared[lid] = cell_mass*dv_get_value(u, index);
     }
 
     __syncthreads();

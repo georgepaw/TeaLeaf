@@ -77,6 +77,8 @@ __global__ void update_bottom(
         const int depth,
         double_vector buffer)
 {
+    INIT_DV_READ(buffer);
+    INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x*depth) return;
 
@@ -84,7 +86,8 @@ __global__ void update_bottom(
     const int offset = x*halo_depth;
     const int from_index = offset + gid;
     const int to_index = from_index - (1 + lines*2)*x;
-    buffer[to_index] = buffer[from_index];
+    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
+    DV_FLUSH_WRITES(buffer);
 }
 
 __global__ void update_top(
@@ -94,6 +97,8 @@ __global__ void update_top(
         const int depth,
         double_vector buffer)
 {
+    INIT_DV_READ(buffer);
+    INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x*depth) return;
 
@@ -101,7 +106,8 @@ __global__ void update_top(
     const int offset = x*(y - halo_depth);
     const int to_index = offset + gid;
     const int from_index = to_index - (1 + lines*2)*x;
-    buffer[to_index] = buffer[from_index];
+    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
+    DV_FLUSH_WRITES(buffer);
 }
 
 __global__ void update_left(
@@ -111,6 +117,8 @@ __global__ void update_left(
         const int depth,
         double_vector buffer)
 {
+    INIT_DV_READ(buffer);
+    INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
     if(gid >= y*depth) return;
 
@@ -120,7 +128,8 @@ __global__ void update_left(
     const int from_index = offset + gid;
     const int to_index = from_index - (1 + flip*2);
 
-    buffer[to_index] = buffer[from_index];
+    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
+    DV_FLUSH_WRITES(buffer);
 }
 
 __global__ void update_right(
@@ -130,6 +139,8 @@ __global__ void update_right(
         const int depth,
         double_vector buffer)
 {
+    INIT_DV_READ(buffer);
+    INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
     if(gid >= y*depth) return;
 
@@ -139,6 +150,7 @@ __global__ void update_right(
     const int to_index = offset + gid;
     const int from_index = to_index - (1 + flip*2);
 
-    buffer[to_index] = buffer[from_index];
+    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
+    DV_FLUSH_WRITES(buffer);
 }
 

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "branch_helper.cuh"
+#include "abft_common.cuh"
 
 #if defined(ABFT_METHOD_INT_VECTOR_SECDED64)
 #include "ecc_64bit.cuh"

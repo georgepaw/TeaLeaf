@@ -2,6 +2,7 @@
 #include "../../chunk.h"
 #include "../../shared.h"
 #include "cuknl_shared.h"
+#include "../../ABFT/GPU/double_vector.cuh"
 
 typedef void (*pack_kernel_f)( 
 		const int x, const int y, const int halo_depth, double_vector field,
@@ -97,6 +98,7 @@ __global__ void pack_left(
         double* buffer,
         const int depth)
 {
+    INIT_DV_READ(field);
     const int y_inner = y - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -104,7 +106,7 @@ __global__ void pack_left(
 
     const int lines = gid / depth;
     const int offset = halo_depth + lines*(x - depth);
-    buffer[gid] = field[offset+gid];
+    buffer[gid] = dv_get_value(field, offset+gid);
 }
 
 __global__ void pack_right(
@@ -115,6 +117,7 @@ __global__ void pack_right(
         double* buffer,
         const int depth)
 {
+    INIT_DV_READ(field);
     const int y_inner = y - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -122,7 +125,7 @@ __global__ void pack_right(
 
     const int lines = gid / depth;
     const int offset = x - halo_depth - depth + lines*(x - depth);
-    buffer[gid] = field[offset+gid];
+    buffer[gid] = dv_get_value(field, offset+gid);
 }
 
 __global__ void unpack_left(
@@ -133,6 +136,7 @@ __global__ void unpack_left(
         double* buffer,
         const int depth)
 {
+    INIT_DV_WRITE(field);
     const int y_inner = y - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -140,7 +144,8 @@ __global__ void unpack_left(
 
     const int lines = gid / depth;
     const int offset = halo_depth - depth + lines*(x - depth);
-    field[offset+gid] = buffer[gid];
+    dv_set_value(field, buffer[gid], offset+gid);
+    DV_FLUSH_WRITES(field);
 }
 
 __global__ void unpack_right(
@@ -151,6 +156,7 @@ __global__ void unpack_right(
         double* buffer,
         const int depth)
 {
+    INIT_DV_WRITE(field);
     const int y_inner = y - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -158,7 +164,8 @@ __global__ void unpack_right(
 
     const int lines = gid / depth;
     const int offset = x - halo_depth + lines*(x - depth);
-    field[offset+gid] = buffer[gid];
+    dv_set_value(field, buffer[gid], offset+gid);
+    DV_FLUSH_WRITES(field);
 }
 
 __global__ void pack_top(
@@ -169,6 +176,7 @@ __global__ void pack_top(
         double* buffer,
         const int depth)
 {
+    INIT_DV_READ(field);
     const int x_inner = x - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -176,7 +184,7 @@ __global__ void pack_top(
 
     const int lines = gid / x_inner;
     const int offset = x - halo_depth + lines*(x - depth);
-    buffer[gid] = field[offset+gid];
+    buffer[gid] = dv_get_value(field, offset+gid);
 }
 
 __global__ void pack_bottom(
@@ -187,6 +195,7 @@ __global__ void pack_bottom(
         double* buffer,
         const int depth)
 {
+    INIT_DV_READ(field);
     const int x_inner = x - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -194,7 +203,7 @@ __global__ void pack_bottom(
 
     const int lines = gid / x_inner;
     const int offset = x*halo_depth + lines*2*halo_depth;
-    buffer[gid] = field[offset+gid];
+    buffer[gid] = dv_get_value(field, offset+gid);
 }
 
 __global__ void unpack_top(
@@ -205,6 +214,7 @@ __global__ void unpack_top(
         double* buffer,
         const int depth)
 {
+    INIT_DV_WRITE(field);
     const int x_inner = x - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -212,7 +222,8 @@ __global__ void unpack_top(
 
     const int lines = gid / x_inner;
     const int offset = x*(y - halo_depth) + lines*2*halo_depth;
-    field[offset+gid] = buffer[gid];
+    dv_set_value(field, buffer[gid], offset+gid);
+    DV_FLUSH_WRITES(field);
 }
 
 __global__ void unpack_bottom(
@@ -223,6 +234,7 @@ __global__ void unpack_bottom(
         double* buffer,
         const int depth)
 {
+    INIT_DV_WRITE(field);
     const int x_inner = x - 2*halo_depth;
 
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
@@ -230,6 +242,7 @@ __global__ void unpack_bottom(
 
     const int lines = gid / x_inner;
     const int offset = x*(halo_depth - depth) + lines*2*halo_depth;
-    field[offset+gid] = buffer[gid];
+    dv_set_value(field, buffer[gid], offset+gid);
+    DV_FLUSH_WRITES(field);
 }
 

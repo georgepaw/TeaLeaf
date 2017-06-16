@@ -33,8 +33,10 @@ __global__ void copy_u(
     const int row = gid / x_inner; 
     const int off0 = halo_depth*(x + 1);
     const int index = off0 + col + row*x;
-
-    dest[index] = src[index];	
+    INIT_DV_READ(src);
+    INIT_DV_WRITE(dest);
+    dv_set_value(dest, dv_get_value(src,index), index);
+    DV_FLUSH_WRITES(dest);
 }
 
 __global__ void calculate_residual(
@@ -44,6 +46,9 @@ __global__ void calculate_residual(
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
+    INIT_DV_READ(u);
+    INIT_DV_READ(u0);
+    INIT_DV_WRITE(r);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -66,15 +71,17 @@ __global__ void calculate_residual(
         uint32_t col;
         double val;
         csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-        smvp += val * u[col];
+        smvp += val * dv_get_value(u, col);
     }
-    r[index] = u0[index] - smvp;
+    dv_set_value(r, dv_get_value(u0, index) - smvp, index);
+    DV_FLUSH_WRITES(r);
 }
 
 __global__ void calculate_2norm(
 		const int x_inner, const int y_inner, const int halo_depth,
 		double_vector src, double* norm)
 {
+    INIT_DV_READ(src);
     __shared__ double norm_shared[BLOCK_SIZE];
     norm_shared[threadIdx.x] = 0.0;
 
@@ -88,7 +95,8 @@ __global__ void calculate_2norm(
     const int off0 = halo_depth*(x + 1);
     const int index = off0 + col + row*x;
 
-    norm_shared[threadIdx.x] = src[index]*src[index];
+    double val = dv_get_value(src, index);
+    norm_shared[threadIdx.x] = val*val;
 
     reduce<double, BLOCK_SIZE/2>::run(norm_shared, norm, SUM);
 }
@@ -97,6 +105,9 @@ __global__ void finalise(
         const int x_inner, const int y_inner, const int halo_depth,
         double_vector density, double_vector u, double_vector energy)
 {
+    INIT_DV_READ(u);
+    INIT_DV_READ(density);
+    INIT_DV_WRITE(energy);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -105,8 +116,9 @@ __global__ void finalise(
     const int row = gid / x_inner; 
     const int off0 = halo_depth*(x + 1);
     const int index = off0 + col + row*x;
-
-    energy[index] = u[index]/density[index];
+	dv_set_value(energy, dv_get_value(u, index)
+                      	 /dv_get_value(density, index), index);
+    DV_FLUSH_WRITES(energy);
 }
 
 __global__ void sum_reduce(
@@ -137,10 +149,12 @@ __global__ void zero_buffer(
 __global__ void zero_dv_buffer(
         const int x, const int y, double_vector buffer)
 {
+    INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 
     if(gid < x*y)
     {
-        buffer[gid] = 0.0;
+        dv_set_value(buffer, 0.0, gid);
     }
+    DV_FLUSH_WRITES(buffer);
 }

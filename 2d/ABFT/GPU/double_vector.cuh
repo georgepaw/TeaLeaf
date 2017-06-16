@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
-
+#include "abft_common.cuh"
 #include "double_vector_definition.h"
 
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
@@ -20,6 +20,25 @@
 #include "no_ecc_double_vector.cuh"
 #endif
 
+#if WIDE_SIZE_DV > 1
+#define INIT_DV_READ(vector) \
+  double _dv_buffered_vals_ ## vector ##[WIDE_SIZE_DV];
+
+#define INIT_DV_WRITE(vector) \
+  double _dv_vals_to_write ## vector ##[WIDE_SIZE_DV];
+
+#define DV_FLUSH_WRITES(vector) \
+  dv_flush(vector....);
+
+#else
+#define DV_FLUSH_WRITES(vector)
+#define INIT_DV_READ(vector)
+#define INIT_DV_WRITE(vector)
+#endif
+
+#if WIDE_SIZE_DV > 1
+#else
+#endif
 
 #define ROUND_TO_MULTIPLE(x, multiple) ((x % multiple == 0) ? x : x + (multiple - x % multiple))
 // struct
@@ -50,31 +69,7 @@
 //   const uint32_t size;
 // } double_vector;
 
-// #define DV_FLUSH_WRITES(vector)           \
-// _Pragma("omp parallel")                   \
-//   dv_flush(vector, omp_get_thread_num());
 
-
-
-//   // printf("Flushed %s\n", #vector);
-
-// static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32_t y);
-// static inline void dv_set_value_no_rmw(double_vector * vector, const double value, const uint32_t x, const uint32_t y);
-// static inline void dv_set_value(double_vector * vector, const double value, const uint32_t x, const uint32_t y);
-// // static inline void dv_set_values(double_vector * vector, const double * value_start, const uint32_t start_index, const uint32_t num_elements);
-// static inline double dv_get_value(double_vector * vector, const uint32_t x, const uint32_t y);
-// // static inline void dv_get_values(double_vector * vector, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements);
-// static inline void dv_copy_value(double_vector * dest_vector, double_vector * src_vector, const uint32_t dest_x, const uint32_t dest_y,
-//                                  const uint32_t src_x, const uint32_t src_y);
-// // static inline void dv_copy_values(double_vector * dest_vector, double_vector * src_vector, const uint32_t start_index, const uint32_t num_elements);
-// static inline void dv_copy_value_to_buffer(double * dest_buffer, double_vector * src_vector, const uint32_t dest_index,
-//                                            const uint32_t src_x, const uint32_t src_y);
-// // static inline void dv_copy_values_to_buffer(double * dest_buffer, double_vector * src_vector, const uint32_t dest_start_index, const uint32_t src_start_index, const uint32_t num_elements);
-// static inline void dv_copy_value_from_buffer(double_vector * dest_vector, double * src_buffer, const uint32_t dest_x, const uint32_t dest_y,
-//                                              const uint32_t src_index);
-// // static inline void dv_copy_values_from_buffer(double_vector * dest_vector, double * src_buffer, const uint32_t dest_start_index, const uint32_t src_start_index, const uint32_t num_elements);
-// static inline void dv_free_vector(double_vector * vector);
-// inline static void dv_flush(double_vector * vector, uint32_t thread_id);
 
 // static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32_t y)
 // {
@@ -90,7 +85,7 @@
 //   *(uint32_t*)&(*vector)->y = y;
 //   *(uint32_t*)&(*vector)->size = x * y;
 //   (*vector)->vals = (double*)malloc(sizeof(double) * size_to_allocate);
-//   if((*vector)->vals == NULL) exit(-1);
+//   if((*vector)->vals == NULL) cuda_terminate();
 
 // #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
 //   //allocate all the buffers
@@ -175,7 +170,7 @@
 // #else
 //   uint32_t flag = 0;
 //   double val = check_ecc_double(&(vector->vals[vector->x * y + x]), &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 //   return mask_double(val);
 // #endif
 // }
@@ -202,7 +197,7 @@
 // #else
 //   uint32_t flag = 0;
 //   double val = check_ecc_double(&(vector->vals[vector->x * y + x]), &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 //   return mask_double(val);
 // #endif
 // }
@@ -219,22 +214,22 @@
 //   check_ecc_double(vector->dv_stencil_plus_one[thread_id],
 //              vector->vals + vector->x * (y + 1),
 //              &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_minus_one[thread_id],
 //              vector->vals + vector->x * (y - 1),
 //              &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_middle[thread_id] + WIDE_SIZE_DV,
 //              vector->vals + vector->x * y,
 //              &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_middle[thread_id] + 2 * WIDE_SIZE_DV,
 //              vector->vals + WIDE_SIZE_DV + vector->x * y,
 //              &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 
 //   vector->dv_stencil_x[thread_id][0] = 0;
 //   vector->dv_stencil_y[thread_id][0] = y;
@@ -253,12 +248,12 @@
 //   check_ecc_double(vector->dv_stencil_plus_one[thread_id],
 //              vector->vals + x + vector->x * (y + 1),
 //              &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_minus_one[thread_id],
 //              vector->vals + x + vector->x * (y - 1),
 //              &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 
 //   memcpy(vector->dv_stencil_middle[thread_id],
 //          vector->dv_stencil_middle[thread_id] + WIDE_SIZE_DV,
@@ -270,7 +265,7 @@
 //   check_ecc_double(vector->dv_stencil_middle[thread_id] + 2 * WIDE_SIZE_DV,
 //              vector->vals + x + WIDE_SIZE_DV + vector->x * y,
 //              &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 
 //   vector->dv_stencil_x[thread_id][0] = x;
 //   vector->dv_stencil_y[thread_id][0] = y;
@@ -292,7 +287,7 @@
 //     check_ecc_double(vector->dv_stencil_plus_one[thread_id] + write_loc,
 //                vector->vals + read_loc + vector->x * (y + 1),
 //                &flag);
-//     if(flag) exit(-1);
+//     if(flag) cuda_terminate();
 //   }
 
 //   for(uint32_t read_loc = start_x, write_loc=0; read_loc < x + 1; read_loc+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
@@ -300,7 +295,7 @@
 //     check_ecc_double(vector->dv_stencil_minus_one[thread_id] + write_loc,
 //                vector->vals + read_loc + vector->x * (y - 1),
 //                &flag);
-//     if(flag) exit(-1);
+//     if(flag) cuda_terminate();
 //   }
 
 
@@ -313,7 +308,7 @@
 //     check_ecc_double(vector->dv_stencil_middle[thread_id] + write_loc,
 //                vector->vals + i + vector->x * y,
 //                &flag);
-//     if(flag) exit(-1);
+//     if(flag) cuda_terminate();
 //   }
 
 //   vector->dv_stencil_offset[thread_id][0] = offset;
@@ -363,7 +358,7 @@
 //                      &flag);
 //   }
 //   if(flag)
-//       exit(-1);
+//       cuda_terminate();
 // #endif
 // }
 
@@ -400,38 +395,39 @@
 // #else
 //   uint32_t flag = 0;
 //   double val = check_ecc_double(&(vector->vals[vector->x * y + x]), &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 //   return mask_double(val);
 // #endif
 // }
 
-// static inline void dv_set_value(double_vector * vector, const double value, const uint32_t x, const uint32_t y)
-// {
-// #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
-//   uint32_t thread_id = omp_get_thread_num();
-//   uint32_t offset = x % WIDE_SIZE_DV;
-//   uint32_t start_x = x - offset;
+#define dv_set_value(vector, value, index) _dv_set_value(vector, value, index)
+__device__ static inline void _dv_set_value(double_vector vector, const double value, const uint32_t index)
+{
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
+  uint32_t thread_id = omp_get_thread_num();
+  uint32_t offset = x % WIDE_SIZE_DV;
+  uint32_t start_x = x - offset;
 
-//   if(start_x != vector->dv_to_write_start_x[thread_id][0] ||
-//      y != vector->dv_to_write_y[thread_id][0])
-//   {
-//     dv_flush(vector, thread_id);
-//     vector->dv_to_write_start_x[thread_id][0] = start_x;
-//     vector->dv_to_write_y[thread_id][0] = y;
-//     //READ-MODIFY-WRITE
-//     uint32_t flag = 0;
-//     check_ecc_double(vector->dv_vals_to_write[thread_id],
-//                      vector->vals + start_x + vector->x * y,
-//                      &flag);
-//     if(flag) exit(-1);
-//   }
+  if(start_x != vector->dv_to_write_start_x[thread_id][0] ||
+     y != vector->dv_to_write_y[thread_id][0])
+  {
+    dv_flush(vector, thread_id);
+    vector->dv_to_write_start_x[thread_id][0] = start_x;
+    vector->dv_to_write_y[thread_id][0] = y;
+    //READ-MODIFY-WRITE
+    uint32_t flag = 0;
+    check_ecc_double(vector->dv_vals_to_write[thread_id],
+                     vector->vals + start_x + vector->x * y,
+                     &flag);
+    if(flag) cuda_terminate();
+  }
 
-//   vector->dv_vals_to_write[thread_id][offset] = value;
-//   vector->dv_to_write_num_elements[thread_id][0]++;
-// #else
-//   vector->vals[vector->x * y + x] = add_ecc_double(value);
-// #endif
-// }
+  vector->dv_vals_to_write[thread_id][offset] = value;
+  vector->dv_to_write_num_elements[thread_id][0]++;
+#else
+  vector[index] = add_ecc_double(value);
+#endif
+}
 
 // inline static void dv_prefetch(double_vector * vector, const uint32_t start_x, const uint32_t y)
 // {
@@ -443,80 +439,38 @@
 //   check_ecc_double(vector->dv_buffered_vals[thread_id],
 //                    vector->vals + start_x + vector->x * y,
 //                    &flag);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 // #endif
 // }
+#define dv_get_value(vector, index) _dv_get_value(vector, index)
+__device__ static inline double _dv_get_value(double_vector vector, const uint32_t index)
+{
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
+  // uint32_t thread_id = omp_get_thread_num();
+  // uint32_t offset = x % WIDE_SIZE_DV;
+  // uint32_t start_x = x - offset;
 
-// static inline double dv_get_value(double_vector * vector, const uint32_t x, const uint32_t y)
-// {
-// #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
-//   uint32_t thread_id = omp_get_thread_num();
-//   uint32_t offset = x % WIDE_SIZE_DV;
-//   uint32_t start_x = x - offset;
+  // if(start_x != vector->dv_buffer_start_x[thread_id][0] ||
+  //    y != vector->dv_buffer_y[thread_id][0]) dv_prefetch(vector, start_x, y);
 
-//   if(start_x != vector->dv_buffer_start_x[thread_id][0] ||
-//      y != vector->dv_buffer_y[thread_id][0]) dv_prefetch(vector, start_x, y);
-
-//   return mask_double(vector->dv_buffered_vals[thread_id][offset]);
-//   // printf("%u\n", *val_dest);
-// #else
-//   uint32_t flag = 0;
-//   double val = check_ecc_double(&(vector->vals[vector->x * y + x]), &flag);
-//   if(flag) exit(-1);
-//   return mask_double(val);
-// #endif
-// }
-
-// // static inline void dv_get_values(double_vector * vector, uint32_t * val_dest_start, const uint32_t start_index, const uint32_t num_elements)
-// // {
-// //   for(uint32_t i = 0; i < num_elements; i++)
-// //   {
-// //     val_dest_start[i] = dv_get_value(vector, start_index + i);
-// //   }
-// // }
-
-// static inline void dv_copy_value(double_vector * dest_vector, double_vector * src_vector, const uint32_t dest_x, const uint32_t dest_y,
-//                                  const uint32_t src_x, const uint32_t src_y)
-// {
-//   dv_set_value(dest_vector, dv_get_value(src_vector, src_x, src_y), dest_x, dest_y);
-// //   #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
-// //   uint32_t thread_id = omp_get_thread_num();
-// //   uint32_t offset = src_index % WIDE_SIZE_DV;
-// //   uint32_t row_start = src_index - offset;
-// //   if(row_start != src_vector->dv_buffer_start_x[thread_id][0]) dv_prefetch(src_vector, row_start);
-// //   dv_set_value(dest_vector, src_vector->dv_buffered_vals[thread_id][offset], dest_index);
-// // #else
-// //   uint32_t flag = 0;
-// //   double val = check_ecc_double(&(src_vector->vals[src_vector->x * src_y + src_x]), &flag);
-// //   if(flag) exit(-1);
-// //   dv_set_value(dest_vector, val, dest_x, dest_y);
-// // #endif
-// }
-
-// // static inline void dv_copy_values(double_vector * dest_vector, double_vector * src_vector, const uint32_t start_index, const uint32_t num_elements)
-// // {
-// //   for(uint32_t i = 0; i < num_elements; i++)
-// //   {
-// //     dv_copy_value(dest_vector, src_vector, start_index + i, start_index + i);
-// //   }
-// // }
+  // return mask_double(vector->dv_buffered_vals[thread_id][offset]);
+  // // printf("%u\n", *val_dest);
+#else
+  uint32_t flag = 0;
+  double val = check_ecc_double(&(vector[index]), &flag);
+  if(flag) cuda_terminate();
+  return mask_double(val);
+#endif
+}
 
 // static inline void dv_copy_value_to_buffer(double * dest_buffer, double_vector * src_vector, const uint32_t dest_index,
 //                                            const uint32_t src_x, const uint32_t src_y)
 // {
 //   uint32_t flag = 0;
 //   double val = mask_double(src_vector->vals[src_vector->x * src_y + src_x]);
-//   if(flag) exit(-1);
+//   if(flag) cuda_terminate();
 //   dest_buffer[dest_index] = val;
 // }
-
-// // static inline void dv_copy_values_to_buffer(double * dest_buffer, double_vector * src_vector, const uint32_t dest_start_index, const uint32_t src_start_index, const uint32_t num_elements)
-// // {
-// //   for(uint32_t i = 0; i < num_elements; i++)
-// //   {
-// //     dv_copy_value_to_buffer(dest_buffer, src_vector, dest_start_index + i, src_start_index + i);
-// //   }
-// // }
 
 // static inline void dv_copy_value_from_buffer(double_vector * dest_vector, double * src_buffer, const uint32_t dest_x, const uint32_t dest_y,
 //                                              const uint32_t src_index)
@@ -524,29 +478,15 @@
 //   dv_set_value(dest_vector, src_buffer[src_index], dest_x, dest_y);
 // }
 
-// // static inline void dv_copy_values_from_buffer(double_vector * dest_vector, double * src_buffer, const uint32_t dest_start_index, const uint32_t src_start_index, const uint32_t num_elements)
-// // {
-// //   for(uint32_t i = 0; i < num_elements; i++)
-// //   {
-// //     dv_copy_value_from_buffer(dest_vector, src_buffer, dest_start_index + i, src_start_index + i);
-// //   }
-// // }
-
-// static inline void dv_free_vector(double_vector * vector)
-// {
-//   free(vector->vals);
-// }
-
-// inline static void dv_flush(double_vector * vector, uint32_t thread_id)
-// {
-// #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
-//   if(vector->dv_to_write_num_elements[thread_id][0] == 0
-//     || vector->dv_to_write_start_x[thread_id][0] >= vector->x
-//     || vector->dv_to_write_y[thread_id][0] >= vector->y) return;
-//   add_ecc_double(vector->vals + vector->dv_to_write_start_x[thread_id][0] + vector->x * vector->dv_to_write_y[thread_id][0],
-//                  vector->dv_vals_to_write[thread_id]);
-//   vector->dv_to_write_num_elements[thread_id][0] = 0;
-// #endif
-// }
+inline static void dv_flush(double_vector vector, double * dv_vals_to_write, const uint32_t * dv_to_write_num_elements, const uint32_t dv_to_write_start, const uint32_t size)
+{
+#if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
+  if(*dv_to_write_num_elements == 0
+    || dv_to_write_start >= size) return;
+  add_ecc_double(vector + dv_to_write_start,
+                 dv_vals_to_write);
+  *dv_to_write_num_elements = 0;
+#endif
+}
 
 #endif //DOUBLE_MATRIX_CUH

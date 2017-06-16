@@ -2,6 +2,7 @@
 #include "c_kernels.h"
 #include "cuknl_shared.h"
 #include "../../ABFT/GPU/csr_matrix.cuh"
+#include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void inject_bitflip_csr_element(
   const uint32_t bit,
@@ -69,21 +70,37 @@ __global__ void cg_init_u(
         double_vector density, double_vector energy1, double_vector u,
         double_vector p, double_vector r, double_vector w)
 {
+    INIT_DV_READ(energy1);
+    INIT_DV_READ(density);
+    INIT_DV_WRITE(p);
+    INIT_DV_WRITE(r);
+    INIT_DV_WRITE(u);
+    INIT_DV_WRITE(w);
 	const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 	if(gid >= x*y) return;
 
-	p[gid] = 0.0;
-	r[gid] = 0.0;
-	u[gid] = energy1[gid]*density[gid];
+	dv_set_value(p, 0.0, gid);
+	dv_set_value(r, 0.0, gid);
+	dv_set_value(u,
+                 dv_get_value(energy1, gid)*
+                 dv_get_value(density, gid),
+                 gid);
 
-	w[gid] = (coefficient == CONDUCTIVITY)
-		? density[gid] : 1.0/density[gid];
+	dv_set_value(w, (coefficient == CONDUCTIVITY)
+		? dv_get_value(density, gid) : 1.0/dv_get_value(density, gid), gid);
+    DV_FLUSH_WRITES(p);
+    DV_FLUSH_WRITES(r);
+    DV_FLUSH_WRITES(u);
+    DV_FLUSH_WRITES(w);
 }
 
 __global__ void cg_init_k(
         const int x_inner, const int y_inner, const int halo_depth,
         double_vector w, double_vector kx, double_vector ky, double rx, double ry)
 {
+    INIT_DV_READ(w);
+    INIT_DV_WRITE(kx);
+    INIT_DV_WRITE(ky);
 	const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 	if(gid >= x_inner*y_inner) return;
 
@@ -93,10 +110,14 @@ __global__ void cg_init_k(
 	const int off0 = halo_depth*(x + 1);
 	const int index = off0 + col + row*x;
 
-	kx[index] = rx*(w[index-1]+w[index]) /
-        (2.0*w[index-1]*w[index]);
-	ky[index] = ry*(w[index-x]+w[index]) /
-        (2.0*w[index-x]*w[index]);
+	dv_set_value(kx,
+        rx*(dv_get_value(w, index-1)+dv_get_value(w, index)) /
+        (2.0*dv_get_value(w, index-1)*dv_get_value(w, index)), index);
+	dv_set_value(ky,
+        ry*(dv_get_value(w, index-x)+dv_get_value(w, index)) /
+        (2.0*dv_get_value(w, index-x)*dv_get_value(w, index)), index);
+    DV_FLUSH_WRITES(kx);
+    DV_FLUSH_WRITES(ky);
 }
 
 __global__ void cg_init_csr(
@@ -105,6 +126,8 @@ __global__ void cg_init_csr(
         uint32_t* col_index, double* non_zeros)
 {
     INIT_CSR_INT_VECTOR();
+    INIT_DV_READ(kx);
+    INIT_DV_READ(ky);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -121,13 +144,13 @@ __global__ void cg_init_csr(
         row >= y-halo_depth || col >= x-halo_depth) return;
     double vals[5] =
     {
-        -ky[index],
-        -kx[index],
+        -dv_get_value(ky, index),
+        -dv_get_value(kx, index),
         (1.0 +
-            kx[index+1] + kx[index] +
-            ky[index+x] + ky[index]),
-        -kx[index+1],
-        -ky[index+x]
+            dv_get_value(kx, index+1) + dv_get_value(kx, index) +
+            dv_get_value(ky, index+x) + dv_get_value(ky, index)),
+        -dv_get_value(kx, index+1),
+        -dv_get_value(ky, index+x)
     };
     uint32_t cols[5] =
     {
@@ -148,6 +171,10 @@ __global__ void cg_init_others(
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
+    INIT_DV_READ(u);
+    INIT_DV_WRITE(w);
+    INIT_DV_WRITE(r);
+    INIT_DV_WRITE(p);
 	const int gid = threadIdx.x + blockIdx.x*blockDim.x;
 	__shared__ double rro_shared[BLOCK_SIZE];
 	rro_shared[threadIdx.x] = 0.0;
@@ -173,14 +200,18 @@ __global__ void cg_init_others(
             uint32_t col;
             double val;
             csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-            smvp += val * u[col];
+            smvp += val * dv_get_value(u, col);
         }
 
-        w[index] = smvp;
-        r[index] = u[index] - smvp;
-        p[index] = r[index];
+        dv_set_value(w, smvp, index);
+        double r_val = dv_get_value(u, index) - smvp;
+        dv_set_value(r, r_val, index);
+        dv_set_value(p, r_val, index);
 
-        rro_shared[threadIdx.x] = r[index]*r[index];
+        rro_shared[threadIdx.x] = r_val*r_val;
+        DV_FLUSH_WRITES(w);
+        DV_FLUSH_WRITES(r);
+        DV_FLUSH_WRITES(p);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(rro_shared, rro, SUM);
@@ -193,6 +224,8 @@ __global__ void cg_calc_w_check(
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
+    INIT_DV_READ(u);
+    INIT_DV_WRITE(w);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];
     pw_shared[threadIdx.x] = 0.0;
@@ -218,11 +251,12 @@ __global__ void cg_calc_w_check(
             uint32_t col;
             double val;
             csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-            smvp += val * p[col];
+            smvp += val * dv_get_value(p, col);
         }
 
-        w[index] = smvp;
-        pw_shared[threadIdx.x] = smvp*p[index];
+        dv_set_value(w, smvp, index);
+        pw_shared[threadIdx.x] = smvp*dv_get_value(p, index);
+        DV_FLUSH_WRITES(w);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(pw_shared, pw, SUM);
@@ -233,6 +267,8 @@ __global__ void cg_calc_w_no_check(
         const uint32_t nnz, double_vector p, uint32_t* row_index,
         uint32_t* col_index, double* non_zeros, double_vector w, double* pw)
 {
+    INIT_DV_READ(u);
+    INIT_DV_WRITE(w);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];
     pw_shared[threadIdx.x] = 0.0;
@@ -258,11 +294,12 @@ __global__ void cg_calc_w_no_check(
             uint32_t col;
             double val;
             csr_get_csr_element_no_check(col_index, non_zeros, &col, &val, idx, x * y);
-            smvp += val * p[col];
+            smvp += val * dv_get_value(p, col);
         }
 
-        w[index] = smvp;
-        pw_shared[threadIdx.x] = smvp*p[index];
+        dv_set_value(w, smvp, index);
+        pw_shared[threadIdx.x] = smvp*dv_get_value(p, index);
+        DV_FLUSH_WRITES(w);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(pw_shared, pw, SUM);
@@ -273,6 +310,12 @@ __global__ void cg_calc_ur(
         const double alpha, double_vector p, double_vector w,
         double_vector u, double_vector r, double* rrn)
 {
+    INIT_DV_READ(p);
+    INIT_DV_READ(w);
+    INIT_DV_READ(u);
+    INIT_DV_READ(r);
+    INIT_DV_WRITE(u);
+    INIT_DV_WRITE(r);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double rrn_shared[BLOCK_SIZE];
     rrn_shared[threadIdx.x] = 0.0;
@@ -285,9 +328,12 @@ __global__ void cg_calc_ur(
         const int off0 = halo_depth*(x + 1);
         const int index = off0 + col + row*x;
 
-        u[index] += alpha*p[index];
-        r[index] -= alpha*w[index];
-        rrn_shared[threadIdx.x]  = r[index]*r[index];
+        dv_set_value(u, dv_get_value(u, index) + alpha*dv_get_value(p, index), index);
+        double r_temp = dv_get_value(r, index) - alpha*dv_get_value(w, index);
+        dv_set_value(r, r_temp, index);
+        rrn_shared[threadIdx.x] += r_temp*r_temp;
+        DV_FLUSH_WRITES(u);
+        DV_FLUSH_WRITES(r);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(rrn_shared, rrn, SUM);
@@ -297,6 +343,9 @@ __global__ void cg_calc_p(
         const int x_inner, const int y_inner, const int halo_depth,
         const double beta, double_vector r, double_vector p)
 {
+    INIT_DV_READ(p);
+    INIT_DV_READ(r);
+    INIT_DV_WRITE(p);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -306,7 +355,9 @@ __global__ void cg_calc_p(
 	const int off0 = halo_depth*(x + 1);
 	const int index = off0 + col + row*x;
 
-    p[index] = r[index] + beta*p[index];
+    double val = beta*dv_get_value(p, index) + dv_get_value(r, index);
+    dv_set_value(p, val, index);
+    DV_FLUSH_WRITES(p);
 }
 
 __global__ void matrix_check(
