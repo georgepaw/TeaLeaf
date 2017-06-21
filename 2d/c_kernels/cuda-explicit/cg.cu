@@ -224,7 +224,7 @@ __global__ void cg_calc_w_check(
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
-    INIT_DV_READ(u);
+    INIT_DV_READ(p);
     INIT_DV_WRITE(w);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -267,7 +267,7 @@ __global__ void cg_calc_w_no_check(
         const uint32_t nnz, double_vector p, uint32_t* row_index,
         uint32_t* col_index, double* non_zeros, double_vector w, double* pw)
 {
-    INIT_DV_READ(u);
+    INIT_DV_READ(p);
     INIT_DV_WRITE(w);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     __shared__ double pw_shared[BLOCK_SIZE];

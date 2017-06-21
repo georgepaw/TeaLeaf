@@ -3,6 +3,7 @@
 #include "../../shared.h"
 #include <stdlib.h>
 #include "../../ABFT/GPU/csr_matrix.cuh"
+#include "../../ABFT/GPU/double_vector.cuh"
 
 // Allocates, and zeroes and individual buffer
 void allocate_device_buffer(double** a, int x, int y)
@@ -17,10 +18,11 @@ void allocate_device_buffer(double** a, int x, int y)
 
 void allocate_dv_buffer(double_vector* a, int x, int y)
 {
-    cudaMalloc((void**)a, x*y*sizeof(double));
+    uint32_t size = (x*y) + (x*y) % WIDE_SIZE_DV;
+    cudaMalloc((void**)a, size*sizeof(double));
     check_errors(__LINE__, __FILE__);
 
-    int num_blocks = ceil((double)(x*y)/(double)BLOCK_SIZE);
+    int num_blocks = ceil((double)(x*y)/(double)(BLOCK_SIZE + WIDE_SIZE_DV));
     zero_dv_buffer<<<num_blocks, BLOCK_SIZE>>>(x, y, *a);
     check_errors(__LINE__, __FILE__);
 }

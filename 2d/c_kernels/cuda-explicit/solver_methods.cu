@@ -25,6 +25,8 @@ __global__ void copy_u(
 		const int x_inner, const int y_inner, const int halo_depth,
 		double_vector src, double_vector dest)
 {
+    INIT_DV_READ(src);
+    INIT_DV_WRITE(dest);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
@@ -33,8 +35,6 @@ __global__ void copy_u(
     const int row = gid / x_inner; 
     const int off0 = halo_depth*(x + 1);
     const int index = off0 + col + row*x;
-    INIT_DV_READ(src);
-    INIT_DV_WRITE(dest);
     dv_set_value(dest, dv_get_value(src,index), index);
     DV_FLUSH_WRITES(dest);
 }
