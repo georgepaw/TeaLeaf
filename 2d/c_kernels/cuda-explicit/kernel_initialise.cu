@@ -18,8 +18,9 @@ void allocate_device_buffer(double** a, int x, int y)
 
 void allocate_dv_buffer(double_vector* a, int x, int y)
 {
-    uint32_t size = (x*y) + (x*y) % WIDE_SIZE_DV;
-    cudaMalloc((void**)a, size*sizeof(double));
+    // uint32_t size_x = x % WIDE_SIZE_DV;
+    uint32_t size_x = x;
+    cudaMalloc((void**)a, size_x * y *sizeof(double));
     check_errors(__LINE__, __FILE__);
 
     int num_blocks = ceil((double)(x*y)/(double)(BLOCK_SIZE));
@@ -59,8 +60,8 @@ void kernel_initialise(
         double** cg_alphas, double** cg_betas, double** cheby_alphas,
         double** cheby_betas, double** d_comm_buffer, double** d_reduce_buffer, 
         double** d_reduce_buffer2, double** d_reduce_buffer3, double** d_reduce_buffer4,
-        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros, uint32_t* nnz,
-        uint32_t** iteration)
+        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros, uint32_t* nnz, uint32_t * size_x,
+        uint32_t* iteration)
 {
     print_and_log(settings,
             "Performing this solve with the CUDA %s solver\n",
@@ -88,6 +89,7 @@ void kernel_initialise(
 
     const int x_inner = x - 2*settings->halo_depth;
     const int y_inner = y - 2*settings->halo_depth;
+    *size_x = x;
 
     allocate_dv_buffer(density0, x, y);
     allocate_dv_buffer(density, x, y);
@@ -143,19 +145,15 @@ void kernel_initialise(
     check_errors(__LINE__, __FILE__);
     cudaMalloc((void**)d_non_zeros, sizeof(double)*(*nnz));
     check_errors(__LINE__, __FILE__);
-
-    // free(h_row_index);
-    *iteration = (uint32_t*)malloc(sizeof(uint32_t));
 }
 
 // Finalises the kernel
 void kernel_finalise(
         double* cg_alphas, double* cg_betas, double* cheby_alphas,
-        double* cheby_betas, uint32_t* iteration)
+        double* cheby_betas)
 {
     free(cg_alphas);
     free(cg_betas);
     free(cheby_alphas);
     free(cheby_betas);
-    free(iteration);
 }

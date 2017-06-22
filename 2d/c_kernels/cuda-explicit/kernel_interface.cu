@@ -85,7 +85,7 @@ void run_kernel_initialise(Chunk* chunk, Settings* settings)
             &(chunk->ext->d_reduce_buffer2), &(chunk->ext->d_reduce_buffer3),
             &(chunk->ext->d_reduce_buffer4), &(chunk->ext->d_row_index),
             &(chunk->ext->d_col_index), &(chunk->ext->d_non_zeros), &(chunk->ext->nnz),
-            &(chunk->ext->iteration));
+            &(chunk->ext->size_x), &(chunk->ext->iteration));
 }
 
 // Solver-wide kernels
@@ -154,7 +154,7 @@ void run_cg_init(
 {
     START_PROFILING(settings->kernel_profile);
 
-    (*chunk->ext->iteration) = 0;
+    chunk->ext->iteration = 0;
 
     int num_blocks = ceil((double)(chunk->x*chunk->y) / (double)BLOCK_SIZE);
     cg_init_u<<<num_blocks, BLOCK_SIZE>>>(
@@ -201,7 +201,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 {
     KERNELS_START();
     XY_INNER(2*settings->halo_depth);
-    (*chunk->ext->iteration)++;
+    chunk->ext->iteration++;
 #ifdef INTERVAL_CHECKS
     const uint32_t do_FT_check = (*chunk->ext->iteration % INTERVAL_CHECKS) == 0;
 #else
@@ -416,7 +416,7 @@ void run_kernel_finalise(Chunk* chunk, Settings* settings)
 {
     kernel_finalise(
             chunk->cg_alphas, chunk->cg_betas, chunk->cheby_alphas,
-            chunk->cheby_betas, chunk->ext->iteration);
+            chunk->cheby_betas);
 }
 
 void run_matrix_check(

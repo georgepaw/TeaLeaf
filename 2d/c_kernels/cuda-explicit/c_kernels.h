@@ -36,12 +36,12 @@ void kernel_initialise(
         double** cg_alphas, double** cg_betas, double** cheby_alphas,
         double** cheby_betas, double** d_comm_buffer, double** d_reduce_buffer, 
         double** d_reduce_buffer2, double** d_reduce_buffer3, double** d_reduce_buffer4,
-        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros, uint32_t* nnz,
-        uint32_t** iteration);
+        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros, uint32_t* nnz, uint32_t* size_x,
+        uint32_t* iteration);
 
 void kernel_finalise(
         double* cg_alphas, double* cg_betas, double* cheby_alphas,
-        double* cheby_betas, uint32_t* iteration);
+        double* cheby_betas);
 
 // Solver-wide kernels
 void local_halos(
