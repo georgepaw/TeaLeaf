@@ -1,5 +1,5 @@
 # Used specified parameters
-KERNELS   = omp4_clang
+KERNELS   = cuda-explicit
 CPROFILER = yes
 DEBUG     = no
 OPTIONS   = -g
