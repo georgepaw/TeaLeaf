@@ -24,7 +24,7 @@ void allocate_dv_buffer(double_vector* a, int x, int y)
     check_errors(__LINE__, __FILE__);
 
     int num_blocks = ceil((double)(x*y)/(double)(BLOCK_SIZE));
-    zero_dv_buffer<<<num_blocks, BLOCK_SIZE>>>(x, y, *a);
+    zero_dv_buffer<<<num_blocks, BLOCK_SIZE>>>(x, y, size_x, *a);
     check_errors(__LINE__, __FILE__);
 }
 

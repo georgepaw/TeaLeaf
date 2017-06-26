@@ -161,20 +161,21 @@ __global__ void ppcg_calc_sd(
 
 // Shared solver kernels
 __global__ void copy_u(
-		const int x_inner, const int y_inner, const int halo_depth,
-		double_vector src, double_vector dest);
+    const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
+    double_vector src, double_vector dest);
 
 __global__ void calculate_residual(
-		const int x_inner, const int y_inner, const int halo_depth,
-		double_vector u, double_vector u0, uint32_t* row_index, uint32_t* col_index,
+    const int x_inner, const int y_inner, const int dim_x, const int dim_y,
+        const uint32_t size_x, const int halo_depth,
+    double_vector u, double_vector u0, uint32_t* row_index, uint32_t* col_index,
     double* non_zeros, double_vector r);
 
 __global__ void calculate_2norm(
-		const int x_inner, const int y_inner, const int halo_depth,
-		double_vector src, double* norm);
+    const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
+    double_vector src, double* norm);
 
 __global__ void finalise(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
         double_vector density, double_vector u, double_vector energy);
 
 void sum_reduce_buffer(
@@ -184,7 +185,7 @@ __global__ void zero_buffer(
         const int x, const int y, double* buffer);
 
 __global__ void zero_dv_buffer(
-        const int x, const int y, double_vector buffer);
+        const int dim_x, const int dim_y, const uint32_t size_x, double_vector buffer);
 
 __global__ void csr_init_rows(
         const int x, const int y, const int halo_depth, uint32_t* rows);

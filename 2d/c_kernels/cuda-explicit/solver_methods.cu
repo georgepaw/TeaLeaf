@@ -22,28 +22,28 @@ void sum_reduce_buffer(
 }
 
 __global__ void copy_u(
-		const int x_inner, const int y_inner, const int halo_depth,
+		const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
 		double_vector src, double_vector dest)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(src);
     INIT_DV_WRITE(dest);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
-    const int x = x_inner + 2*halo_depth;
-    const int col = gid % x_inner;
-    const int row = gid / x_inner; 
-    const int off0 = halo_depth*(x + 1);
-    const int index = off0 + col + row*x;
-    dv_set_value(dest, dv_get_value(src,index), index);
-    DV_FLUSH_WRITES(dest);
+    const uint32_t y = gid / x_inner + halo_depth;
+    const uint32_t x = gid % x_inner + halo_depth;
+    dv_set_value_new(dest, dv_get_value_new(src,x, y), x, y);
+    DV_FLUSH_WRITES_NEW(dest);
 }
 
 __global__ void calculate_residual(
-		const int x_inner, const int y_inner, const int halo_depth,
+		const int x_inner, const int y_inner, const int dim_x, const int dim_y,
+        const uint32_t size_x, const int halo_depth,
 		double_vector u, double_vector u0, uint32_t* row_index, uint32_t* col_index,
     double* non_zeros, double_vector r)
 {
+    SET_SIZE_X(size_x);
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
     INIT_DV_READ(u);
@@ -51,12 +51,9 @@ __global__ void calculate_residual(
     INIT_DV_WRITE(r);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
-
-    const int x = x_inner + 2*halo_depth;
-    const int col = gid % x_inner;
-    const int row = gid / x_inner; 
-    const int off0 = halo_depth*(x + 1);
-    const int index = off0 + col + row*x;
+    const uint32_t y = gid / x_inner + halo_depth;
+    const uint32_t x = gid % x_inner + halo_depth;
+    const uint32_t index = x + y * dim_x;
 
     uint32_t row_begin;
     csr_get_row_value(row_index, &row_begin, index);
@@ -71,16 +68,19 @@ __global__ void calculate_residual(
         uint32_t col;
         double val;
         csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-        smvp += val * dv_get_value(u, col);
+        uint32_t t_x = col % dim_x;
+        uint32_t t_y = col / dim_x;
+        smvp += val * dv_get_value_new(u, t_x, t_y);
     }
-    dv_set_value(r, dv_get_value(u0, index) - smvp, index);
-    DV_FLUSH_WRITES(r);
+    dv_set_value_new(r, dv_get_value_new(u0, x, y) - smvp, x, y);
+    DV_FLUSH_WRITES_NEW(r);
 }
 
 __global__ void calculate_2norm(
-		const int x_inner, const int y_inner, const int halo_depth,
+		const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
 		double_vector src, double* norm)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(src);
     __shared__ double norm_shared[BLOCK_SIZE];
     norm_shared[threadIdx.x] = 0.0;
@@ -89,36 +89,32 @@ __global__ void calculate_2norm(
 
     if(gid >= x_inner*y_inner) return;
 
-    const int x = x_inner + 2*halo_depth;
-    const int col = gid % x_inner;
-    const int row = gid / x_inner; 
-    const int off0 = halo_depth*(x + 1);
-    const int index = off0 + col + row*x;
+    const uint32_t y = gid / x_inner + halo_depth;
+    const uint32_t x = gid % x_inner + halo_depth;
 
-    double val = dv_get_value(src, index);
+    double val = dv_get_value_new(src, x, y);
     norm_shared[threadIdx.x] = val*val;
 
     reduce<double, BLOCK_SIZE/2>::run(norm_shared, norm, SUM);
 }
 
 __global__ void finalise(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
         double_vector density, double_vector u, double_vector energy)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(u);
     INIT_DV_READ(density);
     INIT_DV_WRITE(energy);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
 
-    const int x = x_inner + 2*halo_depth;
-    const int col = gid % x_inner;
-    const int row = gid / x_inner; 
-    const int off0 = halo_depth*(x + 1);
-    const int index = off0 + col + row*x;
-	dv_set_value(energy, dv_get_value(u, index)
-                      	 /dv_get_value(density, index), index);
-    DV_FLUSH_WRITES(energy);
+
+    const uint32_t y = gid / x_inner + halo_depth;
+    const uint32_t x = gid % x_inner + halo_depth;
+	dv_set_value_new(energy, dv_get_value_new(u, x, y)
+                      	 /dv_get_value_new(density, x, y), x, y);
+    DV_FLUSH_WRITES_NEW(energy);
 }
 
 __global__ void sum_reduce(
@@ -147,14 +143,17 @@ __global__ void zero_buffer(
 }
 
 __global__ void zero_dv_buffer(
-        const int x, const int y, double_vector buffer)
+        const int dim_x, const int dim_y, const uint32_t size_x, double_vector buffer)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 
-    if(gid < x*y)
+    if(gid < dim_x*dim_y)
     {
-        dv_set_value(buffer, 0.0, gid);
+        const uint32_t y = gid / dim_x;
+        const uint32_t x = gid % dim_x;
+        dv_set_value_new(buffer, 0.0, x, y);
     }
-    DV_FLUSH_WRITES(buffer);
+    DV_FLUSH_WRITES_NEW(buffer);
 }
