@@ -66,111 +66,113 @@ __global__ void csr_init_rows(
 }
 
 __global__ void cg_init_u(
-        const int x, const int y, const int coefficient,
+        const int dim_x, const int dim_y,
+        const uint32_t size_x, const int coefficient,
         double_vector density, double_vector energy1, double_vector u,
         double_vector p, double_vector r, double_vector w)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(energy1);
     INIT_DV_READ(density);
     INIT_DV_WRITE(p);
     INIT_DV_WRITE(r);
     INIT_DV_WRITE(u);
     INIT_DV_WRITE(w);
-	const int gid = threadIdx.x+blockIdx.x*blockDim.x;
-	if(gid >= x*y) return;
+    const int gid = threadIdx.x+blockIdx.x*blockDim.x;
+    const uint32_t y = gid / dim_x;
+    const uint32_t x = gid - y * dim_x;
+	if(y >= dim_y) return;
 
-	dv_set_value(p, 0.0, gid);
-	dv_set_value(r, 0.0, gid);
-	dv_set_value(u,
-                 dv_get_value(energy1, gid)*
-                 dv_get_value(density, gid),
-                 gid);
+	dv_set_value_new(p, 0.0, x, y);
+	dv_set_value_new(r, 0.0, x, y);
+	dv_set_value_new(u,
+                 dv_get_value_new(energy1, x, y)*
+                 dv_get_value_new(density, x, y),
+                 x, y);
 
-	dv_set_value(w, (coefficient == CONDUCTIVITY)
-		? dv_get_value(density, gid) : 1.0/dv_get_value(density, gid), gid);
-    DV_FLUSH_WRITES(p);
-    DV_FLUSH_WRITES(r);
-    DV_FLUSH_WRITES(u);
-    DV_FLUSH_WRITES(w);
+	dv_set_value_new(w, (coefficient == CONDUCTIVITY)
+		? dv_get_value_new(density, x, y) : 1.0/dv_get_value_new(density, x, y), x, y);
+    DV_FLUSH_WRITES_NEW(p);
+    DV_FLUSH_WRITES_NEW(r);
+    DV_FLUSH_WRITES_NEW(u);
+    DV_FLUSH_WRITES_NEW(w);
 }
 
 __global__ void cg_init_k(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector w, double_vector kx, double_vector ky, double rx, double ry)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(w);
     INIT_DV_WRITE(kx);
     INIT_DV_WRITE(ky);
 	const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 	if(gid >= x_inner*y_inner) return;
 
-    const int x = x_inner + 2*halo_depth-1;
-	const int col = gid % x_inner;
-	const int row = gid / x_inner; 
-	const int off0 = halo_depth*(x + 1);
-	const int index = off0 + col + row*x;
+    const uint32_t y = gid / x_inner + halo_depth;
+    const uint32_t x = gid % x_inner + halo_depth;
 
-	dv_set_value(kx,
-        rx*(dv_get_value(w, index-1)+dv_get_value(w, index)) /
-        (2.0*dv_get_value(w, index-1)*dv_get_value(w, index)), index);
-	dv_set_value(ky,
-        ry*(dv_get_value(w, index-x)+dv_get_value(w, index)) /
-        (2.0*dv_get_value(w, index-x)*dv_get_value(w, index)), index);
-    DV_FLUSH_WRITES(kx);
-    DV_FLUSH_WRITES(ky);
+	dv_set_value_new(kx,
+        rx*(dv_get_value_new(w, x - 1, y)+dv_get_value_new(w, x, y)) /
+        (2.0*dv_get_value_new(w, x - 1, y)*dv_get_value_new(w, x, y)), x, y);
+	dv_set_value_new(ky,
+        ry*(dv_get_value_new(w, x, y - 1)+dv_get_value_new(w, x, y)) /
+        (2.0*dv_get_value_new(w, x, y - 1)*dv_get_value_new(w, x, y)), x, y);
+    DV_FLUSH_WRITES_NEW(kx);
+    DV_FLUSH_WRITES_NEW(ky);
 }
 
 __global__ void cg_init_csr(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector kx, double_vector ky, uint32_t* row_index,
         uint32_t* col_index, double* non_zeros)
 {
     INIT_CSR_INT_VECTOR();
+    SET_SIZE_X(size_x);
     INIT_DV_READ(kx);
     INIT_DV_READ(ky);
-    const int gid = threadIdx.x+blockIdx.x*blockDim.x;
-    if(gid >= x_inner*y_inner) return;
+    const uint32_t gid = threadIdx.x+blockIdx.x*blockDim.x;
+    const uint32_t y = gid / dim_x;
+    const uint32_t x = gid - y * dim_x;
+    if(y >= dim_y) return;
 
-    const int x = x_inner;
-    const int y = y_inner;
-    const int col = gid % x_inner;
-    const int row = gid / x_inner;
-    const int off0 = 0;
-    const int index = off0 + col + row*x;
     uint32_t coef_index;
-    csr_get_row_value(row_index, &coef_index, index);
+    csr_get_row_value(row_index, &coef_index, gid);
 
-    if (row <    halo_depth || col <    halo_depth ||
-        row >= y-halo_depth || col >= x-halo_depth) return;
+    if (y <        halo_depth || x <        halo_depth ||
+        y >= dim_y-halo_depth || x >= dim_x-halo_depth) return;
     double vals[5] =
     {
-        -dv_get_value(ky, index),
-        -dv_get_value(kx, index),
+        -dv_get_value_new(ky, x, y),
+        -dv_get_value_new(kx, x, y),
         (1.0 +
-            dv_get_value(kx, index+1) + dv_get_value(kx, index) +
-            dv_get_value(ky, index+x) + dv_get_value(ky, index)),
-        -dv_get_value(kx, index+1),
-        -dv_get_value(ky, index+x)
+            dv_get_value_new(kx, x + 1, y) + dv_get_value_new(kx, x, y) +
+            dv_get_value_new(ky, x, y + 1) + dv_get_value_new(ky, x, y)),
+        -dv_get_value_new(kx, x + 1, y),
+        -dv_get_value_new(ky, x, y + 1)
     };
     uint32_t cols[5] =
     {
-        index-x,
-        index-1,
-        index,
-        index+1,
-        index+x
+        gid-dim_x,
+        gid-1,
+        gid,
+        gid+1,
+        gid+dim_x
     };
     csr_set_csr_element_values(col_index, non_zeros, cols, vals, coef_index, 5);
 }
 
 __global__ void cg_init_others(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector u, uint32_t* row_index, uint32_t* col_index,
         double* non_zeros, double_vector p, double_vector r, double_vector w, double_vector mi,
         double* rro)
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
+    SET_SIZE_X(size_x);
     INIT_DV_READ(u);
     INIT_DV_WRITE(w);
     INIT_DV_WRITE(r);
@@ -181,11 +183,9 @@ __global__ void cg_init_others(
 
 	if(gid < x_inner*y_inner)
 	{
-        const int x = x_inner + 2*halo_depth;
-        const int col = gid % x_inner;
-        const int row = gid / x_inner;
-        const int off0 = halo_depth*(x + 1);
-        const int index = off0 + col + row*x;
+        const uint32_t y = gid / x_inner + halo_depth;
+        const uint32_t x = gid % x_inner + halo_depth;
+        const uint32_t index = x + y * dim_x;
 
         double smvp = 0.0;
 
@@ -200,30 +200,34 @@ __global__ void cg_init_others(
             uint32_t col;
             double val;
             csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-            smvp += val * dv_get_value(u, col);
+            uint32_t t_x = col % dim_x;
+            uint32_t t_y = col / dim_x;
+            smvp += val * dv_get_value_new(u, t_x, t_y);
         }
 
-        dv_set_value(w, smvp, index);
-        double r_val = dv_get_value(u, index) - smvp;
-        dv_set_value(r, r_val, index);
-        dv_set_value(p, r_val, index);
+        dv_set_value_new(w, smvp, x, y);
+        double r_val = dv_get_value_new(u, x, y) - smvp;
+        dv_set_value_new(r, r_val, x, y);
+        dv_set_value_new(p, r_val, x, y);
 
         rro_shared[threadIdx.x] = r_val*r_val;
-        DV_FLUSH_WRITES(w);
-        DV_FLUSH_WRITES(r);
-        DV_FLUSH_WRITES(p);
+        DV_FLUSH_WRITES_NEW(w);
+        DV_FLUSH_WRITES_NEW(r);
+        DV_FLUSH_WRITES_NEW(p);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(rro_shared, rro, SUM);
 }
 
 __global__ void cg_calc_w_check(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector p, uint32_t* row_index, uint32_t* col_index,
         double* non_zeros, double_vector w, double* pw)
 {
     INIT_CSR_ELEMENTS();
     INIT_CSR_INT_VECTOR();
+    SET_SIZE_X(size_x);
     INIT_DV_READ(p);
     INIT_DV_WRITE(w);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
@@ -232,11 +236,9 @@ __global__ void cg_calc_w_check(
 
     if(gid < x_inner*y_inner)
     {
-        const int x = x_inner + 2*halo_depth;
-        const int col = gid % x_inner;
-        const int row = gid / x_inner;
-        const int off0 = halo_depth*(x + 1);
-        const int index = off0 + col + row*x;
+        const uint32_t y = gid / x_inner + halo_depth;
+        const uint32_t x = gid % x_inner + halo_depth;
+        const uint32_t index = x + y * dim_x;
 
         double smvp = 0.0;
 
@@ -251,22 +253,26 @@ __global__ void cg_calc_w_check(
             uint32_t col;
             double val;
             csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-            smvp += val * dv_get_value(p, col);
+            uint32_t t_x = col % dim_x;
+            uint32_t t_y = col / dim_x;
+            smvp += val * dv_get_value_new(p, t_x, t_y);
         }
 
-        dv_set_value(w, smvp, index);
-        pw_shared[threadIdx.x] = smvp*dv_get_value(p, index);
-        DV_FLUSH_WRITES(w);
+        dv_set_value_new(w, smvp, x, y);
+        pw_shared[threadIdx.x] = smvp*dv_get_value_new(p, x, y);
+        DV_FLUSH_WRITES_NEW(w);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(pw_shared, pw, SUM);
 }
 
 __global__ void cg_calc_w_no_check(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const uint32_t nnz, double_vector p, uint32_t* row_index,
         uint32_t* col_index, double* non_zeros, double_vector w, double* pw)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(p);
     INIT_DV_WRITE(w);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
@@ -275,12 +281,9 @@ __global__ void cg_calc_w_no_check(
 
     if(gid < x_inner*y_inner)
     {
-        const int x = x_inner + 2*halo_depth;
-        const int y = y_inner + 2*halo_depth;
-        const int col = gid % x_inner;
-        const int row = gid / x_inner;
-        const int off0 = halo_depth*(x + 1);
-        const int index = off0 + col + row*x;
+        const uint32_t y = gid / x_inner + halo_depth;
+        const uint32_t x = gid % x_inner + halo_depth;
+        const uint32_t index = x + y * dim_x;
 
         double smvp = 0.0;
 
@@ -293,23 +296,27 @@ __global__ void cg_calc_w_no_check(
         {
             uint32_t col;
             double val;
-            csr_get_csr_element_no_check(col_index, non_zeros, &col, &val, idx, x * y);
-            smvp += val * dv_get_value(p, col);
+            csr_get_csr_element_no_check(col_index, non_zeros, &col, &val, idx, dim_x * dim_y);
+            uint32_t t_x = col % dim_x;
+            uint32_t t_y = col / dim_x;
+            smvp += val * dv_get_value_new(p, t_x, t_y);
         }
 
-        dv_set_value(w, smvp, index);
-        pw_shared[threadIdx.x] = smvp*dv_get_value(p, index);
-        DV_FLUSH_WRITES(w);
+        dv_set_value_new(w, smvp, x, y);
+        pw_shared[threadIdx.x] = smvp*dv_get_value_new(p, x, y);
+        DV_FLUSH_WRITES_NEW(w);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(pw_shared, pw, SUM);
 }
 
 __global__ void cg_calc_ur(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const double alpha, double_vector p, double_vector w,
         double_vector u, double_vector r, double* rrn)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(p);
     INIT_DV_READ(w);
     INIT_DV_READ(u);
@@ -322,42 +329,37 @@ __global__ void cg_calc_ur(
 
     if(gid < x_inner*y_inner)
     {
-        const int x = x_inner + 2*halo_depth;
-        const int col = gid % x_inner;
-        const int row = gid / x_inner; 
-        const int off0 = halo_depth*(x + 1);
-        const int index = off0 + col + row*x;
+        const uint32_t y = gid / x_inner + halo_depth;
+        const uint32_t x = gid % x_inner + halo_depth;
 
-        dv_set_value(u, dv_get_value(u, index) + alpha*dv_get_value(p, index), index);
-        double r_temp = dv_get_value(r, index) - alpha*dv_get_value(w, index);
-        dv_set_value(r, r_temp, index);
+        dv_set_value_new(u, dv_get_value_new(u, x, y) + alpha*dv_get_value_new(p, x, y), x, y);
+        double r_temp = dv_get_value_new(r, x, y) - alpha*dv_get_value_new(w, x, y);
+        dv_set_value_new(r, r_temp, x, y);
         rrn_shared[threadIdx.x] += r_temp*r_temp;
-        DV_FLUSH_WRITES(u);
-        DV_FLUSH_WRITES(r);
+        DV_FLUSH_WRITES_NEW(u);
+        DV_FLUSH_WRITES_NEW(r);
     }
 
     reduce<double, BLOCK_SIZE/2>::run(rrn_shared, rrn, SUM);
 }
 
 __global__ void cg_calc_p(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const double beta, double_vector r, double_vector p)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(p);
     INIT_DV_READ(r);
     INIT_DV_WRITE(p);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
     if(gid >= x_inner*y_inner) return;
+    const uint32_t y = gid / x_inner + halo_depth;
+    const uint32_t x = gid % x_inner + halo_depth;
 
-    const int x = x_inner + 2*halo_depth;
-	const int col = gid % x_inner;
-	const int row = gid / x_inner;
-	const int off0 = halo_depth*(x + 1);
-	const int index = off0 + col + row*x;
-
-    double val = beta*dv_get_value(p, index) + dv_get_value(r, index);
-    dv_set_value(p, val, index);
-    DV_FLUSH_WRITES(p);
+    double val = beta*dv_get_value_new(p, x, y) + dv_get_value_new(r, x, y);
+    dv_set_value_new(p, val, x, y);
+    DV_FLUSH_WRITES_NEW(p);
 }
 
 __global__ void matrix_check(

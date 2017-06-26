@@ -65,42 +65,49 @@ __global__ void field_summary(
 
 // CG solver kernels
 __global__ void cg_init_u(
-        const int x, const int y, const int coefficient,
+        const int x, const int y,
+        const uint32_t size_x, const int coefficient,
         double_vector density, double_vector energy1, double_vector u,
         double_vector p, double_vector r, double_vector w);
 
 __global__ void cg_init_k(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector w, double_vector kx, double_vector ky, double rx, double ry);
 
 __global__ void cg_init_csr(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector kx, double_vector ky, uint32_t* row_index,
         uint32_t* col_index, double* non_zeros);
 
 __global__ void cg_init_others(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector u, uint32_t* row_index, uint32_t* col_index,
         double* non_zeros, double_vector p, double_vector r, double_vector w, double_vector mi,
         double* rro);
 
 __global__ void cg_calc_w_check(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector p, uint32_t* row_index, uint32_t* col_index,
         double* non_zeros, double_vector w, double* pw);
 
 __global__ void cg_calc_w_no_check(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const uint32_t nnz, double_vector p, uint32_t* row_index,
         uint32_t* col_index, double* non_zeros, double_vector w, double* pw);
 
 __global__ void cg_calc_ur(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const double alpha, double_vector p, double_vector w,
         double_vector u, double_vector r, double* rrn);
 
 __global__ void cg_calc_p(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const double beta, double_vector r, double_vector p);
 
 // Chebyshev solver kernels
