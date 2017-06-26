@@ -45,7 +45,7 @@ void kernel_finalise(
 
 // Solver-wide kernels
 void local_halos(
-        const int x, const int y, const int halo_depth,
+        const int x, const int y, const uint32_t size_x, const int halo_depth,
         const int depth, const int* chunk_neighbours,
         const bool* fields_to_exchange, double_vector density, double_vector energy0,
         double_vector energy, double_vector u, double_vector p, double_vector sd);

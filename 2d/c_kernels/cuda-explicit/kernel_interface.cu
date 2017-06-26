@@ -92,7 +92,7 @@ void run_local_halos(
     START_PROFILING(settings->kernel_profile);
 
     local_halos(
-            chunk->x, chunk->y, settings->halo_depth, depth, chunk->neighbours,
+            chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth, depth, chunk->neighbours,
             settings->fields_to_exchange, chunk->density, chunk->energy0,
             chunk->energy, chunk->u, chunk->p, chunk->sd);
 

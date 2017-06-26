@@ -7,24 +7,24 @@
  * 		LOCAL HALOS KERNEL
  */	
 __global__ void update_bottom(
-		const int x, const int y, const int halo_depth, 
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const int depth, double_vector buffer);
 __global__ void update_top(
-		const int x, const int y, const int halo_depth, 
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const int depth, double_vector buffer);
 __global__ void update_left(
-		const int x, const int y, const int halo_depth, 
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const int depth, double_vector buffer);
 __global__ void update_right(
-		const int x, const int y, const int halo_depth, 
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         const int depth, double_vector buffer);
 
-void update_face(const int x, const int y, const int halo_depth,
+void update_face(const int x, const int y, const uint32_t size_x, const int halo_depth,
         const int* chunk_neighbours, const int depth, double_vector buffer);
 
 // The kernel for updating halos locally
 void local_halos(
-        const int x, const int y, const int halo_depth,
+        const int x, const int y, const uint32_t size_x, const int halo_depth,
         const int depth, const int* chunk_neighbours,
         const bool* fields_to_exchange, double_vector density, double_vector energy0,
         double_vector energy, double_vector u, double_vector p, double_vector sd)
@@ -32,7 +32,7 @@ void local_halos(
 #define LAUNCH_UPDATE(index, buffer)\
     if(fields_to_exchange[index])\
     {\
-        update_face(x, y, halo_depth, chunk_neighbours, depth, buffer);\
+        update_face(x, y, size_x, halo_depth, chunk_neighbours, depth, buffer);\
     }
 
     LAUNCH_UPDATE(FIELD_DENSITY, density);
@@ -47,7 +47,8 @@ void local_halos(
 // Updates faces in turn.
 void update_face(
         const int x,
-        const int y, 
+        const int y,
+        const uint32_t size_x,
         const int halo_depth,
         const int* chunk_neighbours,
         const int depth,
@@ -57,7 +58,7 @@ void update_face(
     if(chunk_neighbours[face] == EXTERNAL_FACE) \
     {\
         update_kernel<<<num_blocks, BLOCK_SIZE>>>( \
-                x, y, halo_depth, depth, buffer); \
+                x, y, size_x, halo_depth, depth, buffer); \
         check_errors(__LINE__, __FILE__);\
     }
 
@@ -71,86 +72,106 @@ void update_face(
 }
 
 __global__ void update_bottom(
-        const int x,
-        const int y,
+        const int dim_x,
+        const int dim_y,
+        const uint32_t size_x,
         const int halo_depth,
         const int depth,
         double_vector buffer)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
-    if(gid >= x*depth) return;
+    if(gid >= dim_x*depth) return;
 
-    const int lines = gid/x;
-    const int offset = x*halo_depth;
-    const int from_index = offset + gid;
-    const int to_index = from_index - (1 + lines*2)*x;
-    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
-    DV_FLUSH_WRITES(buffer);
+    const uint32_t y = gid/dim_x;
+    const uint32_t x = gid%dim_x;
+
+    const uint32_t from_x = x;
+    const uint32_t from_y = halo_depth + y;
+    const uint32_t to_x = x;
+    const uint32_t to_y = halo_depth - y - 1;
+
+    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
 __global__ void update_top(
-        const int x,
-        const int y,
+        const int dim_x,
+        const int dim_y,
+        const uint32_t size_x,
         const int halo_depth,
         const int depth,
         double_vector buffer)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
-    if(gid >= x*depth) return;
+    if(gid >= dim_x*depth) return;
 
-    const int lines = gid/x;
-    const int offset = x*(y - halo_depth);
-    const int to_index = offset + gid;
-    const int from_index = to_index - (1 + lines*2)*x;
-    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
-    DV_FLUSH_WRITES(buffer);
+    const uint32_t y = gid/dim_x;
+    const uint32_t x = gid%dim_x;
+
+    const uint32_t from_x = x;
+    const uint32_t from_y = dim_y - halo_depth - 1 - y;
+    const uint32_t to_x = x;
+    const uint32_t to_y = dim_y - halo_depth + y;
+
+    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
 __global__ void update_left(
-        const int x,
-        const int y,
+        const int dim_x,
+        const int dim_y,
+        const uint32_t size_x,
         const int halo_depth,
         const int depth,
         double_vector buffer)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= y*depth) return;
+    if(gid >= dim_y*depth) return;
 
-    const int flip = gid % depth;
-    const int lines = gid / depth;
-    const int offset = halo_depth + lines*(x - depth);
-    const int from_index = offset + gid;
-    const int to_index = from_index - (1 + flip*2);
+    const uint32_t y = gid%dim_x;
+    const uint32_t x = gid/dim_x;
 
-    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
-    DV_FLUSH_WRITES(buffer);
+    const uint32_t from_x = halo_depth + x;
+    const uint32_t from_y = y;
+    const uint32_t to_x = halo_depth - x - 1;
+    const uint32_t to_y = y;
+
+    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
 __global__ void update_right(
-        const int x,
-        const int y,
+        const int dim_x,
+        const int dim_y,
+        const uint32_t size_x,
         const int halo_depth,
         const int depth,
         double_vector buffer)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
     const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= y*depth) return;
+    if(gid >= dim_y*depth) return;
 
-    const int flip = gid % depth;
-    const int lines = gid / depth;
-    const int offset = x - halo_depth + lines*(x - depth);
-    const int to_index = offset + gid;
-    const int from_index = to_index - (1 + flip*2);
+    const uint32_t y = gid%dim_x;
+    const uint32_t x = gid/dim_x;
 
-    dv_set_value(buffer, dv_get_value(buffer, from_index), to_index);
-    DV_FLUSH_WRITES(buffer);
+    const uint32_t from_x = dim_x - halo_depth - 1 - x;
+    const uint32_t from_y = y;
+    const uint32_t to_x = dim_x - halo_depth + x;
+    const uint32_t to_y = y;
+
+    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
