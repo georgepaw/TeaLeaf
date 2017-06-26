@@ -2,18 +2,21 @@
 #include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void set_chunk_initial_state(
-        const int x, const int y, const double default_energy, 
+        const int dim_x, const int dim_y, const uint32_t size_x, const double default_energy, 
         const double default_density, double_vector energy0, double_vector density)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_WRITE(energy0);
     INIT_DV_WRITE(density);
 	const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-	if(gid >= x*y) return;
+	if(gid >= dim_x*dim_y) return;
+    const uint32_t y = gid / dim_x;
+    const uint32_t x = gid % dim_x;
 
-    dv_set_value(energy0, default_energy, gid);
-    dv_set_value(density, default_density, gid);
-    DV_FLUSH_WRITES(energy0);
-    DV_FLUSH_WRITES(density);
+    dv_set_value_new(energy0, default_energy, x, y);
+    dv_set_value_new(density, default_density, x, y);
+    DV_FLUSH_WRITES_NEW(energy0);
+    DV_FLUSH_WRITES_NEW(density);
 }
 
 __global__ void set_chunk_state(

@@ -160,7 +160,7 @@ __global__ void unpack_left(
     const uint32_t x = (offset+gid) % dim_x;
     const uint32_t y = (offset+gid) / dim_x;
     dv_set_value_new(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+    DV_FLUSH_WRITES_NEW(field);
 }
 
 __global__ void unpack_right(
@@ -185,7 +185,7 @@ __global__ void unpack_right(
     const uint32_t x = (offset+gid) % dim_x;
     const uint32_t y = (offset+gid) / dim_x;
     dv_set_value_new(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+    DV_FLUSH_WRITES_NEW(field);
 }
 
 __global__ void pack_top(
@@ -258,7 +258,7 @@ __global__ void unpack_top(
     const uint32_t x = (offset+gid) % dim_x;
     const uint32_t y = (offset+gid) / dim_x;
     dv_set_value_new(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+    DV_FLUSH_WRITES_NEW(field);
 }
 
 __global__ void unpack_bottom(
@@ -283,6 +283,6 @@ __global__ void unpack_bottom(
     const uint32_t x = (offset+gid) % dim_x;
     const uint32_t y = (offset+gid) / dim_x;
     dv_set_value_new(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+    DV_FLUSH_WRITES_NEW(field);
 }
 

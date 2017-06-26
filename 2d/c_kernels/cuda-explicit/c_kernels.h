@@ -17,7 +17,7 @@ __global__ void set_chunk_data(
 		double_vector volume, double_vector x_area, double_vector y_area);
 
 __global__ void set_chunk_initial_state(
-        const int x, const int y, const double default_energy, 
+        const int x, const int y, const uint32_t size_x, const double default_energy, 
         const double default_density, double_vector energy0, double_vector density);
 
 __global__ void set_chunk_state(

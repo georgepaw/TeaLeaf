@@ -5,11 +5,6 @@
 #include <inttypes.h>
 
 #include "crc32c.cuh"
-#if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4)
-#define WIDE_SIZE_DV 4
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
-#define WIDE_SIZE_DV 8
-#endif
 
 #if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
 # pragma GCC diagnostic ignored "-Wstrict-aliasing"

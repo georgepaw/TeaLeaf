@@ -7,7 +7,6 @@
 #include "abft_common.cuh"
 
 #include "ecc_128bit.cuh"
-#define WIDE_SIZE_DV 2
 
 #if (__GNUC__ == 4 && 3 <= __GNUC_MINOR__) || 4 < __GNUC__
 # pragma GCC diagnostic ignored "-Wstrict-aliasing"
