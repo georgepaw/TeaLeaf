@@ -58,7 +58,8 @@ __global__ void store_energy(
         int x, int y, double_vector energy0, double_vector energy);
 
 __global__ void field_summary(
-		const int x_inner, const int y_inner, const int halo_depth,
+    const int x_inner, const int y_inner,
+    const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
 		double_vector volume, double_vector density, double_vector energy0,
 		double_vector u, double* vol_out, double* mass_out,
 		double* ie_out, double* temp_out);

@@ -2,11 +2,13 @@
 #include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void field_summary(
-        const int x_inner, const int y_inner, const int halo_depth,
+        const int x_inner, const int y_inner,
+        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector volume, double_vector density, double_vector energy0,
         double_vector u, double* vol_out, double* mass_out,
         double* ie_out, double* temp_out)
 {
+    SET_SIZE_X(size_x);
     INIT_DV_READ(volume);
     INIT_DV_READ(density);
     INIT_DV_READ(energy0);
@@ -26,18 +28,15 @@ __global__ void field_summary(
 
     if(gid < x_inner*y_inner)
     {
-        const int x = x_inner + 2*halo_depth;
-        const int col = gid % x_inner;
-        const int row = gid / x_inner; 
-        const int off0 = halo_depth*(x + 1);
-        const int index = off0 + col + row*x;
+    const uint32_t y = gid / x_inner + halo_depth;
+    const uint32_t x = gid % x_inner + halo_depth;
 
-        double cell_vol = dv_get_value(volume, index);
-        double cell_mass = cell_vol*dv_get_value(density, index);
+        double cell_vol = dv_get_value_new(volume, x, y);
+        double cell_mass = cell_vol*dv_get_value_new(density, x, y);
         vol_shared[lid] = cell_vol;
         mass_shared[lid] = cell_mass;
-        ie_shared[lid] = cell_mass*dv_get_value(energy0, index);
-        temp_shared[lid] = cell_mass*dv_get_value(u, index);
+        ie_shared[lid] = cell_mass*dv_get_value_new(energy0, x, y);
+        temp_shared[lid] = cell_mass*dv_get_value_new(u, x, y);
     }
 
     __syncthreads();

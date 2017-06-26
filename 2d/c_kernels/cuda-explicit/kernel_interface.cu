@@ -128,7 +128,8 @@ void run_field_summary(
     KERNELS_START(2*settings->halo_depth);
 
     field_summary<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth,
+            x_inner, y_inner,
+            chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,
             chunk->volume, chunk->density, chunk->energy0,
             chunk->u, chunk->ext->d_reduce_buffer,
             chunk->ext->d_reduce_buffer2, chunk->ext->d_reduce_buffer3,
