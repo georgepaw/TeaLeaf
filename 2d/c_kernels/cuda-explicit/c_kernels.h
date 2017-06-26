@@ -55,7 +55,9 @@ void pack_or_unpack(
         bool pack, double_vector field, double* buffer);
 
 __global__ void store_energy(
-        int x, int y, double_vector energy0, double_vector energy);
+        const int x_inner, const int y_inner,
+        const uint32_t size_x, const int halo_depth,
+        double_vector energy0, double_vector energy);
 
 __global__ void field_summary(
     const int x_inner, const int y_inner,

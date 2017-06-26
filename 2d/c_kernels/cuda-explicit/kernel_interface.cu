@@ -116,7 +116,8 @@ void run_store_energy(Chunk* chunk, Settings* settings)
     KERNELS_START(0);
 
     store_energy<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, chunk->energy0, chunk->energy);
+            x_inner, y_inner, chunk->ext->size_x, settings->halo_depth,
+            chunk->energy0, chunk->energy);
 
     KERNELS_END();
 }
