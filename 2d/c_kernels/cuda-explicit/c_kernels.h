@@ -23,9 +23,10 @@ __global__ void set_chunk_initial_state(
         const double default_density, double_vector energy0, double_vector density);
 
 __global__ void set_chunk_state(
-        const int x, const int y, double_vector vertex_x, double_vector vertex_y,
+        const int x, const int y, const uint32_t size_x, double_vector vertex_x, double_vector vertex_y,
         double_vector cell_x, double_vector cell_y, double_vector density, double_vector energy0,
-        double_vector u, State state);
+        double_vector u, State state, uint32_t size_vertex_x, uint32_t size_vertex_y,
+        uint32_t size_cell_x, uint32_t size_cell_y);
 
 void kernel_initialise(
         Settings* settings, int x, int y, double_vector* density0, 

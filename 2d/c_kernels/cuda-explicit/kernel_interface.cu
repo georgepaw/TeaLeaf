@@ -70,10 +70,10 @@ void run_set_chunk_state(Chunk* chunk, Settings* settings, State* states)
     for(int ii = 1; ii < settings->num_states; ++ii)
     {
         set_chunk_state<<<num_blocks, BLOCK_SIZE>>>(
-                chunk->x, chunk->y, chunk->vertex_x,
+                chunk->x, chunk->y, chunk->ext->size_x, chunk->vertex_x,
                 chunk->vertex_y, chunk->cell_x, chunk->cell_y,
                 chunk->density, chunk->energy0, chunk->u,
-                states[ii]);
+                states[ii], size_vertex_x, size_vertex_y, size_cell_x, size_cell_y);
     }
 
     KERNELS_END();
