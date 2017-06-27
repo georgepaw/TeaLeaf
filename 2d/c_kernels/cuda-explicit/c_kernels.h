@@ -9,12 +9,14 @@
 __global__ void set_chunk_data_vertices( 
         int x, int y, int halo_depth, double dx, double dy, double x_min,
         double y_min, double_vector vertex_x, double_vector vertex_y, double_vector vertex_dx,
-		double_vector vertex_dy);
+		double_vector vertex_dy, uint32_t size_vertex_x, uint32_t size_vertex_y);
 
 __global__ void set_chunk_data( 
         int x, int y, double dx, double dy, double_vector cell_x, double_vector cell_y,
  	    double_vector cell_dx, double_vector cell_dy, double_vector vertex_x, double_vector vertex_y,
-		double_vector volume, double_vector x_area, double_vector y_area);
+		double_vector volume, double_vector x_area, double_vector y_area,
+    uint32_t size_vertex_x, uint32_t size_vertex_y, uint32_t size_cell_x, uint32_t size_cell_y,
+    uint32_t size_x_area, uint32_t size_y_area, uint32_t size_x);
 
 __global__ void set_chunk_initial_state(
         const int x, const int y, const uint32_t size_x, const double default_energy, 

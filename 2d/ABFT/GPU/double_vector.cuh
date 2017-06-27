@@ -32,14 +32,17 @@
   uint32_t _dv_to_write_start_x_ ## vector = 0xFFFFFFFFU; \
   uint32_t _dv_to_write_y_ ## vector = 0xFFFFFFFFU;
 
-#define DV_FLUSH_WRITES_NEW(vector) \
-  dv_flush_new(vector, _dv_vals_to_write_ ## vector, &_dv_to_write_num_elements_ ## vector, &_dv_to_write_start_x_ ## vector, &_dv_to_write_y_ ## vector, __size_x);
+#define DV_FLUSH_WRITES_S_NEW(vector, size_x) \
+  dv_flush_new(vector, _dv_vals_to_write_ ## vector, &_dv_to_write_num_elements_ ## vector, &_dv_to_write_start_x_ ## vector, &_dv_to_write_y_ ## vector, size_x);
+
+#define DV_FLUSH_WRITES_NEW(vector) DV_FLUSH_WRITES_S_NEW(vector, __size_x)
 
 #define DV_FLUSH_WRITES(vector) \
   dv_flush(vector, _dv_vals_to_write_ ## vector, &_dv_to_write_num_elements_ ## vector, &_dv_to_write_start_x_ ## vector, &_dv_to_write_y_ ## vector);
 
 #else
 #define DV_FLUSH_WRITES(vector)
+#define DV_FLUSH_WRITES_S_NEW(vector, size_x)
 #define DV_FLUSH_WRITES_NEW(vector)
 #define INIT_DV_READ(vector)
 #define INIT_DV_WRITE(vector)
