@@ -13,10 +13,10 @@ __global__ void set_chunk_initial_state(
     const uint32_t y = gid / dim_x;
     const uint32_t x = gid % dim_x;
 
-    dv_set_value_new(energy0, default_energy, x, y);
-    dv_set_value_new(density, default_density, x, y);
-    DV_FLUSH_WRITES_NEW(energy0);
-    DV_FLUSH_WRITES_NEW(density);
+    dv_set_value(energy0, default_energy, x, y);
+    dv_set_value(density, default_density, x, y);
+    DV_FLUSH_WRITES(energy0);
+    DV_FLUSH_WRITES(density);
 }
 
 __global__ void set_chunk_state(
@@ -43,26 +43,26 @@ __global__ void set_chunk_state(
         if(state.geometry == RECTANGULAR)
         {
             apply_state = (
-                    dv_get_value_s_new(vertex_x, x_loc+1, 0, size_vertex_x) >= state.x_min && 
-                    dv_get_value_s_new(vertex_x, x_loc, 0, size_vertex_x) < state.x_max    &&
-                    dv_get_value_s_new(vertex_y, 0, y_loc+1, size_vertex_y) >= state.y_min &&
-                    dv_get_value_s_new(vertex_y, 0, y_loc, size_vertex_y) < state.y_max);
+                    dv_get_value_s(vertex_x, x_loc+1, 0, size_vertex_x) >= state.x_min && 
+                    dv_get_value_s(vertex_x, x_loc, 0, size_vertex_x) < state.x_max    &&
+                    dv_get_value_s(vertex_y, 0, y_loc+1, size_vertex_y) >= state.y_min &&
+                    dv_get_value_s(vertex_y, 0, y_loc, size_vertex_y) < state.y_max);
         }
         else if(state.geometry == CIRCULAR)
         {
             double radius = sqrt(
-                    (dv_get_value_s_new(cell_x, x_loc, 0, size_cell_x)-state.x_min)*
-                    (dv_get_value_s_new(cell_x, x_loc, 0, size_cell_x)-state.x_min)+
-                    (dv_get_value_s_new(cell_y, 0, y_loc, size_cell_y)-state.y_min)*
-                    (dv_get_value_s_new(cell_y, 0, y_loc, size_cell_y)-state.y_min));
+                    (dv_get_value_s(cell_x, x_loc, 0, size_cell_x)-state.x_min)*
+                    (dv_get_value_s(cell_x, x_loc, 0, size_cell_x)-state.x_min)+
+                    (dv_get_value_s(cell_y, 0, y_loc, size_cell_y)-state.y_min)*
+                    (dv_get_value_s(cell_y, 0, y_loc, size_cell_y)-state.y_min));
 
             apply_state = (radius <= state.radius);
         }
         else if(state.geometry == POINT)
         {
             apply_state = (
-                    dv_get_value_s_new(vertex_x, x_loc, 0, size_vertex_x) == state.x_min &&
-                    dv_get_value_s_new(vertex_y, 0, y_loc, size_vertex_y) == state.y_min);
+                    dv_get_value_s(vertex_x, x_loc, 0, size_vertex_x) == state.x_min &&
+                    dv_get_value_s(vertex_y, 0, y_loc, size_vertex_y) == state.y_min);
         }
 
         // Check if state applies at this vertex, and apply
@@ -70,17 +70,17 @@ __global__ void set_chunk_state(
         {
             energy0_val = state.energy;
             density_val = state.density;
-            dv_set_value_new(energy0, energy0_val, x_loc, y_loc);
-            dv_set_value_new(density, density_val, x_loc, y_loc);
+            dv_set_value(energy0, energy0_val, x_loc, y_loc);
+            dv_set_value(density, density_val, x_loc, y_loc);
         }
     }
-    DV_FLUSH_WRITES_NEW(energy0);
-    DV_FLUSH_WRITES_NEW(density);
+    DV_FLUSH_WRITES(energy0);
+    DV_FLUSH_WRITES(density);
 
     if(x_loc > 0 && x_loc < dim_x-1 && 
             y_loc > 0 && y_loc < dim_y-1)
     {
-        dv_set_value_new(u, energy0_val*density_val, x_loc, y_loc);
+        dv_set_value(u, energy0_val*density_val, x_loc, y_loc);
     }
-    DV_FLUSH_WRITES_NEW(u);
+    DV_FLUSH_WRITES(u);
 }

@@ -16,7 +16,7 @@ __global__ void store_energy(
     const uint32_t y = gid / x_inner;
     const uint32_t x = gid % x_inner;
 
-  	dv_set_value_new(energy, dv_get_value_new(energy0, x, y), x, y);
-	DV_FLUSH_WRITES_NEW(energy);
+  	dv_set_value(energy, dv_get_value(energy0, x, y), x, y);
+	DV_FLUSH_WRITES(energy);
 }
 

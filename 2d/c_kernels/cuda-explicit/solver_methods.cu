@@ -33,8 +33,8 @@ __global__ void copy_u(
 
     const uint32_t y = gid / x_inner + halo_depth;
     const uint32_t x = gid % x_inner + halo_depth;
-    dv_set_value_new(dest, dv_get_value_new(src,x, y), x, y);
-    DV_FLUSH_WRITES_NEW(dest);
+    dv_set_value(dest, dv_get_value(src,x, y), x, y);
+    DV_FLUSH_WRITES(dest);
 }
 
 __global__ void calculate_residual(
@@ -70,10 +70,10 @@ __global__ void calculate_residual(
         csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
         uint32_t t_x = col % dim_x;
         uint32_t t_y = col / dim_x;
-        smvp += val * dv_get_value_new(u, t_x, t_y);
+        smvp += val * dv_get_value(u, t_x, t_y);
     }
-    dv_set_value_new(r, dv_get_value_new(u0, x, y) - smvp, x, y);
-    DV_FLUSH_WRITES_NEW(r);
+    dv_set_value(r, dv_get_value(u0, x, y) - smvp, x, y);
+    DV_FLUSH_WRITES(r);
 }
 
 __global__ void calculate_2norm(
@@ -92,7 +92,7 @@ __global__ void calculate_2norm(
     const uint32_t y = gid / x_inner + halo_depth;
     const uint32_t x = gid % x_inner + halo_depth;
 
-    double val = dv_get_value_new(src, x, y);
+    double val = dv_get_value(src, x, y);
     norm_shared[threadIdx.x] = val*val;
 
     reduce<double, BLOCK_SIZE/2>::run(norm_shared, norm, SUM);
@@ -112,9 +112,9 @@ __global__ void finalise(
 
     const uint32_t y = gid / x_inner + halo_depth;
     const uint32_t x = gid % x_inner + halo_depth;
-	dv_set_value_new(energy, dv_get_value_new(u, x, y)
-                      	 /dv_get_value_new(density, x, y), x, y);
-    DV_FLUSH_WRITES_NEW(energy);
+	dv_set_value(energy, dv_get_value(u, x, y)
+                      	 /dv_get_value(density, x, y), x, y);
+    DV_FLUSH_WRITES(energy);
 }
 
 __global__ void sum_reduce(
@@ -153,7 +153,7 @@ __global__ void zero_dv_buffer(
     {
         const uint32_t y = gid / dim_x;
         const uint32_t x = gid % dim_x;
-        dv_set_value_new(buffer, 0.0, x, y);
+        dv_set_value(buffer, 0.0, x, y);
     }
-    DV_FLUSH_WRITES_NEW(buffer);
+    DV_FLUSH_WRITES(buffer);
 }

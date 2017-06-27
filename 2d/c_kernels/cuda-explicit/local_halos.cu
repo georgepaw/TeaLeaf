@@ -93,8 +93,8 @@ __global__ void update_bottom(
     const uint32_t to_x = x;
     const uint32_t to_y = halo_depth - y - 1;
 
-    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES_NEW(buffer);
+    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES(buffer);
 }
 
 __global__ void update_top(
@@ -119,8 +119,8 @@ __global__ void update_top(
     const uint32_t to_x = x;
     const uint32_t to_y = dim_y - halo_depth + y;
 
-    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES_NEW(buffer);
+    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES(buffer);
 }
 
 __global__ void update_left(
@@ -145,8 +145,8 @@ __global__ void update_left(
     const uint32_t to_x = halo_depth - x - 1;
     const uint32_t to_y = y;
 
-    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES_NEW(buffer);
+    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES(buffer);
 }
 
 __global__ void update_right(
@@ -171,7 +171,7 @@ __global__ void update_right(
     const uint32_t to_x = dim_x - halo_depth + x;
     const uint32_t to_y = y;
 
-    dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES_NEW(buffer);
+    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
+    DV_FLUSH_WRITES(buffer);
 }
 
