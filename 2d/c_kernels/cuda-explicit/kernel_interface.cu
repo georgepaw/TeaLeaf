@@ -31,8 +31,8 @@ void run_set_chunk_data(Chunk* chunk, Settings* settings)
     int num_threads = 1 + max(chunk->x, chunk->y);
     int num_blocks = ceil((double)num_threads/(double)BLOCK_SIZE);
 
-    const uint32_t size_vertex_x = ROUND_TO_MULTIPLE(chunk->x+1, 1);
-    const uint32_t size_vertex_y = ROUND_TO_MULTIPLE(1, 1);
+    const uint32_t size_vertex_x = ROUND_TO_MULTIPLE(chunk->x+1, WIDE_SIZE_DV);
+    const uint32_t size_vertex_y = ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV);
     set_chunk_data_vertices<<<num_blocks, BLOCK_SIZE>>>(
             chunk->x, chunk->y, settings->halo_depth, settings->dx,
             settings->dy, x_min, y_min, chunk->vertex_x,
@@ -40,10 +40,10 @@ void run_set_chunk_data(Chunk* chunk, Settings* settings)
 
     num_blocks = ceil((double)(chunk->x*chunk->y)/(double)BLOCK_SIZE);
 
-    const uint32_t size_cell_x = ROUND_TO_MULTIPLE(chunk->x, 1);
-    const uint32_t size_cell_y = ROUND_TO_MULTIPLE(1, 1);
-    const uint32_t size_x_area = ROUND_TO_MULTIPLE(chunk->x+1, 1);
-    const uint32_t size_y_area = ROUND_TO_MULTIPLE(chunk->x, 1);
+    const uint32_t size_cell_x = ROUND_TO_MULTIPLE(chunk->x, WIDE_SIZE_DV);
+    const uint32_t size_cell_y = ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV);
+    const uint32_t size_x_area = ROUND_TO_MULTIPLE(chunk->x+1, WIDE_SIZE_DV);
+    const uint32_t size_y_area = ROUND_TO_MULTIPLE(chunk->x, WIDE_SIZE_DV);
     set_chunk_data<<<num_blocks, BLOCK_SIZE>>>(
             chunk->x, chunk->y, settings->dx,
             settings->dy, chunk->cell_x, chunk->cell_y,
@@ -63,10 +63,10 @@ void run_set_chunk_state(Chunk* chunk, Settings* settings, State* states)
             x_inner, y_inner, chunk->ext->size_x, states[0].energy,
             states[0].density, chunk->energy0, chunk->density);
 
-    const uint32_t size_vertex_x = ROUND_TO_MULTIPLE(chunk->x+1, 1);
-    const uint32_t size_vertex_y = ROUND_TO_MULTIPLE(1, 1);
-    const uint32_t size_cell_x = ROUND_TO_MULTIPLE(chunk->x, 1);
-    const uint32_t size_cell_y = ROUND_TO_MULTIPLE(1, 1);
+    const uint32_t size_vertex_x = ROUND_TO_MULTIPLE(chunk->x+1, WIDE_SIZE_DV);
+    const uint32_t size_vertex_y = ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV);
+    const uint32_t size_cell_x = ROUND_TO_MULTIPLE(chunk->x, WIDE_SIZE_DV);
+    const uint32_t size_cell_y = ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV);
     for(int ii = 1; ii < settings->num_states; ++ii)
     {
         set_chunk_state<<<num_blocks, BLOCK_SIZE>>>(

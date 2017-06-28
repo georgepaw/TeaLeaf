@@ -18,8 +18,7 @@ void allocate_device_buffer(double** a, int x, int y)
 
 void allocate_dv_buffer(double_vector* a, int x, int y)
 {
-    // uint32_t size_x = x % WIDE_SIZE_DV;
-    uint32_t size_x = x;
+    uint32_t size_x = ROUND_TO_MULTIPLE(x, WIDE_SIZE_DV);
     cudaMalloc((void**)a, size_x * y *sizeof(double));
     check_errors(__LINE__, __FILE__);
 
@@ -89,7 +88,7 @@ void kernel_initialise(
 
     const int x_inner = x - 2*settings->halo_depth;
     const int y_inner = y - 2*settings->halo_depth;
-    *size_x = x;
+    *size_x = ROUND_TO_MULTIPLE(x, WIDE_SIZE_DV);
 
     allocate_dv_buffer(density0, x, y);
     allocate_dv_buffer(density, x, y);
