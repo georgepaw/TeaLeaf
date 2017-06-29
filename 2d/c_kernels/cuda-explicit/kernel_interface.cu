@@ -140,6 +140,8 @@ void run_field_summary(
 {
     KERNELS_START(2*settings->halo_depth);
 
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
+
     field_summary<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
             chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,

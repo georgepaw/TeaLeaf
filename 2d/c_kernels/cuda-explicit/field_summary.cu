@@ -13,7 +13,6 @@ __global__ void field_summary(
     INIT_DV_READ(density);
     INIT_DV_READ(energy0);
     INIT_DV_READ(u);
-	const int gid = threadIdx.x+blockDim.x*blockIdx.x;
 	const int lid = threadIdx.x;
 
 	__shared__ double vol_shared[BLOCK_SIZE];
@@ -26,17 +25,22 @@ __global__ void field_summary(
 	ie_shared[lid] = 0.0;
 	temp_shared[lid] = 0.0;
 
-    if(gid < x_inner*y_inner)
-    {
-    const uint32_t y = gid / x_inner + halo_depth;
-    const uint32_t x = gid % x_inner + halo_depth;
+    const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
 
-        double cell_vol = dv_get_value(volume, x, y);
-        double cell_mass = cell_vol*dv_get_value(density, x, y);
-        vol_shared[lid] = cell_vol;
-        mass_shared[lid] = cell_mass;
-        ie_shared[lid] = cell_mass*dv_get_value(energy0, x, y);
-        temp_shared[lid] = cell_mass*dv_get_value(u, x, y);
+    const uint32_t y = gid / dim_x + halo_depth;
+    const uint32_t start_x = gid % dim_x;
+
+    for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
+    {
+        if(halo_depth <= x && x < dim_x - halo_depth)
+        {
+            double cell_vol = dv_get_value_new(volume, x, y);
+            double cell_mass = cell_vol*dv_get_value_new(density, x, y);
+            vol_shared[lid] += cell_vol;
+            mass_shared[lid] += cell_mass;
+            ie_shared[lid] += cell_mass*dv_get_value_new(energy0, x, y);
+            temp_shared[lid] += cell_mass*dv_get_value_new(u, x, y);
+        }
     }
 
     __syncthreads();
