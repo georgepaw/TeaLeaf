@@ -29,7 +29,7 @@ void run_set_chunk_data(Chunk* chunk, Settings* settings)
     double y_min = settings->grid_y_min + settings->dy*(double)chunk->bottom;
 
     int num_threads = 1 + max(chunk->x, chunk->y);
-    int num_blocks = ceil((double)num_threads/(double)BLOCK_SIZE);
+    int num_blocks = ceil((double)num_threads/(double)BLOCK_SIZE * WIDE_SIZE_DV);
 
     const uint32_t size_vertex_x = ROUND_TO_MULTIPLE(chunk->x+1, WIDE_SIZE_DV);
     const uint32_t size_vertex_y = ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV);
@@ -38,7 +38,7 @@ void run_set_chunk_data(Chunk* chunk, Settings* settings)
             settings->dy, x_min, y_min, chunk->vertex_x,
             chunk->vertex_y, chunk->vertex_dx, chunk->vertex_dy, size_vertex_x, size_vertex_y);
 
-    num_blocks = ceil((double)(chunk->x*chunk->y)/(double)BLOCK_SIZE);
+    num_blocks = ceil((double)(chunk->x*chunk->y)/(double)BLOCK_SIZE * WIDE_SIZE_DV);
 
     const uint32_t size_cell_x = ROUND_TO_MULTIPLE(chunk->x, WIDE_SIZE_DV);
     const uint32_t size_cell_y = ROUND_TO_MULTIPLE(1, WIDE_SIZE_DV);
