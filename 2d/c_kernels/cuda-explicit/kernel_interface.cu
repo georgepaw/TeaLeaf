@@ -9,9 +9,9 @@
 
 #define KERNELS_START(pad) \
     START_PROFILING(settings->kernel_profile); \
-    int num_blocks = ceil((double)(chunk->x*chunk->y) / (double)BLOCK_SIZE); \
-    int x_inner = chunk->x - pad; \
-    int y_inner = chunk->y - pad;
+int x_inner = chunk->x - pad; \
+int y_inner = chunk->y - pad; \
+int num_blocks = ceil((double)(x_inner*y_inner) / (double)BLOCK_SIZE);
 
 #define KERNELS_END() \
     check_errors(__LINE__, __FILE__); \
@@ -165,7 +165,7 @@ void run_cg_init(
 
     chunk->ext->iteration = 0;
 
-    int num_blocks = ceil((double)(chunk->x*chunk->y) / (double)BLOCK_SIZE);
+    int num_blocks = ceil((double)(chunk->x * chunk->y) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
     cg_init_u<<<num_blocks, BLOCK_SIZE>>>(
             chunk->x, chunk->y, chunk->ext->size_x, settings->coefficient,
             chunk->density, chunk->energy, chunk->u,
@@ -174,7 +174,8 @@ void run_cg_init(
 
     int x_inner = chunk->x - (2*settings->halo_depth-1);
     int y_inner = chunk->y - (2*settings->halo_depth-1);
-    num_blocks = ceil((double)(x_inner*y_inner) / (double)BLOCK_SIZE);
+
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
 
     cg_init_k<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
@@ -192,7 +193,8 @@ void run_cg_init(
 
     x_inner = chunk->x - 2*settings->halo_depth;
     y_inner = chunk->y - 2*settings->halo_depth;
-    num_blocks = ceil((double)(x_inner*y_inner) / (double)BLOCK_SIZE);
+
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
 
     cg_init_others<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
@@ -221,7 +223,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 #ifdef INJECT_FAULT
     inject_bitflips_csr_matrix(chunk->ext->d_row_index, chunk->ext->d_col_index, chunk->ext->d_non_zeros, *(chunk->ext->iteration));
 #endif
-
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
     if(do_FT_check)
     {
         cg_calc_w_check<<<num_blocks, BLOCK_SIZE>>>(
@@ -243,7 +245,6 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
     }
 
     sum_reduce_buffer(chunk->ext->d_reduce_buffer, pw, num_blocks);
-
     KERNELS_END();
 }
 
@@ -252,6 +253,7 @@ void run_cg_calc_ur(
 {
     KERNELS_START(2*settings->halo_depth);
 
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
     cg_calc_ur<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
             chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,
@@ -269,6 +271,7 @@ void run_cg_calc_p(Chunk* chunk, Settings* settings, double beta)
 {
     KERNELS_START(2*settings->halo_depth);
 
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
     cg_calc_p<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
             chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth, beta,
@@ -280,90 +283,32 @@ void run_cg_calc_p(Chunk* chunk, Settings* settings, double beta)
 // Chebyshev solver kernels
 void run_cheby_init(Chunk* chunk, Settings* settings)
 {
-    // KERNELS_START(2*settings->halo_depth);
-
-    // cheby_init<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, chunk->u,
-    //         chunk->u0, chunk->kx, chunk->ky, chunk->theta,
-    //         chunk->p, chunk->r, chunk->w, chunk->ext->d_row_index,
-    //         chunk->ext->d_col_index, chunk->ext->d_non_zeros);
-
-    KERNELS_END();
 }
 
 void run_cheby_iterate(
         Chunk* chunk, Settings* settings, double alpha, double beta)
 {
-    // KERNELS_START(2*settings->halo_depth);
-
-    // cheby_calc_p<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, chunk->u, chunk->u0,
-    //         chunk->kx, chunk->ky, alpha, beta, chunk->p, chunk->r,
-    //         chunk->w, chunk->ext->d_row_index,
-    //         chunk->ext->d_col_index, chunk->ext->d_non_zeros);
-
-    // cheby_calc_u<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, chunk->p, chunk->u);
-
-    KERNELS_END();
 }
 
 // Jacobi solver kernels
 void run_jacobi_init(
         Chunk* chunk, Settings* settings, double rx, double ry)
 {
-    // KERNELS_START(2*settings->halo_depth);
-
-    // jacobi_init<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, chunk->density, chunk->energy,
-    //         rx, ry, chunk->kx, chunk->ky, chunk->u0, chunk->u,
-    //         settings->coefficient);
-
-    KERNELS_END();
 }
 
 void run_jacobi_iterate(
         Chunk* chunk, Settings* settings, double* error)
 {
-    // KERNELS_START(2*settings->halo_depth);
-
-    // jacobi_iterate<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, chunk->kx, chunk->ky,
-    //         chunk->u0, chunk->r, chunk->u,
-    //         chunk->ext->d_reduce_buffer);
-
-    // sum_reduce_buffer(chunk->ext->d_reduce_buffer, error, num_blocks);
-
-    KERNELS_END();
 }
 
 // PPCG solver kernels
 void run_ppcg_init(Chunk* chunk, Settings* settings)
 {
-    // KERNELS_START(2*settings->halo_depth);
-
-    // ppcg_init<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, chunk->theta, chunk->r,
-    //         chunk->sd);
-
-    KERNELS_END();
 }
 
 void run_ppcg_inner_iteration(
         Chunk* chunk, Settings* settings, double alpha, double beta)
 {
-    // KERNELS_START(2*settings->halo_depth);
-
-    // ppcg_calc_ur<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, chunk->kx, chunk->ky,
-    //         chunk->sd, chunk->u, chunk->r, chunk->ext->d_row_index,
-    //         chunk->ext->d_col_index, chunk->ext->d_non_zeros);
-
-    // ppcg_calc_sd<<<num_blocks, BLOCK_SIZE>>>(
-    //         x_inner, y_inner, settings->halo_depth, alpha, beta, chunk->r,
-    //         chunk->sd);
-
-    KERNELS_END();
 }
 
 // Shared solver kernels

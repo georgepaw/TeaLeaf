@@ -37,21 +37,24 @@
 
 #define DV_FLUSH_WRITES(vector) DV_FLUSH_WRITES_S(vector, __size_x)
 
+#define DV_FLUSH_WRITES_S_NEW(vector, size_x) \
+  dv_flush_new(vector, _dv_vals_to_write_ ## vector, &_dv_to_write_num_elements_ ## vector, &_dv_to_write_start_x_ ## vector, &_dv_to_write_y_ ## vector, size_x);
+
+#define DV_FLUSH_WRITES_NEW(vector) DV_FLUSH_WRITES_S_NEW(vector, __size_x)
+
 #else
 #define DV_FLUSH_WRITES_S(vector, size_x)
 #define DV_FLUSH_WRITES(vector)
+#define DV_FLUSH_WRITES_S_NEW(vector, size_x)
+#define DV_FLUSH_WRITES_NEW(vector)
 #define INIT_DV_READ(vector)
 #define INIT_DV_WRITE(vector)
 #endif
 
 #define SET_SIZE_X(size_x) const uint32_t __size_x = size_x;
 
-#if WIDE_SIZE_DV > 1
-#else
-#endif
-
 #define get_id(offset) WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x) + offset
-
+#define get_start_x(val) (val) - ((val) % WIDE_SIZE_DV)
 
 
 #define ROUND_TO_MULTIPLE(x, multiple) ((x % multiple == 0) ? x : x + (multiple - x % multiple))
@@ -427,6 +430,22 @@ __device__ inline static void dv_flush(double_vector vector, double * dv_vals_to
 #endif
 }
 
+__device__ inline static void dv_flush_new(double_vector vector, double * dv_vals_to_write, uint32_t * dv_to_write_num_elements, const uint32_t * dv_to_write_start_x, const uint32_t * dv_to_write_y, const uint32_t size_x)
+{
+#if WIDE_SIZE_DV > 1
+  if(*dv_to_write_num_elements == 0
+    || *dv_to_write_start_x == 0xFFFFFFFFU
+    || *dv_to_write_y == 0xFFFFFFFFU) return;
+  // add_ecc_double(vector + dv_to_write_start,
+  //                dv_vals_to_write);
+  for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
+  {
+    vector[*dv_to_write_y * size_x + *dv_to_write_start_x + i] = dv_vals_to_write[i];
+  }
+  *dv_to_write_num_elements = 0;
+#endif
+}
+
 #define dv_set_value(vector, value, x, y) dv_set_value_s(vector, value, x, y, __size_x)
 #if WIDE_SIZE_DV > 1
 #define dv_set_value_s(vector, value, x, y, size_x) \
@@ -449,9 +468,48 @@ __device__ static inline void _dv_set_value(double_vector vector, const double v
     *dv_to_write_y = y;
     //READ-MODIFY-WRITE
     uint32_t flag = 0;
+    // for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
+    // {
+      dv_vals_to_write[0] = vector[start_x + y * size_x];
+    // }
+    // check_ecc_double(dv_vals_to_write,
+    //                  vector + start_index,
+    //                  &flag);
+    if(flag) cuda_terminate();
+  }
+
+  dv_vals_to_write[offset] = value;
+  (*dv_to_write_num_elements)++;
+#else
+  vector[y * size_x + x] = add_ecc_double(value);
+#endif
+}
+
+#define dv_set_value_new(vector, value, x, y) dv_set_value_s_new(vector, value, x, y, __size_x)
+#if WIDE_SIZE_DV > 1
+#define dv_set_value_s_new(vector, value, x, y, size_x) \
+  _dv_set_value_new(vector, value, x, y, size_x, _dv_vals_to_write_ ## vector, &_dv_to_write_num_elements_ ## vector, &_dv_to_write_start_x_ ## vector, &_dv_to_write_y_ ## vector)
+__device__ static inline void _dv_set_value_new(double_vector vector, const double value, const uint32_t x, const uint32_t y, const uint32_t size_x, double * dv_vals_to_write, uint32_t * dv_to_write_num_elements, uint32_t * dv_to_write_start_x, uint32_t * dv_to_write_y)
+#else
+#define dv_set_value_s_new(vector, value, x, y, size_x) _dv_set_value(vector, value, x, y, size_x)
+__device__ static inline void _dv_set_value_new(double_vector vector, const double value, const uint32_t x, const uint32_t y, const uint32_t size_x)
+#endif
+{
+#if WIDE_SIZE_DV > 1
+  uint32_t offset = x % WIDE_SIZE_DV;
+  uint32_t start_x = x - offset;
+
+  if(start_x != *dv_to_write_start_x ||
+     y != *dv_to_write_y)
+  {
+    dv_flush_new(vector, dv_vals_to_write, dv_to_write_num_elements, dv_to_write_start_x, dv_to_write_y, size_x);
+    *dv_to_write_start_x = start_x;
+    *dv_to_write_y = y;
+    //READ-MODIFY-WRITE
+    uint32_t flag = 0;
     for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
     {
-      dv_vals_to_write[i] = vector[start_x + y * size_x];
+      dv_vals_to_write[i] = vector[start_x + y * size_x + i];
     }
     // check_ecc_double(dv_vals_to_write,
     //                  vector + start_index,
@@ -471,13 +529,32 @@ __device__ inline static void dv_prefetch(double_vector vector, const uint32_t s
 {
 #if WIDE_SIZE_DV > 1
   *dv_buffer_start_x = start_x;
+  *dv_buffer_y = y;
+  uint32_t flag = 0;
+  // check_ecc_double(dv_buffered_vals,
+  //                  vector + start_index,
+  //                  &flag);
+  // for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
+  // {
+    dv_buffered_vals[0] = vector[start_x + size_x * y];
+  // }
+  if(flag) cuda_terminate();
+#endif
+}
+
+
+__device__ inline static void dv_prefetch_new(double_vector vector, const uint32_t start_x, const uint32_t y, const uint32_t size_x, double * dv_buffered_vals, uint32_t * dv_buffer_start_x, uint32_t * dv_buffer_y)
+{
+#if WIDE_SIZE_DV > 1
+  *dv_buffer_start_x = start_x;
+  *dv_buffer_y = y;
   uint32_t flag = 0;
   // check_ecc_double(dv_buffered_vals,
   //                  vector + start_index,
   //                  &flag);
   for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
   {
-    dv_buffered_vals[i] = vector[start_x + size_x * y];
+    dv_buffered_vals[i] = vector[start_x + size_x * y + i];
   }
   if(flag) cuda_terminate();
 #endif
@@ -500,6 +577,33 @@ __device__ static inline double _dv_get_value(double_vector vector, const uint32
 
   if(start_x != *dv_buffer_start_x ||
      y != *dv_buffer_y) dv_prefetch(vector, start_x, y, size_x, dv_buffered_vals, dv_buffer_start_x, dv_buffer_y);
+
+  return mask_double(dv_buffered_vals[offset]);
+#else
+  uint32_t flag = 0;
+  double val = check_ecc_double(&(vector[y * size_x + x]), &flag);
+  if(flag) cuda_terminate();
+  return mask_double(val);
+#endif
+}
+
+#define dv_get_value_new(vector, x, y) dv_get_value_s_new(vector, x, y, __size_x)
+#if WIDE_SIZE_DV > 1
+#define dv_get_value_s_new(vector, x, y, size_x) \
+  _dv_get_value_new(vector, x, y, size_x, _dv_buffered_vals_ ## vector, &_dv_buffered_vals_start_x_ ## vector, &_dv_buffered_vals_y_ ## vector)
+__device__ static inline double _dv_get_value_new(double_vector vector, const uint32_t x, const uint32_t y, const uint32_t size_x, double * dv_buffered_vals, uint32_t * dv_buffer_start_x, uint32_t * dv_buffer_y)
+#else
+#define dv_get_value_s_new(vector, x, y, size_x) _dv_get_value_new(vector, x, y, size_x)
+__device__ static inline double _dv_get_value_new(double_vector vector, const uint32_t x, const uint32_t y, const uint32_t size_x)
+#endif
+{
+#if WIDE_SIZE_DV > 1
+  uint32_t offset = x % WIDE_SIZE_DV;
+  // uint32_t offset = x % WIDE_SIZE_DV;
+  uint32_t start_x = x - offset;
+
+  if(start_x != *dv_buffer_start_x ||
+     y != *dv_buffer_y) dv_prefetch_new(vector, start_x, y, size_x, dv_buffered_vals, dv_buffer_start_x, dv_buffer_y);
 
   return mask_double(dv_buffered_vals[offset]);
 #else
