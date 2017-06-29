@@ -10,7 +10,7 @@ typedef double * double_vector;
 #elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128)
 #define WIDE_SIZE_DV 2
 #else
-#define WIDE_SIZE_DV 4
+#define WIDE_SIZE_DV 1
 #endif
 
 

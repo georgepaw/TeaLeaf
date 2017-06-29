@@ -62,11 +62,11 @@ void update_face(
         check_errors(__LINE__, __FILE__);\
     }
 
-    int num_blocks = ceil((x*depth) / (double)BLOCK_SIZE);
+    int num_blocks = ceil((double)(x*depth) / (double)BLOCK_SIZE * WIDE_SIZE_DV);
     UPDATE_FACE(CHUNK_TOP, update_top);
     UPDATE_FACE(CHUNK_BOTTOM, update_bottom);
 
-    num_blocks = ceil((y*depth) / (float)BLOCK_SIZE);
+    num_blocks = ceil((double)y / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
     UPDATE_FACE(CHUNK_RIGHT, update_right);
     UPDATE_FACE(CHUNK_LEFT, update_left);
 }
@@ -82,19 +82,23 @@ __global__ void update_bottom(
     SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
-    const int gid = threadIdx.x+blockIdx.x*blockDim.x;
-    if(gid >= dim_x*depth) return;
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
 
-    const uint32_t y = gid/dim_x;
-    const uint32_t x = gid%dim_x;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= dim_x*depth) continue;
 
-    const uint32_t from_x = x;
-    const uint32_t from_y = halo_depth + y;
-    const uint32_t to_x = x;
-    const uint32_t to_y = halo_depth - y - 1;
+        const uint32_t y = gid/dim_x;
+        const uint32_t x = gid%dim_x;
 
-    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES(buffer);
+        const uint32_t from_x = x;
+        const uint32_t from_y = halo_depth + y;
+        const uint32_t to_x = x;
+        const uint32_t to_y = halo_depth - y - 1;
+
+        dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    }
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
 __global__ void update_top(
@@ -108,19 +112,23 @@ __global__ void update_top(
     SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
-    const int gid = threadIdx.x+blockIdx.x*blockDim.x;
-    if(gid >= dim_x*depth) return;
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
 
-    const uint32_t y = gid/dim_x;
-    const uint32_t x = gid%dim_x;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= dim_x*depth) continue;
 
-    const uint32_t from_x = x;
-    const uint32_t from_y = dim_y - halo_depth - 1 - y;
-    const uint32_t to_x = x;
-    const uint32_t to_y = dim_y - halo_depth + y;
+        const uint32_t y = gid/dim_x;
+        const uint32_t x = gid%dim_x;
 
-    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES(buffer);
+        const uint32_t from_x = x;
+        const uint32_t from_y = dim_y - halo_depth - 1 - y;
+        const uint32_t to_x = x;
+        const uint32_t to_y = dim_y - halo_depth + y;
+
+        dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    }
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
 __global__ void update_left(
@@ -134,19 +142,22 @@ __global__ void update_left(
     SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= dim_y*depth) return;
 
-    const uint32_t y = gid%dim_x;
-    const uint32_t x = gid/dim_x;
+    const uint32_t y = threadIdx.x+blockDim.x*blockIdx.x;
+    if(y > dim_y) return;
 
-    const uint32_t from_x = halo_depth + x;
-    const uint32_t from_y = y;
-    const uint32_t to_x = halo_depth - x - 1;
-    const uint32_t to_y = y;
+    for(uint32_t x = 0; x < MAX(WIDE_SIZE_DV, depth); x++)
+    {
+        if(x >= depth) continue;
 
-    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES(buffer);
+        const uint32_t from_x = halo_depth + x;
+        const uint32_t from_y = y;
+        const uint32_t to_x = halo_depth - x - 1;
+        const uint32_t to_y = y;
+
+        dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    }
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
 __global__ void update_right(
@@ -160,18 +171,21 @@ __global__ void update_right(
     SET_SIZE_X(size_x);
     INIT_DV_READ(buffer);
     INIT_DV_WRITE(buffer);
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= dim_y*depth) return;
 
-    const uint32_t y = gid%dim_x;
-    const uint32_t x = gid/dim_x;
+    const uint32_t y = threadIdx.x+blockDim.x*blockIdx.x;
+    if(y > dim_y) return;
 
-    const uint32_t from_x = dim_x - halo_depth - 1 - x;
-    const uint32_t from_y = y;
-    const uint32_t to_x = dim_x - halo_depth + x;
-    const uint32_t to_y = y;
+    for(uint32_t x = 0; x < MAX(WIDE_SIZE_DV, depth); x++)
+    {
+        if(x >= depth) continue;
 
-    dv_set_value(buffer, dv_get_value(buffer, from_x, from_y), to_x, to_y);
-    DV_FLUSH_WRITES(buffer);
+        const uint32_t from_x = dim_x - halo_depth - 1 - x;
+        const uint32_t from_y = y;
+        const uint32_t to_x = dim_x - halo_depth + x;
+        const uint32_t to_y = y;
+
+        dv_set_value_new(buffer, dv_get_value_new(buffer, from_x, from_y), to_x, to_y);
+    }
+    DV_FLUSH_WRITES_NEW(buffer);
 }
 
