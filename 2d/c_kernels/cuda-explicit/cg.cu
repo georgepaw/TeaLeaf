@@ -187,9 +187,9 @@ __global__ void cg_init_others(
     INIT_DV_WRITE(w);
     INIT_DV_WRITE(r);
     INIT_DV_WRITE(p);
+    __shared__ double rro_shared[BLOCK_SIZE];
+    rro_shared[threadIdx.x] = 0.0;
     const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
-	__shared__ double rro_shared[BLOCK_SIZE];
-	rro_shared[threadIdx.x] = 0.0;
 
     const uint32_t y = gid / dim_x + halo_depth;
     const uint32_t start_x = gid % dim_x;

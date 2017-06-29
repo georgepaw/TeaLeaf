@@ -126,6 +126,7 @@ void run_pack_or_unpack(
 void run_store_energy(Chunk* chunk, Settings* settings)
 {
     KERNELS_START(0);
+    num_blocks = ceil((double)(x_inner * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
 
     store_energy<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, chunk->ext->size_x, settings->halo_depth,
