@@ -454,8 +454,8 @@ __device__ static inline void _dv_set_value(double_vector vector, const double v
     check_ecc_double(dv_vals_to_write,
                      vector + start_x + y * size_x,
                      &flag);
+    if(flag) printf("RMW %u %u\n", start_x, y);
     if(flag) cuda_terminate();
-    // if(flag) printf("RMW %u %u\n", start_x, y);
   }
 
   dv_vals_to_write[offset] = value;

@@ -14,29 +14,12 @@ __device__ static inline uint32_t generate_crc32c_bits_double(double * vals)
 {
   uint32_t crc = 0xFFFFFFFF;
   //there are 4/8 elements
-#ifdef SOFTWARE_CRC_SPLIT
-  data = (uint32_t*)vals;
+  uint32_t * data = (uint32_t*)vals;
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_16_INNER(crc, crc, data);
 #ifdef ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8
   SPLIT_BY_16_INNER(crc, crc, data);
   SPLIT_BY_16_INNER(crc, crc, data);
-#endif
-#elif defined(INTEL_ASM)
-  //use Intel assembly code to accelerate crc calculations
-  crc = crc_pcl((const uint8_t*)vals, WIDE_SIZE_DV * sizeof(double), crc);
-#else
-  uint64_t * data = (uint64_t*)vals;
-  CRC32CD(crc, crc, data[0]);
-  CRC32CD(crc, crc, data[1]);
-  CRC32CD(crc, crc, data[2]);
-  CRC32CD(crc, crc, data[3]);
-#ifdef ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8
-  CRC32CD(crc, crc, data[4]);
-  CRC32CD(crc, crc, data[5]);
-  CRC32CD(crc, crc, data[6]);
-  CRC32CD(crc, crc, data[7]);
-#endif
 #endif
   return crc;
 }

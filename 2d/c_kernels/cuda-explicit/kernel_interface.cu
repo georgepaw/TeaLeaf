@@ -37,7 +37,7 @@ void run_set_chunk_data(Chunk* chunk, Settings* settings)
             chunk->x, chunk->y, settings->halo_depth, settings->dx,
             settings->dy, x_min, y_min, chunk->vertex_x,
             chunk->vertex_y, chunk->vertex_dx, chunk->vertex_dy, size_vertex_x, size_vertex_y);
-
+    check_errors(__LINE__, __FILE__);
     num_blocks = ceil((double)(chunk->x*chunk->y)/(double)BLOCK_SIZE * WIDE_SIZE_DV);
 
     const uint32_t size_cell_x = ROUND_TO_MULTIPLE(chunk->x, WIDE_SIZE_DV);
