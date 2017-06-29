@@ -193,13 +193,6 @@ __global__ void zero_dv_buffer(
 __global__ void csr_init_rows(
         const int x, const int y, const int halo_depth, uint32_t* rows);
 
-__global__ void inject_bitflip_csr_element(
-    const uint32_t bit, const uint32_t index, uint32_t* col_index,
-    double* non_zeros);
-
-__global__ void inject_bitflip_row_vector(
-  const uint32_t bit, const uint32_t index, uint32_t* row_vector);
-
 __global__ void matrix_check(
         const int x_inner, const int y_inner, const int halo_depth,
         uint32_t* row_index, uint32_t* col_index, double* non_zeros);

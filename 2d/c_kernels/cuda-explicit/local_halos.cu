@@ -144,7 +144,7 @@ __global__ void update_left(
     INIT_DV_WRITE(buffer);
 
     const uint32_t y = threadIdx.x+blockDim.x*blockIdx.x;
-    if(y > dim_y) return;
+    if(y >= dim_y) return;
 
     for(uint32_t x = 0; x < MAX(WIDE_SIZE_DV, depth); x++)
     {
@@ -173,7 +173,7 @@ __global__ void update_right(
     INIT_DV_WRITE(buffer);
 
     const uint32_t y = threadIdx.x+blockDim.x*blockIdx.x;
-    if(y > dim_y) return;
+    if(y >= dim_y) return;
 
     for(uint32_t x = 0; x < MAX(WIDE_SIZE_DV, depth); x++)
     {

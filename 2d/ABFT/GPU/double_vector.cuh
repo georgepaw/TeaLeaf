@@ -416,12 +416,12 @@ __device__ inline static void dv_flush(double_vector vector, double * dv_vals_to
   if(*dv_to_write_num_elements == 0
     || *dv_to_write_start_x == 0xFFFFFFFFU
     || *dv_to_write_y == 0xFFFFFFFFU) return;
-  // add_ecc_double(vector + dv_to_write_start,
-  //                dv_vals_to_write);
-  for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
-  {
-    vector[*dv_to_write_y * size_x + *dv_to_write_start_x + i] = dv_vals_to_write[i];
-  }
+  add_ecc_double(vector + *dv_to_write_y * size_x + *dv_to_write_start_x,
+                 dv_vals_to_write);
+  // for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
+  // {
+  //   vector[*dv_to_write_y * size_x + *dv_to_write_start_x + i] = dv_vals_to_write[i];
+  // }
   *dv_to_write_num_elements = 0;
 #endif
 }
@@ -446,16 +446,45 @@ __device__ static inline void _dv_set_value(double_vector vector, const double v
     dv_flush(vector, dv_vals_to_write, dv_to_write_num_elements, dv_to_write_start_x, dv_to_write_y, size_x);
     *dv_to_write_start_x = start_x;
     *dv_to_write_y = y;
-    //READ-MODIFY-WRITE
+    // for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
+    // {
+    //   dv_vals_to_write[i] = vector[start_x + y * size_x + i];
+    // }
     uint32_t flag = 0;
-    for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
-    {
-      dv_vals_to_write[i] = vector[start_x + y * size_x + i];
-    }
-    // check_ecc_double(dv_vals_to_write,
-    //                  vector + start_index,
-    //                  &flag);
+    check_ecc_double(dv_vals_to_write,
+                     vector + start_x + y * size_x,
+                     &flag);
     if(flag) cuda_terminate();
+    // if(flag) printf("RMW %u %u\n", start_x, y);
+  }
+
+  dv_vals_to_write[offset] = value;
+  (*dv_to_write_num_elements)++;
+#else
+  vector[y * size_x + x] = add_ecc_double(value);
+#endif
+}
+
+#define dv_set_value_no_rmw(vector, value, x, y) dv_set_value_no_rmw_s(vector, value, x, y, __size_x)
+#if WIDE_SIZE_DV > 1
+#define dv_set_value_no_rmw_s(vector, value, x, y, size_x) \
+  _dv_set_value_no_rmw(vector, value, x, y, size_x, _dv_vals_to_write_ ## vector, &_dv_to_write_num_elements_ ## vector, &_dv_to_write_start_x_ ## vector, &_dv_to_write_y_ ## vector)
+__device__ static inline void _dv_set_value_no_rmw(double_vector vector, const double value, const uint32_t x, const uint32_t y, const uint32_t size_x, double * dv_vals_to_write, uint32_t * dv_to_write_num_elements, uint32_t * dv_to_write_start_x, uint32_t * dv_to_write_y)
+#else
+#define dv_set_value_no_rmw_s(vector, value, x, y, size_x) _dv_set_value_no_rmw(vector, value, x, y, size_x)
+__device__ static inline void _dv_set_value_no_rmw(double_vector vector, const double value, const uint32_t x, const uint32_t y, const uint32_t size_x)
+#endif
+{
+#if WIDE_SIZE_DV > 1
+  uint32_t offset = x % WIDE_SIZE_DV;
+  uint32_t start_x = x - offset;
+
+  if(start_x != *dv_to_write_start_x ||
+     y != *dv_to_write_y)
+  {
+    dv_flush(vector, dv_vals_to_write, dv_to_write_num_elements, dv_to_write_start_x, dv_to_write_y, size_x);
+    *dv_to_write_start_x = start_x;
+    *dv_to_write_y = y;
   }
 
   dv_vals_to_write[offset] = value;
@@ -471,13 +500,14 @@ __device__ inline static void dv_prefetch(double_vector vector, const uint32_t s
   *dv_buffer_start_x = start_x;
   *dv_buffer_y = y;
   uint32_t flag = 0;
-  // check_ecc_double(dv_buffered_vals,
-  //                  vector + start_index,
-  //                  &flag);
-  for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
-  {
-    dv_buffered_vals[i] = vector[start_x + size_x * y + i];
-  }
+  check_ecc_double(dv_buffered_vals,
+                   vector + start_x + size_x * y,
+                   &flag);
+  if(flag) printf("%u %u\n", start_x, y);
+  // for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
+  // {
+  //   dv_buffered_vals[i] = vector[start_x + size_x * y + i];
+  // }
   if(flag) cuda_terminate();
 #endif
 }
@@ -494,7 +524,6 @@ __device__ static inline double _dv_get_value(double_vector vector, const uint32
 {
 #if WIDE_SIZE_DV > 1
   uint32_t offset = x % WIDE_SIZE_DV;
-  // uint32_t offset = x % WIDE_SIZE_DV;
   uint32_t start_x = x - offset;
 
   if(start_x != *dv_buffer_start_x ||

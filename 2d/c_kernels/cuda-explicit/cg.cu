@@ -4,36 +4,6 @@
 #include "../../ABFT/GPU/csr_matrix.cuh"
 #include "../../ABFT/GPU/double_vector.cuh"
 
-__global__ void inject_bitflip_csr_element(
-  const uint32_t bit,
-  const uint32_t index,
-        uint32_t* col_index,
-        double* non_zeros)
-{
-    // printf("Element was: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val: %lf\n", col_index[index] & 0xFF000000 >> 24, col_index[index] & 0x00FFFFFF, non_zeros[index]);
-    if (bit < 64)
-    {
-      uint64_t val = *((uint64_t*)&(non_zeros[index]));
-      val ^= 0x1ULL << (bit);
-      non_zeros[index] = *((double*)&val);
-    }
-    else
-    {
-      col_index[index] ^= 0x1U << (bit - 64);
-    }
-    // printf("Element is: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val: %lf\n", col_index[index] & 0xFF000000 >> 24, col_index[index] & 0x00FFFFFF, non_zeros[index]);
-}
-
-__global__ void inject_bitflip_row_vector(
-  const uint32_t bit,
-  const uint32_t index,
-        uint32_t* row_vector)
-{
-    row_vector[index] ^= 0x1U << bit;
-}
-
-
-
 __global__ void csr_init_rows(
         const int x,
         const int y,

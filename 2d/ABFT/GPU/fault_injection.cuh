@@ -24,6 +24,45 @@ volatile int mpi_rank;
 # pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 
+__global__ void inject_bitflip_csr_element(
+  const uint32_t bit,
+  const uint32_t index,
+        uint32_t* col_index,
+        double* non_zeros)
+{
+    // printf("Element was: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val: %lf\n", col_index[index] & 0xFF000000 >> 24, col_index[index] & 0x00FFFFFF, non_zeros[index]);
+    if (bit < 64)
+    {
+      uint64_t val = *((uint64_t*)&(non_zeros[index]));
+      val ^= 0x1ULL << (bit);
+      non_zeros[index] = *((double*)&val);
+    }
+    else
+    {
+      col_index[index] ^= 0x1U << (bit - 64);
+    }
+    // printf("Element is: Top 8 bits[CRC/ECC]: 0x%02x col:0x%06x val: %lf\n", col_index[index] & 0xFF000000 >> 24, col_index[index] & 0x00FFFFFF, non_zeros[index]);
+}
+
+__global__ void inject_bitflip_row_vector(
+  const uint32_t bit,
+  const uint32_t index,
+        uint32_t* row_vector)
+{
+    row_vector[index] ^= 0x1U << bit;
+}
+
+__global__ void inject_bitflip_double_vector(
+  const uint32_t bit,
+  const uint32_t index,
+        double_vector vector)
+{
+    uint64_t val = *((uint64_t*)&(vector[index]));
+    val ^= 0x1ULL << (bit);
+    vector[index] = *((double*)&val);
+}
+
+
 //start <= x < end
 static inline uint32_t get_random_number(uint32_t start, uint32_t end)
 {
@@ -82,32 +121,32 @@ static void inject_bitflips_csr_matrix(uint32_t * d_row_vector, uint32_t * d_col
   }
 }
 
-// static void inject_bitflips_double_vector(double_vector * vector, const uint32_t iteration)
-// {
-// #ifndef NO_MPI
-//   //get the MPI Rank
-//   if(iteration == 0)
-//   {
-//     MPI_Comm_rank(_MPI_COMM_WORLD, &mpi_rank);
-//   }
-//   //only inject faults on one rank
-//   if(mpi_rank != FAULT_INJECTION_RANK) return;
-// #endif
-//   uint32_t start_index = 4114;
-//   uint32_t elemts_to_flip = 1;
-//   int num_flips_per_elem = 1;
-//   if(iteration == FAULT_INJECTION_ITTERATION)
-//   {
-//     for(uint32_t i = 0; i < elemts_to_flip; i++)
-//     {
-//       for(uint32_t j = 0; j < num_flips_per_elem; j++)
-//       {
-//         uint32_t bit = get_random_number(0, 64);
-//         printf("*** flipping bit %d of a double vector at index %d ***\n", bit, start_index + i);
-//         flip_bit_double(vector->vals + start_index + i, bit);
-//       }
-//     }
-//   }
-// }
+static void inject_bitflips_double_vector(double_vector vector, const uint32_t iteration)
+{
+#ifndef NO_MPI
+  //get the MPI Rank
+  if(iteration == 0)
+  {
+    MPI_Comm_rank(_MPI_COMM_WORLD, &mpi_rank);
+  }
+  //only inject faults on one rank
+  if(mpi_rank != FAULT_INJECTION_RANK) return;
+#endif
+  uint32_t start_index = 4114;
+  uint32_t elemts_to_flip = 1;
+  int num_flips_per_elem = 1;
+  if(iteration == FAULT_INJECTION_ITTERATION)
+  {
+    for(uint32_t i = 0; i < elemts_to_flip; i++)
+    {
+      for(uint32_t j = 0; j < num_flips_per_elem; j++)
+      {
+        uint32_t bit = get_random_number(0, 64);
+        printf("*** flipping bit %d of a double vector at index %d ***\n", bit, start_index + i);
+        inject_bitflip_double_vector<<<1,1>>>(bit, start_index + i, vector);
+      }
+    }
+  }
+}
 
 #endif //FAULT_INJECTION_CUH

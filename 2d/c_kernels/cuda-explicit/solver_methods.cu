@@ -180,7 +180,7 @@ __global__ void zero_dv_buffer(
     {
         if(y < dim_y && x < dim_x)
         {
-            dv_set_value(buffer, 0.0, x, y);
+            dv_set_value_no_rmw(buffer, 0.0, x, y);
         }
     }
     DV_FLUSH_WRITES(buffer);
