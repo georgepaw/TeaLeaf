@@ -75,7 +75,7 @@ void pack_or_unpack(
         check_errors(__LINE__, __FILE__);
     }
 
-    int num_blocks = ceil(buffer_length / (double)BLOCK_SIZE);
+    int num_blocks = ceil(buffer_length / (double)(BLOCK_SIZE*WIDE_SIZE_DV));
 
     kernel<<<num_blocks, BLOCK_SIZE>>>(
             chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth, field,
@@ -101,17 +101,20 @@ __global__ void pack_left(
 {
     SET_SIZE_X(size_x);
     INIT_DV_READ(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int y_inner = dim_y - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= y_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= y_inner*depth) continue;
 
-    const int lines = gid / depth;
-    const int offset = halo_depth + lines*(dim_x - depth);
+        const int lines = gid / depth;
+        const int offset = halo_depth + lines*(dim_x - depth);
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    buffer[gid] = dv_get_value(field, x, y);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        buffer[gid] = dv_get_value_new(field, x, y);
+    }
 }
 
 __global__ void pack_right(
@@ -125,17 +128,20 @@ __global__ void pack_right(
 {
     SET_SIZE_X(size_x);
     INIT_DV_READ(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int y_inner = dim_y - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= y_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= y_inner*depth) continue;
 
-    const int lines = gid / depth;
-    const int offset = dim_x - halo_depth - depth + lines*(dim_x - depth);
+        const int lines = gid / depth;
+        const int offset = dim_x - halo_depth - depth + lines*(dim_x - depth);
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    buffer[gid] = dv_get_value(field, x, y);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        buffer[gid] = dv_get_value_new(field, x, y);
+    }
 }
 
 __global__ void unpack_left(
@@ -149,18 +155,21 @@ __global__ void unpack_left(
 {
     SET_SIZE_X(size_x);
     INIT_DV_WRITE(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int y_inner = dim_y - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= y_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= y_inner*depth) continue;
 
-    const int lines = gid / depth;
-    const int offset = halo_depth - depth + lines*(dim_x - depth);
+        const int lines = gid / depth;
+        const int offset = halo_depth - depth + lines*(dim_x - depth);
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    dv_set_value(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        dv_set_value_new(field, buffer[gid], x, y);
+    }
+    DV_FLUSH_WRITES_NEW(field);
 }
 
 __global__ void unpack_right(
@@ -174,18 +183,21 @@ __global__ void unpack_right(
 {
     SET_SIZE_X(size_x);
     INIT_DV_WRITE(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int y_inner = dim_y - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= y_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= y_inner*depth) continue;
 
-    const int lines = gid / depth;
-    const int offset = dim_x - halo_depth + lines*(dim_x - depth);
+        const int lines = gid / depth;
+        const int offset = dim_x - halo_depth + lines*(dim_x - depth);
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    dv_set_value(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        dv_set_value_new(field, buffer[gid], x, y);
+    }
+    DV_FLUSH_WRITES_NEW(field);
 }
 
 __global__ void pack_top(
@@ -199,17 +211,20 @@ __global__ void pack_top(
 {
     SET_SIZE_X(size_x);
     INIT_DV_READ(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int x_inner = dim_x - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= x_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= x_inner*depth) continue;
 
-    const int lines = gid / x_inner;
-    const int offset = dim_x - halo_depth + lines*(dim_x - depth);
+        const int lines = gid / x_inner;
+        const int offset = dim_x - halo_depth + lines*(dim_x - depth);
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    buffer[gid] = dv_get_value(field, x, y);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        buffer[gid] = dv_get_value_new(field, x, y);
+    }
 }
 
 __global__ void pack_bottom(
@@ -223,17 +238,20 @@ __global__ void pack_bottom(
 {
     SET_SIZE_X(size_x);
     INIT_DV_READ(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int x_inner = dim_x - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= x_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= x_inner*depth) continue;
 
-    const int lines = gid / x_inner;
-    const int offset = dim_x*halo_depth + lines*2*halo_depth;
+        const int lines = gid / x_inner;
+        const int offset = dim_x*halo_depth + lines*2*halo_depth;
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    buffer[gid] = dv_get_value(field, x, y);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        buffer[gid] = dv_get_value_new(field, x, y);
+    }
 }
 
 __global__ void unpack_top(
@@ -247,18 +265,21 @@ __global__ void unpack_top(
 {
     SET_SIZE_X(size_x);
     INIT_DV_WRITE(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int x_inner = dim_x - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= x_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= x_inner*depth) continue;
 
-    const int lines = gid / x_inner;
-    const int offset = dim_x*(dim_y - halo_depth) + lines*2*halo_depth;
+        const int lines = gid / x_inner;
+        const int offset = dim_x*(dim_y - halo_depth) + lines*2*halo_depth;
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    dv_set_value(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        dv_set_value_new(field, buffer[gid], x, y);
+    }
+    DV_FLUSH_WRITES_NEW(field);
 }
 
 __global__ void unpack_bottom(
@@ -272,17 +293,20 @@ __global__ void unpack_bottom(
 {
     SET_SIZE_X(size_x);
     INIT_DV_WRITE(field);
+    const int start_gid = WIDE_SIZE_DV * (threadIdx.x+blockDim.x*blockIdx.x);
     const int x_inner = dim_x - 2*halo_depth;
 
-    const int gid = threadIdx.x+blockDim.x*blockIdx.x;
-    if(gid >= x_inner*depth) return;
+    for(uint32_t gid = start_gid, offset = 0; offset < WIDE_SIZE_DV; offset++, gid++)
+    {
+        if(gid >= x_inner*depth) continue;
 
-    const int lines = gid / x_inner;
-    const int offset = dim_x*(halo_depth - depth) + lines*2*halo_depth;
+        const int lines = gid / x_inner;
+        const int offset = dim_x*(halo_depth - depth) + lines*2*halo_depth;
 
-    const uint32_t x = (offset+gid) % dim_x;
-    const uint32_t y = (offset+gid) / dim_x;
-    dv_set_value(field, buffer[gid], x, y);
-    DV_FLUSH_WRITES(field);
+        const uint32_t x = (offset+gid) % dim_x;
+        const uint32_t y = (offset+gid) / dim_x;
+        dv_set_value_new(field, buffer[gid], x, y);
+    }
+    DV_FLUSH_WRITES_NEW(field);
 }
 
