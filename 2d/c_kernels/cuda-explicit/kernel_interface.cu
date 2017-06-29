@@ -319,8 +319,10 @@ void run_copy_u(Chunk* chunk, Settings* settings)
 {
     KERNELS_START(2*settings->halo_depth);
 
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
+
     copy_u<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, chunk->ext->size_x, settings->halo_depth, chunk->u, chunk->u0);
+            x_inner, y_inner, chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth, chunk->u, chunk->u0);
 
     KERNELS_END_WITH_INFO(COPY_U);
 }
@@ -328,6 +330,8 @@ void run_copy_u(Chunk* chunk, Settings* settings)
 void run_calculate_residual(Chunk* chunk, Settings* settings)
 {
     KERNELS_START(2*settings->halo_depth);
+
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
 
     calculate_residual<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
@@ -343,8 +347,10 @@ void run_calculate_2norm(
 {
     KERNELS_START(2*settings->halo_depth);
 
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
+
     calculate_2norm<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, chunk->ext->size_x, settings->halo_depth,
+            x_inner, y_inner, chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,
             buffer, chunk->ext->d_reduce_buffer);
 
     sum_reduce_buffer(
@@ -357,8 +363,10 @@ void run_finalise(Chunk* chunk, Settings* settings)
 {
     KERNELS_START(2*settings->halo_depth);
 
+    num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
+
     finalise<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, chunk->ext->size_x, settings->halo_depth, chunk->density,
+            x_inner, y_inner, chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth, chunk->density,
             chunk->u, chunk->energy);
 
     KERNELS_END_WITH_INFO(FINALISE);

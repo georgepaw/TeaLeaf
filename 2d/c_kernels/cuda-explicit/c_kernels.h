@@ -164,7 +164,7 @@ __global__ void ppcg_calc_sd(
 
 // Shared solver kernels
 __global__ void copy_u(
-    const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
+    const int x_inner, const int y_inner, const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
     double_vector src, double_vector dest);
 
 __global__ void calculate_residual(
@@ -174,11 +174,11 @@ __global__ void calculate_residual(
     double* non_zeros, double_vector r);
 
 __global__ void calculate_2norm(
-    const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
+    const int x_inner, const int y_inner, const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
     double_vector src, double* norm);
 
 __global__ void finalise(
-        const int x_inner, const int y_inner, const uint32_t size_x, const int halo_depth,
+        const int x_inner, const int y_inner, const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector density, double_vector u, double_vector energy);
 
 void sum_reduce_buffer(

@@ -22,7 +22,7 @@ void allocate_dv_buffer(double_vector* a, int x, int y)
     cudaMalloc((void**)a, size_x * y *sizeof(double));
     check_errors(__LINE__, __FILE__);
 
-    int num_blocks = ceil((double)(x*y)/(double)(BLOCK_SIZE));
+    int num_blocks = ceil((double)(x*y)/(double)(BLOCK_SIZE / WIDE_SIZE_DV));
     zero_dv_buffer<<<num_blocks, BLOCK_SIZE>>>(x, y, size_x, *a);
     check_errors(__LINE__, __FILE__);
 }
