@@ -59,6 +59,9 @@ void run_set_chunk_data(Chunk* chunk, Settings* settings)
 void run_set_chunk_state(Chunk* chunk, Settings* settings, State* states)
 {
     KERNELS_START(0);
+
+    num_blocks = ceil((double)(chunk->x * chunk->y) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
+
     set_chunk_initial_state<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner, chunk->ext->size_x, states[0].energy,
             states[0].density, chunk->energy0, chunk->density);
