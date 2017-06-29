@@ -19,9 +19,9 @@ __global__ void store_energy(
     {
         if(y < dim_y && x < dim_x)
         {
-            dv_set_value_new(energy, dv_get_value_new(energy0, x, y), x, y);
+            dv_set_value(energy, dv_get_value(energy0, x, y), x, y);
         }
     }
-	DV_FLUSH_WRITES_NEW(energy);
+	DV_FLUSH_WRITES(energy);
 }
 

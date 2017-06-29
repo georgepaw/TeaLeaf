@@ -34,12 +34,12 @@ __global__ void field_summary(
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            double cell_vol = dv_get_value_new(volume, x, y);
-            double cell_mass = cell_vol*dv_get_value_new(density, x, y);
+            double cell_vol = dv_get_value(volume, x, y);
+            double cell_mass = cell_vol*dv_get_value(density, x, y);
             vol_shared[lid] += cell_vol;
             mass_shared[lid] += cell_mass;
-            ie_shared[lid] += cell_mass*dv_get_value_new(energy0, x, y);
-            temp_shared[lid] += cell_mass*dv_get_value_new(u, x, y);
+            ie_shared[lid] += cell_mass*dv_get_value(energy0, x, y);
+            temp_shared[lid] += cell_mass*dv_get_value(u, x, y);
         }
     }
 
