@@ -263,8 +263,11 @@ __global__ void cg_calc_w_no_check(
         const uint32_t nnz, double_vector p, uint32_t* row_index,
         uint32_t* col_index, double* non_zeros, double_vector w, double* pw)
 {
+    INIT_CSR_ELEMENTS();
+    INIT_CSR_INT_VECTOR();
     SET_SIZE_X(size_x);
     INIT_DV_READ(p);
+    INIT_DV_STENCIL_READ(p);
     INIT_DV_WRITE(w);
     const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -273,6 +276,8 @@ __global__ void cg_calc_w_no_check(
     const uint32_t y = gid / dim_x + halo_depth;
     const uint32_t start_x = gid % dim_x;
 
+    dv_fetch_manual(p, start_x, y);
+    dv_fetch_stencil(p, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
@@ -286,6 +291,7 @@ __global__ void cg_calc_w_no_check(
             uint32_t row_end;
             csr_get_row_value_no_check(row_index, &row_end, index+1, nnz);
 
+            csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
             for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
             {
                 uint32_t col;
@@ -293,14 +299,14 @@ __global__ void cg_calc_w_no_check(
                 csr_get_csr_element_no_check(col_index, non_zeros, &col, &val, idx, dim_x * dim_y);
                 uint32_t t_x = col % dim_x;
                 uint32_t t_y = col / dim_x;
-                smvp += val * dv_get_value(p, t_x, t_y);
+                smvp += val * dv_access_stencil(p, t_x, i, t_y);
             }
 
-            dv_set_value(w, smvp, x, y);
-            pw_shared[threadIdx.x] += smvp*dv_get_value(p, x, y);
+            dv_set_value_manual(w, smvp, x, offset, y);
+            pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
         }
     }
-    DV_FLUSH_WRITES(w);
+    dv_flush_manual(w, start_x, y);
 
     reduce<double, BLOCK_SIZE/2>::run(pw_shared, pw, SUM);
 }
