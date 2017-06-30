@@ -50,6 +50,7 @@
 #define DV_FLUSH_WRITES(vector)
 #define INIT_DV_READ(vector)
 #define INIT_DV_WRITE(vector)
+#define INIT_DV_STENCIL_READ(vector)
 #endif
 
 #define SET_SIZE_X(size_x) const uint32_t __size_x = size_x;
