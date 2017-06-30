@@ -321,19 +321,22 @@ __global__ void cg_calc_ur(
 
     const uint32_t y = gid / dim_x + halo_depth;
     const uint32_t start_x = gid % dim_x;
-
+    dv_fetch_manual(p, start_x, y);
+    dv_fetch_manual(w, start_x, y);
+    dv_fetch_manual(u, start_x, y);
+    dv_fetch_manual(r, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            dv_set_value(u, dv_get_value(u, x, y) + alpha*dv_get_value(p, x, y), x, y);
-            double r_temp = dv_get_value(r, x, y) - alpha*dv_get_value(w, x, y);
-            dv_set_value(r, r_temp, x, y);
+            dv_set_value_manual(u, dv_get_value_manual(u, x, offset, y) + alpha*dv_get_value_manual(p, x, offset, y), x, offset, y);
+            double r_temp = dv_get_value_manual(r, x, offset, y) - alpha*dv_get_value_manual(w, x, offset, y);
+            dv_set_value_manual(r, r_temp, x, offset, y);
             rrn_shared[threadIdx.x] += r_temp*r_temp;
         }
     }
-    DV_FLUSH_WRITES(u);
-    DV_FLUSH_WRITES(r);
+    dv_flush_manual(u, start_x, y);
+    dv_flush_manual(r, start_x, y);
 
     reduce<double, BLOCK_SIZE/2>::run(rrn_shared, rrn, SUM);
 }
@@ -351,15 +354,17 @@ __global__ void cg_calc_p(
 
     const uint32_t y = gid / dim_x + halo_depth;
     const uint32_t start_x = gid % dim_x;
+    dv_fetch_manual(p, start_x, y);
+    dv_fetch_manual(r, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            double val = beta*dv_get_value(p, x, y) + dv_get_value(r, x, y);
-            dv_set_value(p, val, x, y);
+            double val = beta*dv_get_value_manual(p, x, offset, y) + dv_get_value_manual(r, x, offset, y);
+            dv_set_value_manual(p, val, x, offset, y);
         }
     }
-    DV_FLUSH_WRITES(p);
+    dv_flush_manual(p, start_x, y);
 }
 
 __global__ void matrix_check(
