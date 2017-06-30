@@ -223,12 +223,11 @@ __global__ void cg_calc_w_check(
     const uint32_t start_x = gid % dim_x;
 
     dv_fetch_manual(p, start_x, y);
-
+    dv_fetch_stencil(p, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            dv_fetch_stencil(p, x, y);
             const uint32_t index = x + y * dim_x;
 
             double smvp = 0.0;
@@ -249,7 +248,7 @@ __global__ void cg_calc_w_check(
                 smvp += val * dv_access_stencil(p, t_x, i, t_y);
             }
 
-            dv_set_value(w, smvp, x, y);
+            dv_set_value_manual(w, smvp, x, offset, y);
             pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
         }
     }
