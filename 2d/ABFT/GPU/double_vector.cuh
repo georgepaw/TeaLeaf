@@ -22,15 +22,23 @@
 
 #if WIDE_SIZE_DV > 1
 #define INIT_DV_READ(vector) \
-  double _dv_buffered_vals_ ## vector [WIDE_SIZE_DV]; \
-  uint32_t _dv_buffered_vals_start_x_ ## vector = 0xFFFFFFFFU; \
-  uint32_t _dv_buffered_vals_y_ ## vector = 0xFFFFFFFFU;
+  double _dv_buffered_vals_ ## vector [WIDE_SIZE_DV] __attribute__ ((unused)); \
+  uint32_t _dv_buffered_vals_start_x_ ## vector __attribute__ ((unused)) = 0xFFFFFFFFU; \
+  uint32_t _dv_buffered_vals_y_ ## vector __attribute__ ((unused)) = 0xFFFFFFFFU;
 
 #define INIT_DV_WRITE(vector) \
-  double _dv_vals_to_write_ ## vector [WIDE_SIZE_DV]; \
-  uint32_t _dv_to_write_num_elements_ ## vector = 0; \
-  uint32_t _dv_to_write_start_x_ ## vector = 0xFFFFFFFFU; \
-  uint32_t _dv_to_write_y_ ## vector = 0xFFFFFFFFU;
+  double _dv_vals_to_write_ ## vector [WIDE_SIZE_DV] __attribute__ ((unused)); \
+  uint32_t _dv_to_write_num_elements_ ## vector __attribute__ ((unused)) = 0; \
+  uint32_t _dv_to_write_start_x_ ## vector __attribute__ ((unused)) = 0xFFFFFFFFU; \
+  uint32_t _dv_to_write_y_ ## vector __attribute__ ((unused)) = 0xFFFFFFFFU;
+
+#define INIT_DV_STENCIL_READ(vector) \
+  double _dv_stencil_plus_one_ ## vector [2 * WIDE_SIZE_DV]; \
+  double _dv_stencil_minus_one_ ## vector [2 * WIDE_SIZE_DV]; \
+  double _dv_stencil_middle_ ## vector [3 * WIDE_SIZE_DV]; \
+  uint32_t _dv_stencil_offset_ ## vector = 0xFFFFFFFFU; \
+  uint32_t _dv_stencil_x_ ## vector = 0xFFFFFFFFU; \
+  uint32_t _dv_stencil_y_ ## vector = 0xFFFFFFFFU;
 
 #define DV_FLUSH_WRITES_S(vector, size_x) \
   dv_flush(vector, _dv_vals_to_write_ ## vector, &_dv_to_write_num_elements_ ## vector, &_dv_to_write_start_x_ ## vector, &_dv_to_write_y_ ## vector, size_x);
@@ -151,39 +159,46 @@
 //   }
 //   DV_FLUSH_WRITES((*vector));
 // }
-
-// static inline double dv_access_stencil(double_vector * vector, const uint32_t x, const uint32_t y)
-// {
-// #if WIDE_SIZE_DV > 1
-//   uint32_t thread_id = omp_get_thread_num();
-//   const uint32_t offset = vector->dv_stencil_offset[thread_id][0];
-//   if(y == vector->dv_stencil_y[thread_id][0] + 1)
-//   {
-//     uint32_t x_to_access = offset
-//                           + x - vector->dv_stencil_x[thread_id][0];
-//     return mask_double(vector->dv_stencil_plus_one[thread_id][x_to_access]);
-//   }
-//   else if(y == vector->dv_stencil_y[thread_id][0] - 1)
-//   {
-//     uint32_t x_to_access = offset
-//                           + x - vector->dv_stencil_x[thread_id][0];
-//     return mask_double(vector->dv_stencil_minus_one[thread_id][x_to_access]);
-//   }
-//   else if(y == vector->dv_stencil_y[thread_id][0])
-//   {
-//     const uint32_t offset_middle = offset > 0 ? offset - 1 : WIDE_SIZE_DV - 1;
-//     uint32_t x_to_access = offset_middle
-//                           + x + 1 - vector->dv_stencil_x[thread_id][0];
-//     return mask_double(vector->dv_stencil_middle[thread_id][x_to_access]);
-//   }
-//   return NAN;
-// #else
-//   uint32_t flag = 0;
-//   double val = check_ecc_double(&(vector->vals[size_x * y + x]), &flag);
-//   if(flag) cuda_terminate();
-//   return mask_double(val);
-// #endif
-// }
+#if WIDE_SIZE_DV > 1
+#define dv_access_stencil(vector, start_x, x_offset, y) \
+  _dv_access_stencil(vector, start_x, x_offset, y, __size_x, _dv_stencil_plus_one_ ## vector, \
+  _dv_stencil_minus_one_ ## vector, _dv_stencil_middle_ ## vector, _dv_stencil_offset_ ## vector, _dv_stencil_x_ ## vector, _dv_stencil_y_ ## vector)
+__device__ static inline double _dv_access_stencil(double_vector vector, const uint32_t x, const uint32_t x_offset, const uint32_t y, const uint32_t size_x, const double * dv_stencil_plus_one,
+  const double * dv_stencil_minus_one, const double * dv_stencil_middle, const uint32_t dv_stencil_offset, const uint32_t dv_stencil_x, const uint32_t dv_stencil_y)
+#else
+#define dv_access_stencil(vector, x, x_offset, y) _dv_access_stencil(vector, x, x_offset, y, __size_x)
+__device__ static inline double _dv_access_stencil(double_vector vector, const uint32_t x, const uint32_t x_offset, const uint32_t y, const uint32_t size_x)
+#endif
+{
+#if WIDE_SIZE_DV > 1
+  const uint32_t offset = dv_stencil_offset;
+  if(y == dv_stencil_y + 1)
+  {
+    uint32_t x_to_access = offset
+                          + x - dv_stencil_x;
+    return mask_double(dv_stencil_plus_one[x_to_access]);
+  }
+  else if(y == dv_stencil_y - 1)
+  {
+    uint32_t x_to_access = offset
+                          + x - dv_stencil_x;
+    return mask_double(dv_stencil_minus_one[x_to_access]);
+  }
+  else if(y == dv_stencil_y)
+  {
+    const uint32_t offset_middle = offset > 0 ? offset - 1 : WIDE_SIZE_DV - 1;
+    uint32_t x_to_access = offset_middle
+                          + x + 1 - dv_stencil_x;
+    return mask_double(dv_stencil_middle[x_to_access]);
+  }
+  return NAN;
+#else
+  uint32_t flag = 0;
+  double val = check_ecc_double(&(vector[size_x * y + x]), &flag);
+  if(flag) cuda_terminate();
+  return mask_double(val);
+#endif
+}
 
 // static inline double dv_access_stencil_manual(double_vector * vector, const uint32_t x, const uint32_t y)
 // {
@@ -206,7 +221,7 @@
 //   return NAN;
 // #else
 //   uint32_t flag = 0;
-//   double val = check_ecc_double(&(vector->vals[size_x * y + x]), &flag);
+//   double val = check_ecc_double(&(vector[size_x * y + x]), &flag);
 //   if(flag) cuda_terminate();
 //   return mask_double(val);
 // #endif
@@ -222,22 +237,22 @@
 //   uint32_t flag = 0;
 
 //   check_ecc_double(vector->dv_stencil_plus_one[thread_id],
-//              vector->vals + size_x * (y + 1),
+//              vector + size_x * (y + 1),
 //              &flag);
 //   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_minus_one[thread_id],
-//              vector->vals + size_x * (y - 1),
+//              vector + size_x * (y - 1),
 //              &flag);
 //   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_middle[thread_id] + WIDE_SIZE_DV,
-//              vector->vals + size_x * y,
+//              vector + size_x * y,
 //              &flag);
 //   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_middle[thread_id] + 2 * WIDE_SIZE_DV,
-//              vector->vals + WIDE_SIZE_DV + size_x * y,
+//              vector + WIDE_SIZE_DV + size_x * y,
 //              &flag);
 //   if(flag) cuda_terminate();
 
@@ -256,12 +271,12 @@
 //   uint32_t flag = 0;
 
 //   check_ecc_double(vector->dv_stencil_plus_one[thread_id],
-//              vector->vals + x + size_x * (y + 1),
+//              vector + x + size_x * (y + 1),
 //              &flag);
 //   if(flag) cuda_terminate();
 
 //   check_ecc_double(vector->dv_stencil_minus_one[thread_id],
-//              vector->vals + x + size_x * (y - 1),
+//              vector + x + size_x * (y - 1),
 //              &flag);
 //   if(flag) cuda_terminate();
 
@@ -273,7 +288,7 @@
 //          sizeof(double) * WIDE_SIZE_DV);
 
 //   check_ecc_double(vector->dv_stencil_middle[thread_id] + 2 * WIDE_SIZE_DV,
-//              vector->vals + x + WIDE_SIZE_DV + size_x * y,
+//              vector + x + WIDE_SIZE_DV + size_x * y,
 //              &flag);
 //   if(flag) cuda_terminate();
 
@@ -282,50 +297,54 @@
 // #endif
 // }
 
-// static inline void dv_fetch_stencil(double_vector * vector, const uint32_t x, const uint32_t y)
-// {
-// #if WIDE_SIZE_DV > 1
-//   uint32_t thread_id = omp_get_thread_num();
+#if WIDE_SIZE_DV > 1
+#define dv_fetch_stencil(vector, start_x, y) _dv_fetch_stencil(vector, start_x, y, __size_x, _dv_stencil_plus_one_ ## vector, \
+  _dv_stencil_minus_one_ ## vector, _dv_stencil_middle_ ## vector, &_dv_stencil_offset_ ## vector, &_dv_stencil_x_ ## vector, &_dv_stencil_y_ ## vector)
+__device__ static inline void _dv_fetch_stencil(double_vector vector, const uint32_t x, const uint32_t y, const uint32_t size_x, double * dv_stencil_plus_one,
+  double * dv_stencil_minus_one, double * dv_stencil_middle, uint32_t * dv_stencil_offset, uint32_t * dv_stencil_x, uint32_t * dv_stencil_y)
+{
 
-//   const uint32_t offset = x % WIDE_SIZE_DV;
-//   const uint32_t start_x = x - offset;
+  const uint32_t offset = x % WIDE_SIZE_DV;
+  const uint32_t start_x = x - offset;
 
-//   uint32_t flag = 0;
+  uint32_t flag = 0;
 
-//   for(uint32_t read_loc = start_x, write_loc=0; read_loc < x + 1; read_loc+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
-//   {
-//     check_ecc_double(vector->dv_stencil_plus_one[thread_id] + write_loc,
-//                vector->vals + read_loc + size_x * (y + 1),
-//                &flag);
-//     if(flag) cuda_terminate();
-//   }
+  for(uint32_t read_loc = start_x, write_loc=0; read_loc < x + 1; read_loc+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
+  {
+    check_ecc_double(dv_stencil_plus_one + write_loc,
+               vector + read_loc + size_x * (y + 1),
+               &flag);
+    if(flag) cuda_terminate();
+  }
 
-//   for(uint32_t read_loc = start_x, write_loc=0; read_loc < x + 1; read_loc+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
-//   {
-//     check_ecc_double(vector->dv_stencil_minus_one[thread_id] + write_loc,
-//                vector->vals + read_loc + size_x * (y - 1),
-//                &flag);
-//     if(flag) cuda_terminate();
-//   }
+  for(uint32_t read_loc = start_x, write_loc=0; read_loc < x + 1; read_loc+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
+  {
+    check_ecc_double(dv_stencil_minus_one + write_loc,
+               vector + read_loc + size_x * (y - 1),
+               &flag);
+    if(flag) cuda_terminate();
+  }
 
 
-//   const uint32_t offset_middle = offset > 0 ? offset - 1 : WIDE_SIZE_DV - 1;
-//   const uint32_t start_x_middle = (x - 1) - offset_middle;
+  const uint32_t offset_middle = offset > 0 ? offset - 1 : WIDE_SIZE_DV - 1;
+  const uint32_t start_x_middle = (x - 1) - offset_middle;
 
-//   const uint32_t step = WIDE_SIZE_DV;
-//   for(uint32_t i = start_x_middle, write_loc = 0; i < x + 2; i+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
-//   {
-//     check_ecc_double(vector->dv_stencil_middle[thread_id] + write_loc,
-//                vector->vals + i + size_x * y,
-//                &flag);
-//     if(flag) cuda_terminate();
-//   }
+  for(uint32_t i = start_x_middle, write_loc = 0; i < x + 2; i+=WIDE_SIZE_DV, write_loc+=WIDE_SIZE_DV)
+  {
+    check_ecc_double(dv_stencil_middle + write_loc,
+               vector + i + size_x * y,
+               &flag);
+    if(flag) cuda_terminate();
+  }
 
-//   vector->dv_stencil_offset[thread_id][0] = offset;
-//   vector->dv_stencil_x[thread_id][0] = x;
-//   vector->dv_stencil_y[thread_id][0] = y;
-// #endif
-// }
+  *dv_stencil_offset = offset;
+  *dv_stencil_x = x;
+  *dv_stencil_y = y;
+}
+#else
+#define dv_fetch_stencil(vector, start_x, y)
+#endif
+
 #if WIDE_SIZE_DV > 1
 #define dv_fetch_manual(vector, start_x, y) _dv_fetch_manual(vector, start_x, y, __size_x, _dv_buffered_vals_ ## vector)
 __device__ inline static void _dv_fetch_manual(double_vector vector, const uint32_t start_x, const uint32_t y, const uint32_t size_x, double * dv_buffered_vals)

@@ -11,7 +11,7 @@ __global__ void csr_init_rows(
         uint32_t* rows)
 {
     // Necessarily serialised row index calculation
-    const uint32_t num_rows = x * y + 1;
+    const uint32_t num_rows  __attribute__ ((unused)) = x * y + 1;
     INIT_CSR_INT_VECTOR_SETUP();
     csr_set_row_value(rows, 0, 0, num_rows);
     uint32_t current_row = 0;
@@ -213,6 +213,7 @@ __global__ void cg_calc_w_check(
     INIT_CSR_INT_VECTOR();
     SET_SIZE_X(size_x);
     INIT_DV_READ(p);
+    INIT_DV_STENCIL_READ(p);
     INIT_DV_WRITE(w);
     const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -221,10 +222,13 @@ __global__ void cg_calc_w_check(
     const uint32_t y = gid / dim_x + halo_depth;
     const uint32_t start_x = gid % dim_x;
 
+    dv_fetch_manual(p, start_x, y);
+
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
+            dv_fetch_stencil(p, x, y);
             const uint32_t index = x + y * dim_x;
 
             double smvp = 0.0;
@@ -242,14 +246,14 @@ __global__ void cg_calc_w_check(
                 csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
                 uint32_t t_x = col % dim_x;
                 uint32_t t_y = col / dim_x;
-                smvp += val * dv_get_value(p, t_x, t_y);
+                smvp += val * dv_access_stencil(p, t_x, i, t_y);
             }
 
             dv_set_value(w, smvp, x, y);
-            pw_shared[threadIdx.x] += smvp*dv_get_value(p, x, y);
+            pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
         }
     }
-    DV_FLUSH_WRITES(w);
+    dv_flush_manual(w, start_x, y);
 
     reduce<double, BLOCK_SIZE/2>::run(pw_shared, pw, SUM);
 }
