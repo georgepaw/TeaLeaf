@@ -1,6 +1,6 @@
 # Compiler-specific flags
 CFLAGS_INTEL    = -O3 -no-prec-div -restrict -fno-alias -xhost -std=gnu99
-CFLAGS_GNU      = -O3 -march=native -funroll-loops -std=gnu99
+CFLAGS_GNU      = -O3 -march=armv8-a+crc -funroll-loops -std=gnu99
 CFLAGS_CRAY     = -h list=a 
 CFLAGS_PGI      = -fast -Mlist
 CFLAGS_XL       = -O5
