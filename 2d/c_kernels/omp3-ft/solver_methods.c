@@ -44,11 +44,7 @@ void calculate_residual(
         {
             const int index = kk + jj*x;
 
-            double smvp =
-            (1.0 + (dv_get_value(kx, kk+1, jj)+dv_get_value(kx, kk, jj))
-                 + (dv_get_value(ky, kk, jj+1)+dv_get_value(ky, kk, jj)))*dv_get_value(u, kk, jj)
-                 - (dv_get_value(kx, kk+1, jj)*dv_get_value(u, kk+1, jj)+dv_get_value(kx, kk, jj)*dv_get_value(u, kk-1, jj))
-                 - (dv_get_value(ky, kk, jj+1)*dv_get_value(u, kk, jj+1)+dv_get_value(ky, kk, jj)*dv_get_value(u, kk, jj-1));
+            double smvp = SPMV_DV_SIMPLE(u);
 
             dv_set_value(r, dv_get_value(u0, kk, jj) - smvp, kk, jj);
 

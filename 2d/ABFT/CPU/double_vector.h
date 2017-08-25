@@ -19,6 +19,17 @@
 #include "no_ecc_double_vector.h"
 #endif
 
+#define SPMV_DV_SIMPLE(a) \
+      (1.0 + (dv_get_value(kx, kk+1, jj)+dv_get_value(kx, kk, jj)) \
+           + (dv_get_value(ky, kk, jj+1)+dv_get_value(ky, kk, jj)))*dv_get_value(a, kk, jj) \
+           - (dv_get_value(kx, kk+1, jj)*dv_get_value(a, kk+1, jj)+dv_get_value(kx, kk, jj)*dv_get_value(a, kk-1, jj)) \
+           - (dv_get_value(ky, kk, jj+1)*dv_get_value(a, kk, jj+1)+dv_get_value(ky, kk, jj)*dv_get_value(a, kk, jj-1));
+
+#define SPMV_DV_STENCIL(a) \
+      (1.0 + (dv_get_value(kx, kk+1, jj)+dv_get_value(kx, kk, jj)) \
+           + (dv_get_value(ky, kk, jj+1)+dv_get_value(ky, kk, jj)))*dv_access_stencil_manual(a, kk, jj) \
+           - (dv_get_value(kx, kk+1, jj)*dv_access_stencil_manual(a, kk+1, jj)+dv_get_value(kx, kk, jj)*dv_access_stencil_manual(a, kk-1, jj)) \
+           - (dv_get_value(ky, kk, jj+1)*dv_access_stencil_manual(a, kk, jj+1)+dv_get_value(ky, kk, jj)*dv_access_stencil_manual(a, kk, jj-1));
 
 #define ROUND_TO_MULTIPLE(x, multiple) ((x % multiple == 0) ? x : x + (multiple - x % multiple))
 
