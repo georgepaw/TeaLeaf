@@ -121,7 +121,7 @@ void cg_calc_w_check(
 
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
-      double tmp = SPMV_DV_STENCIL(p);
+      double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
 
       dv_set_value_manual(w, tmp, kk, offset, jj);
       pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
@@ -135,7 +135,7 @@ void cg_calc_w_check(
       const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
       for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {
-        double tmp = SPMV_DV_STENCIL(p);
+        double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
         dv_set_value_manual(w, tmp, kk, offset, jj);
         pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
       }
@@ -169,7 +169,7 @@ void cg_calc_w_no_check(
 
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
-      double tmp = SPMV_DV_STENCIL(p);
+      double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
 
       dv_set_value_manual(w, tmp, kk, offset, jj);
       pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
@@ -183,7 +183,7 @@ void cg_calc_w_no_check(
       const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
       for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {
-        double tmp = SPMV_DV_STENCIL(p);
+        double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
 
         dv_set_value_manual(w, tmp, kk, offset, jj);
         pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);

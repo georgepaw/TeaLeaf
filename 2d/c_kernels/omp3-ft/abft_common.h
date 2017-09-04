@@ -1,16 +1,6 @@
 #ifndef ABFT_COMMON_H
 #define ABFT_COMMON_H
 
-#if defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C)
-#include "../../ABFT/CPU/.h"
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SED)
-#include "../../ABFT/CPU/ecc_double_vector.h"
-#elif defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED)
-#include "../../ABFT/CPU/ecc_double_vector.h"
-#else
-#include "../../ABFT/CPU/no_ecc_double_vector.h"
-#endif
-
 static void fail_task()
 {
 #if defined(FT_FTI)
