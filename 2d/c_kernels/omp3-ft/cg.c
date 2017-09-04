@@ -118,10 +118,10 @@ void cg_calc_w_check(
     // fetch output vectors from halo_depth up to ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE)
     dv_fetch_manual(w, start, jj, 1);
     dv_fetch_stencil_first_fetch(p, halo_depth, jj);
-
+    dv_fetch_ks_first(kx, ky, start, jj);
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
-      double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
+      double tmp = implicit_spmv_dv_stencil(kx, ky, p, kk, jj);
 
       dv_set_value_manual(w, tmp, kk, offset, jj);
       pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
@@ -132,10 +132,11 @@ void cg_calc_w_check(
     {
       dv_fetch_manual(p, outer_kk, jj, 0);
       dv_fetch_stencil_next_fetch(p, outer_kk, jj);
+      dv_fetch_ks_next_fetch(kx, ky, outer_kk, jj);
       const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
       for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {
-        double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
+        double tmp = implicit_spmv_dv_stencil(kx, ky, p, kk, jj);
         dv_set_value_manual(w, tmp, kk, offset, jj);
         pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
       }
@@ -169,7 +170,7 @@ void cg_calc_w_no_check(
 
     for(int kk = halo_depth, offset = halo_depth; kk < ROUND_TO_MULTIPLE(halo_depth, WIDE_SIZE_DV); ++kk, ++offset)
     {
-      double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
+      double tmp = implicit_spmv_dv_stencil_no_check(kx, ky, p, kk, jj);
 
       dv_set_value_manual(w, tmp, kk, offset, jj);
       pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
@@ -183,7 +184,7 @@ void cg_calc_w_no_check(
       const uint32_t limit = outer_kk + WIDE_SIZE_DV < x-halo_depth ? outer_kk + WIDE_SIZE_DV : x-halo_depth;
       for(int kk = outer_kk, offset = 0; kk < limit; ++kk, ++offset)
       {
-        double tmp = spmv_dv_stencil(kx, ky, p, kk, jj);
+        double tmp = implicit_spmv_dv_stencil_no_check(kx, ky, p, kk, jj);
 
         dv_set_value_manual(w, tmp, kk, offset, jj);
         pw_temp += tmp*dv_get_value_manual(p, kk, offset, jj);
