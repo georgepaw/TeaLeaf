@@ -17,6 +17,7 @@
 #elif defined (ABFT_METHOD_DOUBLE_VECTOR_SECDED128)
 #include "ecc_wide_double_vector.cuh"
 #else
+#define ABFT_METHOD_DOUBLE_VECTOR_NO_ECC
 #include "no_ecc_double_vector.cuh"
 #endif
 
@@ -58,6 +59,11 @@
 #define get_id(offset) WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x) + offset
 #define get_start_x(val) (val) - ((val) % WIDE_SIZE_DV)
 
+#define SPMV_DV_SIMPLE(a) \
+      (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y)) \
+           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_get_value(a, x, y) \
+           - (dv_get_value(kx, x+1, y)*dv_get_value(a, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(a, x-1, y)) \
+           - (dv_get_value(ky, x, y+1)*dv_get_value(a, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(a, x, y-1));
 
 #define ROUND_TO_MULTIPLE(x, multiple) ((x % multiple == 0) ? x : x + (multiple - x % multiple))
 

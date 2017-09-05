@@ -6,10 +6,15 @@ TL_COMPILER  = $(CPP)
 TL_FLAGS 	 = $(CPPFLAGS)
 TL_LDFLAGS   += -L$(CUDA_PATH)/lib64 -lcudart $(OMP)
 
-# TODO: Add more gencodes
-NV_GENCODE = arch=compute_35,code=sm_35
+NV_ARCH=PASCAL
+CODE_GEN_FERMI=-gencode arch=compute_20,code=sm_21
+CODE_GEN_KEPLER=-gencode arch=compute_35,code=sm_35
+CODE_GEN_KEPLER_CONSUMER=-gencode arch=compute_30,code=sm_30
+CODE_GEN_MAXWELL=-gencode arch=compute_50,code=sm_50
+CODE_GEN_PASCAL=-gencode arch=compute_60,code=sm_60
+
 KERNEL_FLAGS   = -I$(CUDA_PATH)/include -restrict -Xcompiler "-O3" \
-			 -gencode $(NV_GENCODE)
+			 $(CODE_GEN_$(NV_ARCH))
 
 KERNEL_COMPILER = nvcc
 
