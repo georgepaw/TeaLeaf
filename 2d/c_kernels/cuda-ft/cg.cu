@@ -1,38 +1,7 @@
 #include <stdint.h>
 #include "c_kernels.h"
 #include "cuknl_shared.h"
-#include "../../ABFT/GPU/csr_matrix.cuh"
 #include "../../ABFT/GPU/double_vector.cuh"
-
-__global__ void csr_init_rows(
-        const int x,
-        const int y,
-        const int halo_depth,
-        uint32_t* rows)
-{
-    // Necessarily serialised row index calculation
-    const uint32_t num_rows  __attribute__ ((unused)) = x * y + 1;
-    INIT_CSR_INT_VECTOR_SETUP();
-    csr_set_row_value(rows, 0, 0, num_rows);
-    uint32_t current_row = 0;
-    for(int jj = 0; jj < y; ++jj)
-    {
-        for(int kk = 0; kk < x; ++kk)
-        {
-            int index = kk + jj*x;
-            // Calculate position dependent row count
-            int row_count = 5;
-            if (jj <    halo_depth || kk <    halo_depth ||
-                jj >= y-halo_depth || kk >= x-halo_depth)
-            {
-              row_count = 0;
-            }
-            current_row += row_count;
-            csr_set_row_value(rows, current_row, index + 1, num_rows);
-        }
-    }
-    CSR_MATRIX_FLUSH_WRITES_INT_VECTOR(rows, num_rows);
-}
 
 __global__ void cg_init_u(
         const int dim_x, const int dim_y,
@@ -103,57 +72,16 @@ __global__ void cg_init_k(
     DV_FLUSH_WRITES(ky);
 }
 
-__global__ void cg_init_csr(
-        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        double_vector kx, double_vector ky, uint32_t* row_index,
-        uint32_t* col_index, double* non_zeros)
-{
-    INIT_CSR_INT_VECTOR();
-    SET_SIZE_X(size_x);
-    INIT_DV_READ(kx);
-    INIT_DV_READ(ky);
-    const uint32_t gid = threadIdx.x+blockIdx.x*blockDim.x;
-    const uint32_t y = gid / dim_x;
-    const uint32_t x = gid % dim_x;
-    if(y >= dim_y) return;
-
-    uint32_t coef_index;
-    csr_get_row_value(row_index, &coef_index, gid);
-
-    if (y <        halo_depth || x <        halo_depth ||
-        y >= dim_y-halo_depth || x >= dim_x-halo_depth) return;
-    double vals[5] =
-    {
-        -dv_get_value(ky, x, y),
-        -dv_get_value(kx, x, y),
-        (1.0 +
-            dv_get_value(kx, x + 1, y) + dv_get_value(kx, x, y) +
-            dv_get_value(ky, x, y + 1) + dv_get_value(ky, x, y)),
-        -dv_get_value(kx, x + 1, y),
-        -dv_get_value(ky, x, y + 1)
-    };
-    uint32_t cols[5] =
-    {
-        gid-dim_x,
-        gid-1,
-        gid,
-        gid+1,
-        gid+dim_x
-    };
-    csr_set_csr_element_values(col_index, non_zeros, cols, vals, coef_index, 5);
-}
-
 __global__ void cg_init_others(
         const int x_inner, const int y_inner,
         const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        double_vector u, uint32_t* row_index, uint32_t* col_index,
-        double* non_zeros, double_vector p, double_vector r, double_vector w, double_vector mi,
+        double_vector u, double_vector kx, double_vector ky, double_vector p, double_vector r, double_vector w, double_vector mi,
         double* rro)
 {
-    INIT_CSR_ELEMENTS();
-    INIT_CSR_INT_VECTOR();
     SET_SIZE_X(size_x);
     INIT_DV_READ(u);
+    INIT_DV_READ(kx);
+    INIT_DV_READ(ky);
     INIT_DV_WRITE(w);
     INIT_DV_WRITE(r);
     INIT_DV_WRITE(p);
@@ -168,25 +96,12 @@ __global__ void cg_init_others(
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            const uint32_t index = x + y * dim_x;
 
-            double smvp = 0.0;
-
-            uint32_t row_begin;
-            csr_get_row_value(row_index, &row_begin, index);
-            uint32_t row_end;
-            csr_get_row_value(row_index, &row_end, index+1);
-
-            csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
-            for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
-            {
-                uint32_t col;
-                double val;
-                csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-                uint32_t t_x = col % dim_x;
-                uint32_t t_y = col / dim_x;
-                smvp += val * dv_get_value(u, t_x, t_y);
-            }
+            double smvp =
+            (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y))
+           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_get_value(u, x, y)
+           - (dv_get_value(kx, x+1, y)*dv_get_value(u, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(u, x-1, y))
+           - (dv_get_value(ky, x, y+1)*dv_get_value(u, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(u, x, y-1));;
 
             dv_set_value(w, smvp, x, y);
             double r_val = dv_get_value(u, x, y) - smvp;
@@ -206,14 +121,13 @@ __global__ void cg_init_others(
 __global__ void cg_calc_w_check(
         const int x_inner, const int y_inner,
         const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        double_vector p, uint32_t* row_index, uint32_t* col_index,
-        double* non_zeros, double_vector w, double* pw)
+        double_vector p, double_vector kx, double_vector ky, double_vector w, double* pw)
 {
-    INIT_CSR_ELEMENTS();
-    INIT_CSR_INT_VECTOR();
     SET_SIZE_X(size_x);
+    INIT_DV_READ(kx);
+    INIT_DV_READ(ky);
     INIT_DV_READ(p);
-    INIT_DV_STENCIL_READ(p);
+    // INIT_DV_STENCIL_READ(p);
     INIT_DV_WRITE(w);
     const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -223,33 +137,19 @@ __global__ void cg_calc_w_check(
     const uint32_t start_x = gid % dim_x;
 
     dv_fetch_manual(p, start_x, y);
-    dv_fetch_stencil(p, start_x, y);
+    // dv_fetch_stencil(p, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            const uint32_t index = x + y * dim_x;
-
-            double smvp = 0.0;
-
-            uint32_t row_begin;
-            csr_get_row_value(row_index, &row_begin, index);
-            uint32_t row_end;
-            csr_get_row_value(row_index, &row_end, index+1);
-
-            csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
-            for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
-            {
-                uint32_t col;
-                double val;
-                csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-                uint32_t t_x = col % dim_x;
-                uint32_t t_y = col / dim_x;
-                smvp += val * dv_access_stencil(p, t_x, i, t_y);
-            }
+            double smvp =
+            (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y))
+           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_get_value(p, x, y)
+           - (dv_get_value(kx, x+1, y)*dv_get_value(p, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(p, x-1, y))
+           - (dv_get_value(ky, x, y+1)*dv_get_value(p, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(p, x, y-1));
 
             dv_set_value_manual(w, smvp, x, offset, y);
-            pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
+            pw_shared[threadIdx.x] += smvp*dv_get_value(p, x, y);
         }
     }
     dv_flush_manual(w, start_x, y);
@@ -260,14 +160,14 @@ __global__ void cg_calc_w_check(
 __global__ void cg_calc_w_no_check(
         const int x_inner, const int y_inner,
         const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        const uint32_t nnz, double_vector p, uint32_t* row_index,
-        uint32_t* col_index, double* non_zeros, double_vector w, double* pw)
+        const uint32_t nnz, double_vector p, double_vector kx, double_vector ky,
+        double_vector w, double* pw)
 {
-    INIT_CSR_ELEMENTS();
-    INIT_CSR_INT_VECTOR();
     SET_SIZE_X(size_x);
+    INIT_DV_READ(kx);
+    INIT_DV_READ(ky);
     INIT_DV_READ(p);
-    INIT_DV_STENCIL_READ(p);
+    // INIT_DV_STENCIL_READ(p);
     INIT_DV_WRITE(w);
     const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -277,33 +177,15 @@ __global__ void cg_calc_w_no_check(
     const uint32_t start_x = gid % dim_x;
 
     dv_fetch_manual(p, start_x, y);
-    dv_fetch_stencil(p, start_x, y);
+    // dv_fetch_stencil(p, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            const uint32_t index = x + y * dim_x;
-
-            double smvp = 0.0;
-
-            uint32_t row_begin;
-            csr_get_row_value_no_check(row_index, &row_begin, index, nnz);
-            uint32_t row_end;
-            csr_get_row_value_no_check(row_index, &row_end, index+1, nnz);
-
-            csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
-            for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
-            {
-                uint32_t col;
-                double val;
-                csr_get_csr_element_no_check(col_index, non_zeros, &col, &val, idx, dim_x * dim_y);
-                uint32_t t_x = col % dim_x;
-                uint32_t t_y = col / dim_x;
-                smvp += val * dv_access_stencil(p, t_x, i, t_y);
-            }
+            double smvp = SPMV_DV_SIMPLE(p);
 
             dv_set_value_manual(w, smvp, x, offset, y);
-            pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
+            pw_shared[threadIdx.x] += smvp*dv_get_value(p, x, y);
         }
     }
     dv_flush_manual(w, start_x, y);
@@ -380,12 +262,8 @@ __global__ void matrix_check(
         const int x_inner,
         const int y_inner,
         const int halo_depth,
-        uint32_t* row_index,
-        uint32_t* col_index,
-        double* non_zeros)
+        double_vector kx, double_vector ky)
 {
-    INIT_CSR_INT_VECTOR();
-    INIT_CSR_ELEMENTS();
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 
     if(gid < x_inner*y_inner)
@@ -396,18 +274,18 @@ __global__ void matrix_check(
         const int off0 = halo_depth*(x + 1);
         const int index = off0 + col + row*x;
 
-        uint32_t row_begin;
-        csr_get_row_value(row_index, &row_begin, index);
-        uint32_t row_end;
-        csr_get_row_value(row_index, &row_end, index+1);
+        // uint32_t row_begin;
+        // csr_get_row_value(row_index, &row_begin, index);
+        // uint32_t row_end;
+        // csr_get_row_value(row_index, &row_end, index+1);
 
-        csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
-        for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
-        {
-            uint32_t col;
-            double val;
-            csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-        }
+        // csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
+        // for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
+        // {
+        //     uint32_t col;
+        //     double val;
+        //     csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
+        // }
     }
 }
 

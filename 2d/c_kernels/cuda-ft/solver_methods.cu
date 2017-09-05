@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include "cuknl_shared.h"
 #include "../../shared.h"
-#include "../../ABFT/GPU/csr_matrix.cuh"
 #include "../../ABFT/GPU/double_vector.cuh"
 
 __global__ void sum_reduce(
@@ -46,12 +45,12 @@ __global__ void copy_u(
 __global__ void calculate_residual(
 		const int x_inner, const int y_inner, const int dim_x, const int dim_y,
         const uint32_t size_x, const int halo_depth,
-		double_vector u, double_vector u0, uint32_t* row_index, uint32_t* col_index,
-    double* non_zeros, double_vector r)
+		double_vector u, double_vector u0, double_vector kx, double_vector ky,
+        double_vector r)
 {
     SET_SIZE_X(size_x);
-    INIT_CSR_ELEMENTS();
-    INIT_CSR_INT_VECTOR();
+    INIT_DV_READ(kx);
+    INIT_DV_READ(ky);
     INIT_DV_READ(u);
     INIT_DV_READ(u0);
     INIT_DV_WRITE(r);
@@ -64,25 +63,12 @@ __global__ void calculate_residual(
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            const uint32_t index = x + y * dim_x;
+            double smvp = 
+             (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y))
+           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_get_value(u, x, y)
+           - (dv_get_value(kx, x+1, y)*dv_get_value(u, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(u, x-1, y))
+           - (dv_get_value(ky, x, y+1)*dv_get_value(u, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(u, x, y-1));
 
-            uint32_t row_begin;
-            csr_get_row_value(row_index, &row_begin, index);
-            uint32_t row_end;
-            csr_get_row_value(row_index, &row_end, index+1);
-
-            double smvp = 0.0;
-
-            csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
-            for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
-            {
-                uint32_t col;
-                double val;
-                csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-                uint32_t t_x = col % dim_x;
-                uint32_t t_y = col / dim_x;
-                smvp += val * dv_get_value(u, t_x, t_y);
-            }
             dv_set_value(r, dv_get_value(u0, x, y) - smvp, x, y);
         }
     }

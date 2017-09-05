@@ -13,9 +13,6 @@ typedef struct ChunkExtension
     double*   d_reduce_buffer2;
     double*   d_reduce_buffer3;
     double*   d_reduce_buffer4;
-    uint32_t* d_row_index;
-    uint32_t* d_col_index;
-    double*   d_non_zeros;
     uint32_t  nnz;
     uint32_t  size_x;
     uint32_t  iteration;

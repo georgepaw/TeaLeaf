@@ -95,8 +95,7 @@ void run_kernel_initialise(Chunk* chunk, Settings* settings)
             &(chunk->cg_betas), &(chunk->cheby_alphas), &(chunk->cheby_betas),
             &(chunk->ext->d_comm_buffer), &(chunk->ext->d_reduce_buffer),
             &(chunk->ext->d_reduce_buffer2), &(chunk->ext->d_reduce_buffer3),
-            &(chunk->ext->d_reduce_buffer4), &(chunk->ext->d_row_index),
-            &(chunk->ext->d_col_index), &(chunk->ext->d_non_zeros), &(chunk->ext->nnz),
+            &(chunk->ext->d_reduce_buffer4), &(chunk->ext->nnz),
             &(chunk->ext->size_x), &(chunk->ext->iteration));
 }
 
@@ -189,14 +188,6 @@ void run_cg_init(
             chunk->w, chunk->kx, chunk->ky, rx, ry);
     check_errors_kernel(__LINE__, __FILE__, CG_INIT);
 
-    num_blocks = ceil((double)(chunk->x*chunk->y) / (double)BLOCK_SIZE);
-
-    cg_init_csr<<<num_blocks, BLOCK_SIZE>>>(
-            chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,
-            chunk->kx, chunk->ky, chunk->ext->d_row_index,
-            chunk->ext->d_col_index, chunk->ext->d_non_zeros);
-    check_errors_kernel(__LINE__, __FILE__, CG_INIT);
-
     x_inner = chunk->x - 2*settings->halo_depth;
     y_inner = chunk->y - 2*settings->halo_depth;
 
@@ -205,8 +196,7 @@ void run_cg_init(
     cg_init_others<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
             chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,
-            chunk->u, chunk->ext->d_row_index,
-            chunk->ext->d_col_index, chunk->ext->d_non_zeros, chunk->p,
+            chunk->u, chunk->kx, chunk->ky, chunk->p,
             chunk->r, chunk->w, chunk->mi,
             chunk->ext->d_reduce_buffer);
     check_errors_kernel(__LINE__, __FILE__, CG_INIT);
@@ -227,7 +217,6 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 #endif
 
 #ifdef INJECT_FAULT
-    inject_bitflips_csr_matrix(chunk->ext->d_row_index, chunk->ext->d_col_index, chunk->ext->d_non_zeros, chunk->ext->iteration);
     inject_bitflips_double_vector(chunk->p, chunk->ext->iteration);
 #endif
     num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
@@ -236,8 +225,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
         cg_calc_w_check<<<num_blocks, BLOCK_SIZE>>>(
                 x_inner, y_inner,
                 chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,
-                chunk->p, chunk->ext->d_row_index,
-                chunk->ext->d_col_index, chunk->ext->d_non_zeros,
+                chunk->p, chunk->kx, chunk->ky,
                 chunk->w, chunk->ext->d_reduce_buffer);
     }
     else
@@ -245,8 +233,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
         cg_calc_w_no_check<<<num_blocks, BLOCK_SIZE>>>(
                 x_inner, y_inner,
                 chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth,
-                chunk->ext->nnz, chunk->p, chunk->ext->d_row_index,
-                chunk->ext->d_col_index, chunk->ext->d_non_zeros,
+                chunk->ext->nnz, chunk->p, chunk->kx, chunk->ky,
                 chunk->w, chunk->ext->d_reduce_buffer);
         check_errors_kernel(__LINE__, __FILE__, CG_CALC_W);
     }
@@ -340,8 +327,7 @@ void run_calculate_residual(Chunk* chunk, Settings* settings)
     calculate_residual<<<num_blocks, BLOCK_SIZE>>>(
             x_inner, y_inner,
             chunk->x, chunk->y, chunk->ext->size_x, settings->halo_depth, chunk->u, chunk->u0,
-            chunk->ext->d_row_index, chunk->ext->d_col_index,
-            chunk->ext->d_non_zeros, chunk->r);
+            chunk->kx, chunk->ky, chunk->r);
 
     KERNELS_END_WITH_INFO(CALCULATE_RESIDUAL);
 }
@@ -389,8 +375,7 @@ void run_matrix_check(
     KERNELS_START(2*settings->halo_depth);
 
     matrix_check<<<num_blocks, BLOCK_SIZE>>>(
-            x_inner, y_inner, settings->halo_depth, chunk->ext->d_row_index,
-            chunk->ext->d_col_index, chunk->ext->d_non_zeros);
+            x_inner, y_inner, settings->halo_depth, chunk->kx, chunk->ky);
 
     KERNELS_END_WITH_INFO(MATRIX_CHECK);
 }

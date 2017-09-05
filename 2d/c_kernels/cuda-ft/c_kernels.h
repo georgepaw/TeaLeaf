@@ -39,8 +39,7 @@ void kernel_initialise(
         double** cg_alphas, double** cg_betas, double** cheby_alphas,
         double** cheby_betas, double** d_comm_buffer, double** d_reduce_buffer, 
         double** d_reduce_buffer2, double** d_reduce_buffer3, double** d_reduce_buffer4,
-        uint32_t** d_row_index, uint32_t** d_col_index, double** d_non_zeros, uint32_t* nnz, uint32_t* size_x,
-        uint32_t* iteration);
+        uint32_t* nnz, uint32_t* size_x, uint32_t* iteration);
 
 void kernel_finalise(
         double* cg_alphas, double* cg_betas, double* cheby_alphas,
@@ -81,29 +80,22 @@ __global__ void cg_init_k(
         const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
         double_vector w, double_vector kx, double_vector ky, double rx, double ry);
 
-__global__ void cg_init_csr(
-        const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        double_vector kx, double_vector ky, uint32_t* row_index,
-        uint32_t* col_index, double* non_zeros);
-
 __global__ void cg_init_others(
         const int x_inner, const int y_inner,
         const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        double_vector u, uint32_t* row_index, uint32_t* col_index,
-        double* non_zeros, double_vector p, double_vector r, double_vector w, double_vector mi,
-        double* rro);
+        double_vector u,  double_vector kx, double_vector ky, double_vector p,
+        double_vector r, double_vector w, double_vector mi, double* rro);
 
 __global__ void cg_calc_w_check(
         const int x_inner, const int y_inner,
         const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        double_vector p, uint32_t* row_index, uint32_t* col_index,
-        double* non_zeros, double_vector w, double* pw);
+        double_vector p,  double_vector kx, double_vector ky, double_vector w, double* pw);
 
 __global__ void cg_calc_w_no_check(
         const int x_inner, const int y_inner,
         const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
-        const uint32_t nnz, double_vector p, uint32_t* row_index,
-        uint32_t* col_index, double* non_zeros, double_vector w, double* pw);
+        const uint32_t nnz, double_vector p,  double_vector kx, double_vector ky,
+        double_vector w, double* pw);
 
 __global__ void cg_calc_ur(
         const int x_inner, const int y_inner,
@@ -170,8 +162,8 @@ __global__ void copy_u(
 __global__ void calculate_residual(
     const int x_inner, const int y_inner, const int dim_x, const int dim_y,
         const uint32_t size_x, const int halo_depth,
-    double_vector u, double_vector u0, uint32_t* row_index, uint32_t* col_index,
-    double* non_zeros, double_vector r);
+    double_vector u, double_vector u0,  double_vector kx, double_vector ky,
+    double_vector r);
 
 __global__ void calculate_2norm(
     const int x_inner, const int y_inner, const int dim_x, const int dim_y, const uint32_t size_x, const int halo_depth,
@@ -190,9 +182,6 @@ __global__ void zero_buffer(
 __global__ void zero_dv_buffer(
         const int dim_x, const int dim_y, const uint32_t size_x, double_vector buffer);
 
-__global__ void csr_init_rows(
-        const int x, const int y, const int halo_depth, uint32_t* rows);
-
 __global__ void matrix_check(
         const int x_inner, const int y_inner, const int halo_depth,
-        uint32_t* row_index, uint32_t* col_index, double* non_zeros);
+         double_vector kx, double_vector ky);
