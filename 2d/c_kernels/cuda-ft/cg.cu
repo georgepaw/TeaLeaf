@@ -138,6 +138,7 @@ __global__ void cg_calc_w_check(
 
     dv_fetch_manual(p, start_x, y);
     dv_fetch_stencil(p, start_x, y);
+    dv_fetch_ks(kx, ky, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
@@ -178,7 +179,7 @@ __global__ void cg_calc_w_no_check(
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            double smvp = SPMV_DV_STENCIL(p);
+            double smvp = SPMV_DV_STENCIL_NO_CHECK(p);
 
             dv_set_value_manual(w, smvp, x, offset, y);
             pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
@@ -260,28 +261,27 @@ __global__ void matrix_check(
         const int halo_depth,
         double_vector kx, double_vector ky)
 {
+    const int size_x = x_inner + 2*halo_depth;
+    SET_SIZE_X(size_x);
+    INIT_DV_READ(kx);
+    INIT_DV_READ(ky);
     const int gid = threadIdx.x+blockIdx.x*blockDim.x;
 
     if(gid < x_inner*y_inner)
     {
-        const int x = x_inner + 2*halo_depth;
         const int col = gid % x_inner;
         const int row = gid / x_inner;
-        const int off0 = halo_depth*(x + 1);
-        const int index = off0 + col + row*x;
+        const int off0 = halo_depth*(size_x + 1);
+        const int index = off0 + col + row*size_x;
 
-        // uint32_t row_begin;
-        // csr_get_row_value(row_index, &row_begin, index);
-        // uint32_t row_end;
-        // csr_get_row_value(row_index, &row_end, index+1);
+        const uint32_t x = index % size_x;
+        const uint32_t y = index / size_x;
 
-        // csr_prefetch_csr_elements(col_index, non_zeros, row_begin);
-        // for (uint32_t idx = row_begin, i = 0; idx < row_end; idx++, i++)
-        // {
-        //     uint32_t col;
-        //     double val;
-        //     csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
-        // }
+        double tmp =
+        (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y))
+           + (dv_get_value(kx, x, y+1)+dv_get_value(ky, x, y))
+           - (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y))
+           - (dv_get_value(kx, x, y+1)+dv_get_value(ky, x, y)));
     }
 }
 

@@ -37,6 +37,8 @@
   double _dv_stencil_plus_one_ ## vector [2 * WIDE_SIZE_DV]; \
   double _dv_stencil_minus_one_ ## vector [2 * WIDE_SIZE_DV]; \
   double _dv_stencil_middle_ ## vector [3 * WIDE_SIZE_DV]; \
+  double _dv_stencil_kx [2 * WIDE_SIZE_DV]; \
+  double _dv_stencil_ky [2 * WIDE_SIZE_DV]; \
   uint32_t _dv_stencil_offset_ ## vector = 0xFFFFFFFFU; \
   uint32_t _dv_stencil_x_ ## vector = 0xFFFFFFFFU; \
   uint32_t _dv_stencil_y_ ## vector = 0xFFFFFFFFU;
@@ -64,12 +66,6 @@
            + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_get_value(a, x, y) \
            - (dv_get_value(kx, x+1, y)*dv_get_value(a, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(a, x-1, y)) \
            - (dv_get_value(ky, x, y+1)*dv_get_value(a, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(a, x, y-1));
-
-#define SPMV_DV_STENCIL(a) \
-      (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y)) \
-           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_access_stencil(a, x, y) \
-           - (dv_get_value(kx, x+1, y)*dv_access_stencil(a, x+1, y)+dv_get_value(kx, x, y)*dv_access_stencil(a, x-1, y)) \
-           - (dv_get_value(ky, x, y+1)*dv_access_stencil(a, x, y+1)+dv_get_value(ky, x, y)*dv_access_stencil(a, x, y-1));
 
 #define ROUND_TO_MULTIPLE(x, multiple) ((x % multiple == 0) ? x : x + (multiple - x % multiple))
 
@@ -261,7 +257,7 @@ __device__ static inline void _dv_set_value(double_vector vector, const double v
     check_ecc_double(dv_vals_to_write,
                      vector + start_x + y * size_x,
                      &flag);
-    if(flag) printf("RMW %u %u\n", start_x, y);
+    // if(flag) printf("RMW %u %u\n", start_x, y);
     if(flag) cuda_terminate();
   }
 
@@ -310,7 +306,7 @@ __device__ inline static void dv_fetch(double_vector vector, const uint32_t star
   check_ecc_double(dv_buffered_vals,
                    vector + start_x + size_x * y,
                    &flag);
-  if(flag) printf("%u %u\n", start_x, y);
+  // if(flag) printf("%u %u\n", start_x, y);
   // for(uint32_t i = 0; i < WIDE_SIZE_DV; i++)
   // {
   //   dv_buffered_vals[i] = vector[start_x + size_x * y + i];
@@ -343,6 +339,114 @@ __device__ static inline double _dv_get_value(double_vector vector, const uint32
   if(flag) cuda_terminate();
   return mask_double(val);
 #endif
+}
+
+#if WIDE_SIZE_DV > 1
+#define dv_fetch_ks(kx, ky, x, y) \
+  _dv_fetch_ks(kx, ky, x, y, __size_x, _dv_stencil_kx, _dv_stencil_ky)
+__device__ static inline void _dv_fetch_ks(double_vector kx, double_vector ky, const uint32_t x, const uint32_t y, const uint32_t size_x, double * dv_stencil_kx,
+  double * dv_stencil_ky)
+{
+  uint32_t flag = 0;
+  check_ecc_double(dv_stencil_kx,
+             kx + size_x * y + x,
+             &flag);
+  if(flag) if(flag) cuda_terminate();
+
+  check_ecc_double(dv_stencil_kx + WIDE_SIZE_DV,
+             kx + size_x * y + x + WIDE_SIZE_DV,
+             &flag);
+  if(flag) if(flag) cuda_terminate();
+
+  check_ecc_double(dv_stencil_ky,
+             ky + size_x * y + x,
+             &flag);
+  if(flag) if(flag) cuda_terminate();
+
+  check_ecc_double(dv_stencil_ky + WIDE_SIZE_DV,
+             ky + size_x * (y + 1) + x,
+             &flag);
+  if(flag) if(flag) cuda_terminate();
+}
+#else
+#define dv_fetch_ks(kx, ky, x, y)
+#endif
+
+#define SPMV_DV_STENCIL(a) spmv_dv_stencil_s(kx, ky, a, x, y, __size_x)
+#if WIDE_SIZE_DV > 1
+#define spmv_dv_stencil_s(kx, ky, a, x, y, __size_x) \
+  _implicit_spmv_dv_stencil(kx, ky, a, x, y, __size_x, _dv_stencil_plus_one_ ## a, \
+  _dv_stencil_minus_one_ ## a, _dv_stencil_middle_ ## a, _dv_stencil_kx, _dv_stencil_ky)
+__device__ static inline double _implicit_spmv_dv_stencil(double_vector kx, double_vector ky, double_vector a, const uint32_t x, const uint32_t y, const uint32_t __size_x,
+  double * dv_stencil_plus_one, double * dv_stencil_minus_one, double * dv_stencil_middle, double * dv_stencil_kx, double * dv_stencil_ky)
+#else
+#define spmv_dv_stencil_s(kx, ky, a, x, y, __size_x) _implicit_spmv_dv_stencil(kx, ky, a, x, y, __size_x)
+__device__ static inline double _implicit_spmv_dv_stencil(double_vector kx, double_vector ky, double_vector a, const uint32_t x, const uint32_t y, const uint32_t __size_x)
+#endif
+{
+#if WIDE_SIZE_DV > 1
+  const uint32_t x_to_access = x % WIDE_SIZE_DV;
+
+  const double kx_v = mask_double(dv_stencil_kx[x_to_access]);
+  const double kx_v1 = mask_double(dv_stencil_kx[x_to_access + 1]);
+  const double ky_v = mask_double(dv_stencil_ky[x_to_access]);
+  const double ky_v1 = mask_double(dv_stencil_ky[WIDE_SIZE_DV + x_to_access]);
+
+  const double a_xm1_y = mask_double(dv_stencil_middle[x_to_access + WIDE_SIZE_DV - 1]);
+  const double a_x_y = mask_double(dv_stencil_middle[x_to_access + WIDE_SIZE_DV]);
+  const double a_xp1_y = mask_double(dv_stencil_middle[x_to_access + WIDE_SIZE_DV + 1]);
+  const double a_x_ym1 = mask_double(dv_stencil_minus_one[x_to_access]);
+  const double a_x_yp1 = mask_double(dv_stencil_plus_one[x_to_access]);
+#else
+  const double kx_v = dv_get_value(kx, x, y);
+  const double kx_v1 = dv_get_value(kx, x+1, y);
+  const double ky_v = dv_get_value(ky, x, y);
+  const double ky_v1 = dv_get_value(ky, x, y+1);
+
+  const double a_x_ym1 = dv_get_value(a, x, y-1);
+  const double a_xm1_y = dv_get_value(a, x-1, y);
+  const double a_x_y   = dv_get_value(a, x, y);
+  const double a_xp1_y = dv_get_value(a, x+1, y);
+  const double a_x_yp1 = dv_get_value(a, x, y+1);
+#endif
+
+  return (1.0 + (kx_v1+kx_v)
+              + (ky_v1+ky_v))*a_x_y
+              - (kx_v1*a_xp1_y+kx_v*a_xm1_y)
+              - (ky_v1*a_x_yp1+ky_v*a_x_ym1);
+}
+
+#define SPMV_DV_STENCIL_NO_CHECK(a) spmv_dv_stencil_no_check_s(kx, ky, a, x, y, __size_x)
+#if WIDE_SIZE_DV > 1
+#define spmv_dv_stencil_no_check_s(kx, ky, a, x, y, __size_x) \
+  _implicit_spmv_dv_stencil_no_check(kx, ky, a, x, y, __size_x, _dv_stencil_plus_one_ ## a, \
+  _dv_stencil_minus_one_ ## a, _dv_stencil_middle_ ## a, _dv_stencil_kx, _dv_stencil_ky)
+__device__ static inline double _implicit_spmv_dv_stencil_no_check(double_vector kx, double_vector ky, double_vector a, const uint32_t x, const uint32_t y, const uint32_t __size_x,
+  double * dv_stencil_plus_one, double * dv_stencil_minus_one, double * dv_stencil_middle, double * dv_stencil_kx, double * dv_stencil_ky)
+#else
+#define spmv_dv_stencil_no_check_s(kx, ky, a, x, y, __size_x) _implicit_spmv_dv_stencil_no_check(kx, ky, a, x, y, __size_x)
+__device__ static inline double _implicit_spmv_dv_stencil_no_check(double_vector kx, double_vector ky, double_vector a, const uint32_t x, const uint32_t y, const uint32_t __size_x)
+#endif
+{
+  const double kx_v = mask_double(kx[__size_x * y + x]);
+  const double kx_v1 = mask_double(kx[__size_x * y + x + 1]);
+  const double ky_v = mask_double(ky[__size_x * y + x]);
+  const double ky_v1 = mask_double(ky[__size_x * (y + 1) + x]);
+
+#if WIDE_SIZE_DV > 1
+  const uint32_t x_to_access = x % WIDE_SIZE_DV;
+
+  const double a_xm1_y = mask_double(dv_stencil_middle[x_to_access + WIDE_SIZE_DV - 1]);
+  const double a_x_y = mask_double(dv_stencil_middle[x_to_access + WIDE_SIZE_DV]);
+  const double a_xp1_y = mask_double(dv_stencil_middle[x_to_access + WIDE_SIZE_DV + 1]);
+  const double a_x_ym1 = mask_double(dv_stencil_minus_one[x_to_access]);
+  const double a_x_yp1 = mask_double(dv_stencil_plus_one[x_to_access]);
+#endif
+
+  return (1.0 + (kx_v1+kx_v)
+              + (ky_v1+ky_v))*a_x_y
+              - (kx_v1*a_xp1_y+kx_v*a_xm1_y)
+              - (ky_v1*a_x_yp1+ky_v*a_x_ym1);
 }
 
 #endif //DOUBLE_MATRIX_CUH

@@ -43,8 +43,6 @@ typedef struct
   uint32_t ** dv_stencil_x;
   uint32_t ** dv_stencil_y;
   uint32_t ** dv_stencil_offset;
-  // uint32_t ** dv_stencil_kx_offset;
-  // uint32_t ** dv_stencil_ky_offset;
 #endif
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
   uint32_t ** dv_to_write_num_elements;
@@ -113,8 +111,6 @@ static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32
 
   (*vector)->dv_stencil_kx = (double**)malloc(sizeof(double*) * num_threads);
   (*vector)->dv_stencil_ky = (double**)malloc(sizeof(double*) * num_threads);
-  // (*vector)->dv_stencil_kx_offset = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
-  // (*vector)->dv_stencil_ky_offset = (uint32_t**)malloc(sizeof(uint32_t*) * num_threads);
 #endif
 
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)
@@ -141,15 +137,10 @@ static inline void dv_set_size(double_vector ** vector, uint32_t x, const uint32
 
     (*vector)->dv_stencil_kx[thread_id] = (double*)malloc(sizeof(double) * 2 * WIDE_SIZE_DV);
     (*vector)->dv_stencil_ky[thread_id] = (double*)malloc(sizeof(double) * 2 * WIDE_SIZE_DV);
-    // (*vector)->dv_stencil_kx_offset[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
-    // (*vector)->dv_stencil_ky_offset[thread_id] = (uint32_t*)malloc(sizeof(uint32_t));
 
     (*vector)->dv_stencil_offset[thread_id][0] = 100;
     (*vector)->dv_stencil_x[thread_id][0] = x;
     (*vector)->dv_stencil_y[thread_id][0] = y;
-
-    // (*vector)->dv_stencil_kx_offset[thread_id][0] = x;
-    // (*vector)->dv_stencil_ky_offset[thread_id][0] = y;
 #endif
 
 #if defined(ABFT_METHOD_DOUBLE_VECTOR_SECDED128) || defined(ABFT_METHOD_DOUBLE_VECTOR_CRC32C_4) || defined (ABFT_METHOD_DOUBLE_VECTOR_CRC32C_8)

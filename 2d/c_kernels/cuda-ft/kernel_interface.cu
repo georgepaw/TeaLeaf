@@ -217,7 +217,7 @@ void run_cg_calc_w(Chunk* chunk, Settings* settings, double* pw)
 #endif
 
 #ifdef INJECT_FAULT
-    inject_bitflips_double_vector(chunk->p, chunk->ext->iteration);
+    inject_bitflips_double_vector(chunk->kx, chunk->ext->iteration);
 #endif
     num_blocks = ceil((double)(chunk->x * y_inner) / (double)(BLOCK_SIZE * WIDE_SIZE_DV));
     if(do_FT_check)
