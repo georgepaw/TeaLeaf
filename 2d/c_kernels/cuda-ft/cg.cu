@@ -127,7 +127,7 @@ __global__ void cg_calc_w_check(
     INIT_DV_READ(kx);
     INIT_DV_READ(ky);
     INIT_DV_READ(p);
-    // INIT_DV_STENCIL_READ(p);
+    INIT_DV_STENCIL_READ(p);
     INIT_DV_WRITE(w);
     const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -137,19 +137,15 @@ __global__ void cg_calc_w_check(
     const uint32_t start_x = gid % dim_x;
 
     dv_fetch_manual(p, start_x, y);
-    // dv_fetch_stencil(p, start_x, y);
+    dv_fetch_stencil(p, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            double smvp =
-            (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y))
-           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_get_value(p, x, y)
-           - (dv_get_value(kx, x+1, y)*dv_get_value(p, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(p, x-1, y))
-           - (dv_get_value(ky, x, y+1)*dv_get_value(p, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(p, x, y-1));
+            double smvp = SPMV_DV_STENCIL(p);
 
             dv_set_value_manual(w, smvp, x, offset, y);
-            pw_shared[threadIdx.x] += smvp*dv_get_value(p, x, y);
+            pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
         }
     }
     dv_flush_manual(w, start_x, y);
@@ -167,7 +163,7 @@ __global__ void cg_calc_w_no_check(
     INIT_DV_READ(kx);
     INIT_DV_READ(ky);
     INIT_DV_READ(p);
-    // INIT_DV_STENCIL_READ(p);
+    INIT_DV_STENCIL_READ(p);
     INIT_DV_WRITE(w);
     const uint32_t gid = WIDE_SIZE_DV * (threadIdx.x+blockIdx.x*blockDim.x);
     __shared__ double pw_shared[BLOCK_SIZE];
@@ -177,15 +173,15 @@ __global__ void cg_calc_w_no_check(
     const uint32_t start_x = gid % dim_x;
 
     dv_fetch_manual(p, start_x, y);
-    // dv_fetch_stencil(p, start_x, y);
+    dv_fetch_stencil(p, start_x, y);
     for(uint32_t x = start_x, offset = 0; offset < WIDE_SIZE_DV; offset++, x++)
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            double smvp = SPMV_DV_SIMPLE(p);
+            double smvp = SPMV_DV_STENCIL(p);
 
             dv_set_value_manual(w, smvp, x, offset, y);
-            pw_shared[threadIdx.x] += smvp*dv_get_value(p, x, y);
+            pw_shared[threadIdx.x] += smvp*dv_get_value_manual(p, x, offset, y);
         }
     }
     dv_flush_manual(w, start_x, y);

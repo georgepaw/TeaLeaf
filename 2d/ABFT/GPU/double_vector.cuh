@@ -65,17 +65,23 @@
            - (dv_get_value(kx, x+1, y)*dv_get_value(a, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(a, x-1, y)) \
            - (dv_get_value(ky, x, y+1)*dv_get_value(a, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(a, x, y-1));
 
+#define SPMV_DV_STENCIL(a) \
+      (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y)) \
+           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_access_stencil(a, x, y) \
+           - (dv_get_value(kx, x+1, y)*dv_access_stencil(a, x+1, y)+dv_get_value(kx, x, y)*dv_access_stencil(a, x-1, y)) \
+           - (dv_get_value(ky, x, y+1)*dv_access_stencil(a, x, y+1)+dv_get_value(ky, x, y)*dv_access_stencil(a, x, y-1));
+
 #define ROUND_TO_MULTIPLE(x, multiple) ((x % multiple == 0) ? x : x + (multiple - x % multiple))
 
 #if WIDE_SIZE_DV > 1
-#define dv_access_stencil(vector, start_x, x_offset, y) \
-  _dv_access_stencil(vector, start_x, x_offset, y, __size_x, _dv_stencil_plus_one_ ## vector, \
+#define dv_access_stencil(vector, start_x, y) \
+  _dv_access_stencil(vector, start_x, y, __size_x, _dv_stencil_plus_one_ ## vector, \
   _dv_stencil_minus_one_ ## vector, _dv_stencil_middle_ ## vector, _dv_stencil_offset_ ## vector, _dv_stencil_x_ ## vector, _dv_stencil_y_ ## vector)
-__device__ static inline double _dv_access_stencil(double_vector vector, const uint32_t x, const uint32_t x_offset, const uint32_t y, const uint32_t size_x, const double * dv_stencil_plus_one,
+__device__ static inline double _dv_access_stencil(double_vector vector, const uint32_t x, const uint32_t y, const uint32_t size_x, const double * dv_stencil_plus_one,
   const double * dv_stencil_minus_one, const double * dv_stencil_middle, const uint32_t dv_stencil_offset, const uint32_t dv_stencil_x, const uint32_t dv_stencil_y)
 #else
-#define dv_access_stencil(vector, x, x_offset, y) _dv_access_stencil(vector, x, x_offset, y, __size_x)
-__device__ static inline double _dv_access_stencil(double_vector vector, const uint32_t x, const uint32_t x_offset, const uint32_t y, const uint32_t size_x)
+#define dv_access_stencil(vector, x, y) _dv_access_stencil(vector, x, y, __size_x)
+__device__ static inline double _dv_access_stencil(double_vector vector, const uint32_t x, const uint32_t y, const uint32_t size_x)
 #endif
 {
 #if WIDE_SIZE_DV > 1

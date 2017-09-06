@@ -63,11 +63,7 @@ __global__ void calculate_residual(
     {
         if(halo_depth <= x && x < dim_x - halo_depth)
         {
-            double smvp = 
-             (1.0 + (dv_get_value(kx, x+1, y)+dv_get_value(kx, x, y))
-           + (dv_get_value(ky, x, y+1)+dv_get_value(ky, x, y)))*dv_get_value(u, x, y)
-           - (dv_get_value(kx, x+1, y)*dv_get_value(u, x+1, y)+dv_get_value(kx, x, y)*dv_get_value(u, x-1, y))
-           - (dv_get_value(ky, x, y+1)*dv_get_value(u, x, y+1)+dv_get_value(ky, x, y)*dv_get_value(u, x, y-1));
+            double smvp = SPMV_DV_SIMPLE(u);
 
             dv_set_value(r, dv_get_value(u0, x, y) - smvp, x, y);
         }

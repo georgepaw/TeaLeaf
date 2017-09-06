@@ -245,7 +245,7 @@ __global__ void cg_calc_w_check(
                 csr_get_csr_element(col_index, non_zeros, &col, &val, idx);
                 uint32_t t_x = col % dim_x;
                 uint32_t t_y = col / dim_x;
-                smvp += val * dv_access_stencil(p, t_x, i, t_y);
+                smvp += val * dv_access_stencil(p, t_x, t_y);
             }
 
             dv_set_value_manual(w, smvp, x, offset, y);
@@ -299,7 +299,7 @@ __global__ void cg_calc_w_no_check(
                 csr_get_csr_element_no_check(col_index, non_zeros, &col, &val, idx, dim_x * dim_y);
                 uint32_t t_x = col % dim_x;
                 uint32_t t_y = col / dim_x;
-                smvp += val * dv_access_stencil(p, t_x, i, t_y);
+                smvp += val * dv_access_stencil(p, t_x, t_y);
             }
 
             dv_set_value_manual(w, smvp, x, offset, y);
