@@ -441,6 +441,12 @@ __device__ static inline double _implicit_spmv_dv_stencil_no_check(double_vector
   const double a_xp1_y = mask_double(dv_stencil_middle[x_to_access + WIDE_SIZE_DV + 1]);
   const double a_x_ym1 = mask_double(dv_stencil_minus_one[x_to_access]);
   const double a_x_yp1 = mask_double(dv_stencil_plus_one[x_to_access]);
+#else
+  const double a_x_ym1 = dv_get_value(a, x, y-1);
+  const double a_xm1_y = dv_get_value(a, x-1, y);
+  const double a_x_y   = dv_get_value(a, x, y);
+  const double a_xp1_y = dv_get_value(a, x+1, y);
+  const double a_x_yp1 = dv_get_value(a, x, y+1);
 #endif
 
   return (1.0 + (kx_v1+kx_v)
